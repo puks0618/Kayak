@@ -1,0 +1,146 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+.jest/
+test-results/
+junit.xml
+
+# IDE and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Docker
+docker-compose.override.yml
+*.tar
+.dockerignore
+
+# Database data (local development)
+data/
+*.sql.gz
+*.dump
+
+# Redis dumps
+dump.rdb
+appendonly.aof
+
+# Kafka data (local)
+kafka-data/
+zookeeper-data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Security and secrets
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+
+# AI/ML
+*.h5
+*.pkl
+*.model
+*.weights
+models/checkpoints/
+*.tfrecords
+
+# Elasticsearch data
+elasticsearch-data/
+
+# MongoDB data
+mongodb-data/
+
+# MySQL data
+mysql-data/
+
+# Test data generated
+test-data/
+mock-data/
+
+# Performance test results
+*.jtl
+jmeter.log
+
+# Misc
+.terraform/
+*.tfstate
+*.tfstate.backup
+

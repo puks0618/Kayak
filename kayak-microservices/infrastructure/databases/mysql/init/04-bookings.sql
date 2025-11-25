@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     status ENUM('pending', 'confirmed', 'cancelled', 'completed') NOT NULL DEFAULT 'pending',
     booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     travel_date DATE NOT NULL,
-    amount DECIMAL(10, 2) NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
     payment_id VARCHAR(36),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -21,14 +21,15 @@ CREATE TABLE IF NOT EXISTS bookings (
     INDEX idx_booking_date (booking_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Payments table
+-- Payments table (Internal transaction log)
 CREATE TABLE IF NOT EXISTS payments (
     id VARCHAR(36) PRIMARY KEY,
     booking_id VARCHAR(36) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
     status ENUM('pending', 'completed', 'failed', 'refunded') NOT NULL DEFAULT 'pending',
-    payment_method VARCHAR(50),
-    transaction_id VARCHAR(255),
+    payment_method VARCHAR(50), -- Credit Card, PayPal
+    transaction_id VARCHAR(255), -- External Gateway ID
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_booking_id (booking_id),

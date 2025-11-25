@@ -6,7 +6,7 @@ services:
     image: mysql:8.0
     container_name: kayak-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: Somalwar1!
       MYSQL_DATABASE: kayak
     ports:
       - "3306:3306"
@@ -108,7 +108,7 @@ services:
       - PORT=3001
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_auth
       - JWT_SECRET=your-secret-key-change-in-production
     depends_on:
@@ -127,7 +127,7 @@ services:
       - PORT=3002
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_users
       - REDIS_HOST=redis
       - KAFKA_BROKERS=kafka:29092
@@ -149,9 +149,9 @@ services:
       - PORT=3003
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_listings
-      - MONGO_URI=mongodb://mongodb:27017/kayak_listings
+      - MONGO_URI=mongodb+srv://pprathkanthiwar_db_user:Somalwar1!@cluster1.0ssglwi.mongodb.net/kayak_listings
       - REDIS_HOST=redis
       - KAFKA_BROKERS=kafka:29092
     depends_on:
@@ -173,7 +173,7 @@ services:
       - PORT=3004
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_listings
       - REDIS_HOST=redis
     depends_on:
@@ -193,7 +193,7 @@ services:
       - PORT=3005
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_bookings
       - REDIS_HOST=redis
       - KAFKA_BROKERS=kafka:29092
@@ -213,7 +213,7 @@ services:
       - "3006:3006"
     environment:
       - PORT=3006
-      - MONGO_URI=mongodb://mongodb:27017/kayak_analytics
+      - MONGO_URI=mongodb+srv://pprathkanthiwar_db_user:Somalwar1!@cluster1.0ssglwi.mongodb.net/kayak_analytics
       - KAFKA_BROKERS=kafka:29092
     depends_on:
       - mongodb
@@ -230,8 +230,13 @@ services:
       - "3007:3007"
     environment:
       - PORT=3007
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=Somalwar1!
+      - DB_NAME=kayak_users
       - KAFKA_BROKERS=kafka:29092
     depends_on:
+      - mysql
       - kafka
     networks:
       - kayak-network

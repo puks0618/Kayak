@@ -2,18 +2,21 @@
  * Flight Controller
  */
 
+/**
+ * Flight Controller
+ */
+
+const FlightModel = require('./model');
+
 class FlightController {
   async getAll(req, res) {
     try {
       const { origin, destination, date, class: flightClass } = req.query;
-      
-      // TODO: Query database with filters
-      // TODO: Check Redis cache first
-      // TODO: Return paginated results
-      
+      const flights = await FlightModel.findAll({ origin, destination, date, class: flightClass });
+
       res.json({
-        flights: [],
-        total: 0,
+        flights,
+        total: flights.length,
         page: 1
       });
     } catch (error) {
@@ -25,13 +28,15 @@ class FlightController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      
-      // TODO: Get from cache or database
-      // TODO: Include reviews and images from MongoDB
-      
-      res.json({
-        // flight
-      });
+      const flight = await FlightModel.findById(id);
+
+      if (!flight) {
+        return res.status(404).json({ error: 'Flight not found' });
+      }
+
+      // TODO: Fetch reviews from MongoDB
+
+      res.json(flight);
     } catch (error) {
       console.error('Get flight error:', error);
       res.status(500).json({ error: 'Failed to get flight' });
@@ -41,13 +46,19 @@ class FlightController {
   async create(req, res) {
     try {
       const flightData = req.body;
-      
-      // TODO: Validate input
-      // TODO: Create flight in MySQL
+
+      // Basic validation
+      if (!flightData.airline || !flightData.price) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const newFlight = await FlightModel.create(flightData);
+
       // TODO: Publish listing.created event
-      
+
       res.status(201).json({
-        message: 'Flight created successfully'
+        message: 'Flight created successfully',
+        flight: newFlight
       });
     } catch (error) {
       console.error('Create flight error:', error);
@@ -59,13 +70,16 @@ class FlightController {
     try {
       const { id } = req.params;
       const updates = req.body;
-      
-      // TODO: Update flight
-      // TODO: Invalidate cache
-      // TODO: Publish listing.updated event
-      
+
+      const updatedFlight = await FlightModel.update(id, updates);
+
+      if (!updatedFlight) {
+        return res.status(404).json({ error: 'Flight not found' });
+      }
+
       res.json({
-        message: 'Flight updated successfully'
+        message: 'Flight updated successfully',
+        flight: updatedFlight
       });
     } catch (error) {
       console.error('Update flight error:', error);
@@ -76,13 +90,8 @@ class FlightController {
   async delete(req, res) {
     try {
       const { id } = req.params;
-      
-      // TODO: Soft delete flight
-      // TODO: Publish listing.deleted event
-      
-      res.json({
-        message: 'Flight deleted successfully'
-      });
+      await FlightModel.delete(id);
+      res.json({ message: 'Flight deleted successfully' });
     } catch (error) {
       console.error('Delete flight error:', error);
       res.status(500).json({ error: 'Failed to delete flight' });

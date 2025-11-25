@@ -7,6 +7,8 @@ const SocialLoginModal = ({ isOpen, onClose, onLogin }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState(null);
     const [error, setError] = useState('');
+    const [showFakePopup, setShowFakePopup] = useState(false);
+    const [popupProvider, setPopupProvider] = useState(null);
 
     if (!isOpen) return null;
 
@@ -18,9 +20,6 @@ const SocialLoginModal = ({ isOpen, onClose, onLogin }) => {
         setError('');
         onClose();
     };
-
-    const [showFakePopup, setShowFakePopup] = useState(false);
-    const [popupProvider, setPopupProvider] = useState(null);
 
     const handleSocialClick = (provider) => {
         setPopupProvider(provider);
@@ -248,7 +247,7 @@ const SocialLoginModal = ({ isOpen, onClose, onLogin }) => {
                                         padding: '0.75rem 1rem',
                                         backgroundColor: 'white',
                                         border: '1px solid #d1d5db',
-                                        borderRadius: '8px',
+                                        borderRadius: '24px',
                                         cursor: 'pointer',
                                         transition: 'background-color 0.2s',
                                         color: '#111827',
@@ -281,7 +280,7 @@ const SocialLoginModal = ({ isOpen, onClose, onLogin }) => {
                                         padding: '0.75rem 1rem',
                                         backgroundColor: 'white',
                                         border: '1px solid #d1d5db',
-                                        borderRadius: '8px',
+                                        borderRadius: '24px',
                                         cursor: 'pointer',
                                         transition: 'background-color 0.2s',
                                         color: '#111827',
@@ -302,7 +301,7 @@ const SocialLoginModal = ({ isOpen, onClose, onLogin }) => {
                             {/* Divider */}
                             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '1.5rem 0' }}>
                                 <div style={{ position: 'absolute', left: 0, right: 0, height: '1px', backgroundColor: '#e5e7eb' }}></div>
-                                <span style={{ position: 'relative', backgroundColor: 'white', padding: '0 1rem', fontSize: '0.875rem', color: '#6b7280', fontFamily: 'Arial, sans-serif' }}>or continue with</span>
+                                <span style={{ position: 'relative', backgroundColor: 'white', padding: '0 1rem', fontSize: '0.875rem', color: '#6b7280', fontFamily: 'Arial, sans-serif' }}>or</span>
                             </div>
 
                             {/* Email Button */}
@@ -318,7 +317,7 @@ const SocialLoginModal = ({ isOpen, onClose, onLogin }) => {
                                     padding: '0.75rem 1rem',
                                     backgroundColor: 'white',
                                     border: '1px solid #d1d5db',
-                                    borderRadius: '8px',
+                                    borderRadius: '24px',
                                     cursor: 'pointer',
                                     transition: 'background-color 0.2s',
                                     color: '#111827',

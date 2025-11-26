@@ -7,8 +7,9 @@ const mysql = require('mysql2/promise');
 const { v4: uuidv4 } = require('uuid');
 
 // Database configuration
+// Use 127.0.0.1 instead of localhost to avoid DNS resolution issues
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST === 'localhost' ? '127.0.0.1' : (process.env.DB_HOST || '127.0.0.1'),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'Somalwar1!',
   database: process.env.DB_NAME || 'kayak_users',

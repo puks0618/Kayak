@@ -3,12 +3,12 @@
  * CRUD operations for user management
  */
 
-/**
- * User Controller
- * CRUD operations for user management
- */
-
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const UserModel = require('../models/user.model');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
 
 const VALID_STATES = [
   'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -44,12 +44,22 @@ class UserController {
         return res.status(409).json({ error: 'User with this email already exists' });
       }
 
-      // Hash password (mock for now, use bcrypt in real app)
-      const password_hash = password; // TODO: Hash this
+      // Hash password using bcrypt
+      const saltRounds = 10;
+      const password_hash = await bcrypt.hash(password, saltRounds);
 
       const newUser = await UserModel.create({
-        ssn, first_name, last_name, address, city, state, zip_code,
-        phone, email, password_hash, profile_image_url: ''
+        ssn, 
+        first_name, 
+        last_name, 
+        address: address || null, 
+        city, 
+        state, 
+        zip_code,
+        phone: phone || null, 
+        email, 
+        password_hash, 
+        profile_image_url: ''
       });
 
       // TODO: Publish user.created event to Kafka
@@ -60,10 +70,11 @@ class UserController {
       });
     } catch (error) {
       console.error('Create user error:', error);
+      console.error('Error details:', error.message, error.stack);
       if (error.code === 'ER_DUP_ENTRY') {
         return res.status(409).json({ error: 'User with this SSN or Email already exists' });
       }
-      res.status(500).json({ error: 'Failed to create user' });
+      res.status(500).json({ error: 'Failed to create user', details: error.message });
     }
   }
 
@@ -72,15 +83,35 @@ class UserController {
     try {
       const { email, password } = req.body;
 
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+
       const user = await UserModel.findByEmail(email);
-      if (!user || user.password_hash !== password) { // TODO: Use bcrypt.compare
+      if (!user) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
-      // TODO: Generate JWT token
+      // Verify password using bcrypt
+      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          id: user.id,
+          email: user.email,
+          ssn: user.ssn
+        },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRY }
+      );
 
       res.json({
         message: 'Login successful',
+        token: token,
         user: {
           id: user.id,
           email: user.email,

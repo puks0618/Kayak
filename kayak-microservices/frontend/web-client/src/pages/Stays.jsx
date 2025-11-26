@@ -3,11 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Menu, 
   Heart, 
-  UserCircle, 
   ChevronDown, 
   ArrowRightLeft, 
   Search, 
-  Check, 
   X, 
   Calendar
 } from 'lucide-react';
@@ -22,7 +20,7 @@ import { ImUserPlus } from "react-icons/im";
 import kayakLogo from "../assets/images/kayak logo.png";
 
 // Main App Component
-export default function App() {
+export default function Stays() {
   const navigate = useNavigate();
   const location = useLocation();
   const [tripType, setTripType] = useState('Round-trip');
@@ -46,10 +44,7 @@ export default function App() {
     }
   }, []);
 
-
   return (
-    // Added 'opacity-0 animate-fade-in' logic could be added here to hide FOUC, 
-    // but standard rendering is fine.
     <div className="min-h-screen bg-white text-slate-900 pb-20">
       {/* Sidebar Menu */}
       {isMenuOpen && (
@@ -202,7 +197,7 @@ export default function App() {
               {/* Left Column: Search Interface */}
               <div className="lg:col-span-8">
             <h1 className="text-3xl md:text-5xl font-extrabold mb-8 leading-tight tracking-tight">
-              Compare flight deals from 100s of sites<span className="text-[#FF690F]">.</span>
+              Compare hotel deals from 100s of sites<span className="text-[#FF690F]">.</span>
             </h1>
 
             {/* Navigation Tabs */}
@@ -389,3 +384,4 @@ function UserMenuItem({ label }) {
     </div>
   );
 }
+

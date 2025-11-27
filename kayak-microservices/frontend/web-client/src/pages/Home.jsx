@@ -38,11 +38,8 @@ export default function App() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check localStorage for saved preference
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('darkMode');
-      return saved === 'true';
-    }
-    return false;
+    const saved = localStorage.getItem('darkMode');
+    return saved === 'true';
   });
 
   // Load Google Fonts dynamically

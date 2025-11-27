@@ -1,143 +1,179 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { searchFlights, updateSearchForm, addRecentSearch } from '../store/slices/flightsSlice';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { 
   Menu, 
   Heart, 
-  UserCircle, 
   ChevronDown, 
   ArrowRightLeft, 
   Search, 
-  Check, 
   X, 
-  Calendar
+  Calendar,
+  Plane
 } from 'lucide-react';
 import { PiAirplaneTiltFill } from "react-icons/pi";
 import { IoIosBed } from "react-icons/io";
 import { IoCarSharp } from "react-icons/io5";
-import { FaUmbrellaBeach } from "react-icons/fa6";
-import { HiSparkles } from "react-icons/hi2";
-import { FaFlag, FaDollarSign } from "react-icons/fa";
-import { HiOutlineLogout } from "react-icons/hi";
+import { FaUmbrellaBeach, FaFlag, FaDollarSign } from "react-icons/fa6";
+import { HiSparkles, HiOutlineLogout } from "react-icons/hi2";
 import { ImUserPlus } from "react-icons/im";
 import kayakLogo from "../assets/images/kayak logo.png";
 
-// Main App Component
-export default function App() {
+// Mock airports data
+const AIRPORTS = [
+  { code: 'SFO', city: 'San Francisco', name: 'San Francisco International', state: 'California', country: 'United States' },
+  { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles International', state: 'California', country: 'United States' },
+  { code: 'SJC', city: 'San Jose', name: 'Norman Y. Mineta San Jose International', state: 'California', country: 'United States' },
+  { code: 'SAN', city: 'San Diego', name: 'San Diego International', state: 'California', country: 'United States' },
+  { code: 'SAT', city: 'San Antonio', name: 'San Antonio International', state: 'Texas', country: 'United States' },
+  { code: 'JFK', city: 'New York', name: 'John F. Kennedy International', state: 'New York', country: 'United States' },
+  { code: 'NYC', city: 'New York', name: 'All airports', state: 'New York', country: 'United States' },
+  { code: 'LAV', city: 'Las Vegas', name: 'Harry Reid Intl', state: 'Nevada', country: 'United States' },
+  { code: 'HNL', city: 'Honolulu', name: 'Daniel K. Inouye International', state: 'Hawaii', country: 'United States' },
+  { code: 'TYO', city: 'Tokyo', name: 'All airports', state: '', country: 'Japan' },
+];
+
+export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
   
-  const [tripType, setTripType] = useState('Round-trip');
-  const [travelers, setTravelers] = useState('1 adult, Economy');
-  const [bags, setBags] = useState('0 bags');
-  const [origin, setOrigin] = useState('SFO');
-  const [dest, setDest] = useState('LAX');
-  const [dates, setDates] = useState('Sun 12/14  —  Thu 12/18');
-  const [travelersInfo, setTravelersInfo] = useState('1 adult, Economy');
+  // State management
+  const [tripType, setTripType] = useState('roundtrip');
+  const [bags, setBags] = useState(0);
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [departureDate, setDepartureDate] = useState(new Date('2025-12-04'));
+  const [returnDate, setReturnDate] = useState(new Date('2025-12-11'));
+  
+  // Travelers state
+  const [adults, setAdults] = useState(1);
+  const [students, setStudents] = useState(0);
+  const [seniors, setSeniors] = useState(0);
+  const [youths, setYouths] = useState(0);
+  const [children, setChildren] = useState(0);
+  const [toddlers, setToddlers] = useState(0);
+  const [infants, setInfants] = useState(0);
+  const [cabinClass, setCabinClass] = useState('economy');
+  
+  // UI state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [showOriginDropdown, setShowOriginDropdown] = useState(false);
+  const [showDestDropdown, setShowDestDropdown] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTravelersPicker, setShowTravelersPicker] = useState(false);
+  const [originSearch, setOriginSearch] = useState('');
+  const [destSearch, setDestSearch] = useState('');
   
-  // Handle flight search
+  // Refs for click outside
+  const originRef = useRef(null);
+  const destRef = useRef(null);
+  const dateRef = useRef(null);
+  const travelersRef = useRef(null);
+  
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (originRef.current && !originRef.current.contains(event.target)) {
+        setShowOriginDropdown(false);
+      }
+      if (destRef.current && !destRef.current.contains(event.target)) {
+        setShowDestDropdown(false);
+      }
+      if (dateRef.current && !dateRef.current.contains(event.target)) {
+        setShowDatePicker(false);
+      }
+      if (travelersRef.current && !travelersRef.current.contains(event.target)) {
+        setShowTravelersPicker(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  // Filter airports
+  const filteredOrigins = AIRPORTS.filter(airport =>
+    airport.city.toLowerCase().includes(originSearch.toLowerCase()) ||
+    airport.code.toLowerCase().includes(originSearch.toLowerCase()) ||
+    airport.name.toLowerCase().includes(originSearch.toLowerCase())
+  );
+  
+  const filteredDestinations = AIRPORTS.filter(airport =>
+    airport.city.toLowerCase().includes(destSearch.toLowerCase()) ||
+    airport.code.toLowerCase().includes(destSearch.toLowerCase()) ||
+    airport.name.toLowerCase().includes(destSearch.toLowerCase())
+  );
+  
+  // Calculate total travelers
+  const totalTravelers = adults + students + seniors + youths + children + toddlers + infants;
+  
+  // Format travelers display
+  const getTravelersDisplay = () => {
+    if (totalTravelers === 1 && adults === 1) {
+      return `1 adult, ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}`;
+    }
+    return `${totalTravelers} ${totalTravelers === 1 ? 'traveler' : 'travelers'}, ${cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1)}`;
+  };
+  
+  // Handle search
   const handleSearch = async () => {
-    // Parse dates (simplified for now)
-    const departureDate = '2025-12-14';
-    const returnDate = tripType === 'Round-trip' ? '2025-12-18' : null;
+    if (!origin || !destination) {
+      alert('Please select origin and destination');
+      return;
+    }
     
-    // Update Redux state
-    dispatch(updateSearchForm({
-      tripType: tripType === 'Round-trip' ? 'roundtrip' : 'oneway',
+    const searchParams = {
+      tripType,
       origin,
-      destination: dest,
-      departureDate,
-      returnDate,
-      adults: 1,
-      cabinClass: 'economy'
-    }));
+      destination,
+      departureDate: departureDate.toISOString().split('T')[0],
+      returnDate: tripType === 'roundtrip' ? returnDate.toISOString().split('T')[0] : null,
+      adults,
+      cabinClass
+    };
     
-    // Perform search
-    await dispatch(searchFlights({
-      origin,
-      destination: dest,
-      departureDate,
-      returnDate
-    }));
+    dispatch(updateSearchForm(searchParams));
+    await dispatch(searchFlights(searchParams));
+    dispatch(addRecentSearch(searchParams));
     
-    // Add to recent searches
-    dispatch(addRecentSearch({
-      origin,
-      destination: dest,
-      departureDate,
-      returnDate,
-      travelers: 1,
-      tripType: tripType === 'Round-trip' ? 'roundtrip' : 'oneway'
-    }));
-    
-    // Navigate to results
     navigate('/flights/results');
   };
-
-  // Load Google Fonts dynamically
-  useEffect(() => {
-    if (!document.querySelector('#google-fonts')) {
-      const link = document.createElement('link');
-      link.id = 'google-fonts';
-      link.rel = 'stylesheet';
-      link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
-      document.head.appendChild(link);
-    }
-  }, []);
-
+  
+  // Swap origin and destination
+  const handleSwap = () => {
+    const temp = origin;
+    setOrigin(destination);
+    setDestination(temp);
+    const tempSearch = originSearch;
+    setOriginSearch(destSearch);
+    setDestSearch(tempSearch);
+  };
 
   return (
-    // Added 'opacity-0 animate-fade-in' logic could be added here to hide FOUC, 
-    // but standard rendering is fine.
-    <div className="min-h-screen bg-white text-slate-900 pb-20">
+    <div className="min-h-screen bg-white text-slate-900">
       {/* Sidebar Menu */}
       {isMenuOpen && (
         <>
-          {/* Overlay */}
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={() => setIsMenuOpen(false)}
           />
-          {/* Sidebar */}
           <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-xl z-50 overflow-y-auto pt-16">
             <div className="p-4">
-              {/* Categories Section */}
               <div className="mb-6">
                 <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                   Categories
                 </div>
                 <SidebarMenuItem icon={<PiAirplaneTiltFill />} label="Flights" active={location.pathname === '/'} onClick={() => navigate('/')} />
-                <SidebarMenuItem icon={<IoIosBed />} label="Stays" active={location.pathname === '/stays'} onClick={() => navigate('/stays')} />
-                <SidebarMenuItem icon={<IoCarSharp />} label="Cars" active={location.pathname === '/cars'} onClick={() => navigate('/cars')} />
-                <SidebarMenuItem icon={<FaUmbrellaBeach />} label="Packages" active={location.pathname === '/packages'} onClick={() => navigate('/packages')} />
-                <SidebarMenuItem icon={<HiSparkles />} label="AI Mode" isNew active={location.pathname === '/ai-mode'} onClick={() => navigate('/ai-mode')} />
-              </div>
-
-              {/* Tools Section */}
-              <div className="mb-6">
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                  Tools
-                </div>
-                <SidebarMenuItem label="Plan your trip" />
-                <SidebarMenuItem label="Explore" />
-                <SidebarMenuItem label="Flight Tracker" />
-                <SidebarMenuItem label="Travel tips" />
-                <SidebarMenuItem label="KAYAK for Business" isNew />
-              </div>
-
-              {/* Settings Section */}
-              <div>
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                  Settings
-                </div>
-                <SidebarMenuItem label="Trips" />
-                <SidebarMenuItem icon={<FaFlag />} label="English" />
-                <SidebarMenuItem icon={<FaDollarSign />} label="United States dollar" />
-                <SidebarMenuItem label="Feedback" />
+                <SidebarMenuItem icon={<IoIosBed />} label="Stays" onClick={() => navigate('/stays')} />
+                <SidebarMenuItem icon={<IoCarSharp />} label="Cars" onClick={() => navigate('/cars')} />
+                <SidebarMenuItem icon={<FaUmbrellaBeach />} label="Packages" onClick={() => navigate('/packages')} />
+                <SidebarMenuItem icon={<HiSparkles />} label="AI Mode" isNew onClick={() => navigate('/ai-mode')} />
               </div>
             </div>
           </div>
@@ -153,8 +189,7 @@ export default function App() {
           >
             <Menu className="w-6 h-6 text-gray-700" />
           </button>
-          {/* Logo container strictly constrained to prevent giant image */}
-          <div className="h-8 md:h-10 w-32 md:w-40 overflow-hidden relative flex items-center">
+          <div className="h-8 md:h-10 w-32 md:w-40 overflow-hidden relative flex items-center cursor-pointer" onClick={() => navigate('/')}>
             <img 
               src={kayakLogo} 
               alt="KAYAK" 
@@ -171,53 +206,29 @@ export default function App() {
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
           >
             <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 font-semibold text-sm">
-              S
+              K
             </div>
           </button>
           
-          {/* User Profile Popup */}
+          {/* User Menu */}
           {isUserMenuOpen && (
             <>
-              {/* Overlay to close menu */}
               <div 
                 className="fixed inset-0 z-40"
                 onClick={() => setIsUserMenuOpen(false)}
               />
-              {/* Popup Menu */}
               <div className="absolute right-0 top-12 w-72 bg-white rounded-lg shadow-xl z-50 overflow-hidden">
-                {/* User Info Section */}
                 <div className="p-4 border-b border-gray-200">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-semibold">
-                      S
+                      K
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-900">Sheerio217</div>
-                      <div className="text-sm text-gray-600 flex items-center gap-2">
-                        sheerio217@gmail.com
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      </div>
+                      <div className="font-semibold text-gray-900">Keith</div>
+                      <div className="text-sm text-gray-600">keith@example.com</div>
                     </div>
                   </div>
-                  
-                  {/* Add User Button */}
-                  <button className="w-full flex items-center gap-3 hover:bg-gray-100 rounded-lg transition-colors">
-                    <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                      <ImUserPlus className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="font-semibold text-gray-900">Add user</span>
-                  </button>
                 </div>
-                
-                {/* Navigation Links */}
-                <div className="py-2">
-                  <UserMenuItem label="Trips" />
-                  <UserMenuItem label="Join KAYAK for Business" />
-                  <UserMenuItem label="Help/FAQ" />
-                  <UserMenuItem label="Your account" />
-                </div>
-                
-                {/* Sign Out Button */}
                 <div className="p-4 border-t border-gray-200">
                   <button 
                     onClick={() => navigate('/login')}
@@ -234,167 +245,280 @@ export default function App() {
       </header>
 
       <main className="mt-4 md:mt-8">
-        
-        {/* Full-width gray background card */}
         <div className="w-full bg-[#edf0f3] py-6 md:py-8">
-          {/* Constrained content inside */}
-          <div className="max-w-[1200px] mx-auto px-2 md:px-3 lg:px-4">
-            {/* Main Layout Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              
-              {/* Left Column: Search Interface */}
-              <div className="lg:col-span-8">
-            <h1 className="text-3xl md:text-5xl font-extrabold mb-8 leading-tight tracking-tight">
+          <div className="max-w-[1400px] mx-auto px-4">
+            
+            {/* Title */}
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-8 leading-tight">
               Compare flight deals from 100s of sites<span className="text-[#FF690F]">.</span>
             </h1>
 
             {/* Navigation Tabs */}
             <div className="flex flex-wrap gap-6 mb-6">
-              <NavTab icon={<PiAirplaneTiltFill />} label="Flights" active={location.pathname === '/'} link="/" />
-              <NavTab icon={<IoIosBed />} label="Stays" active={location.pathname === '/stays'} link="/stays" />
-              <NavTab icon={<IoCarSharp />} label="Cars" active={location.pathname === '/cars'} link="/cars" />
-              <NavTab icon={<FaUmbrellaBeach />} label="Packages" active={location.pathname === '/packages'} link="/packages" />
-              <NavTab icon={<HiSparkles />} label="AI Mode" active={location.pathname === '/ai-mode'} link="/ai-mode" />
+              <NavTab icon={<PiAirplaneTiltFill />} label="Flights" active />
+              <NavTab icon={<IoIosBed />} label="Stays" onClick={() => navigate('/stays')} />
+              <NavTab icon={<IoCarSharp />} label="Cars" onClick={() => navigate('/cars')} />
+              <NavTab icon={<FaUmbrellaBeach />} label="Packages" onClick={() => navigate('/packages')} />
+              <NavTab icon={<HiSparkles />} label="AI Mode" onClick={() => navigate('/ai-mode')} />
             </div>
 
-            {/* Search Filters Row */}
-            <div className="flex flex-wrap gap-4 mb-3 text-sm font-medium text-gray-700">
-              <div className="relative group cursor-pointer flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded select-none">
-                <span>{tripType}</span> <ChevronDown className="w-4 h-4" />
-              </div>
-              <div className="relative group cursor-pointer flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded select-none">
-                <span>{bags}</span> <ChevronDown className="w-4 h-4" />
-              </div>
+            {/* Search Filters */}
+            <div className="flex flex-wrap gap-4 mb-4 text-sm">
+              <TripTypeDropdown value={tripType} onChange={setTripType} />
+              <BagsDropdown value={bags} onChange={setBags} />
             </div>
 
             {/* Main Search Bar */}
-            <div className="flex flex-col md:flex-row bg-gray-200 p-[2px] md:p-[2px] rounded-xl shadow-sm md:shadow-none gap-[2px]">
+            <div className="bg-white rounded-xl shadow-lg p-1 flex flex-wrap md:flex-nowrap gap-1">
               
-              {/* Origin */}
-              <div className="flex-1 relative bg-white rounded-t-lg md:rounded-l-lg md:rounded-tr-none p-3.5 hover:bg-gray-50 cursor-pointer flex items-center group transition-colors">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900 truncate text-[15px]">{origin}</span>
-                    <X className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setOrigin(''); }} />
-                  </div>
+              {/* Origin Input */}
+              <div ref={originRef} className="flex-1 min-w-[200px] relative">
+                <div 
+                  className="p-4 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    setShowOriginDropdown(true);
+                    setShowDestDropdown(false);
+                    setShowDatePicker(false);
+                    setShowTravelersPicker(false);
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder="From?"
+                    value={origin ? `${origin}` : originSearch}
+                    onChange={(e) => {
+                      setOriginSearch(e.target.value);
+                      setOrigin('');
+                      setShowOriginDropdown(true);
+                    }}
+                    className="w-full text-lg font-medium outline-none bg-transparent"
+                  />
+                  {origin && (
+                    <div className="text-sm text-gray-600">
+                      {AIRPORTS.find(a => a.code === origin)?.city}
+                    </div>
+                  )}
                 </div>
+                
                 {/* Swap Button */}
-                <div className="hidden md:flex absolute -right-3.5 z-20 bg-white border border-gray-200 rounded-full p-1.5 shadow-md hover:bg-gray-50 cursor-pointer text-gray-600">
-                  <ArrowRightLeft className="w-3.5 h-3.5" />
-                </div>
+                <button
+                  onClick={handleSwap}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 shadow-md z-20"
+                >
+                  <ArrowRightLeft className="w-4 h-4 text-gray-600" />
+                </button>
+                
+                {/* Origin Dropdown */}
+                {showOriginDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-[400px] overflow-y-auto z-50">
+                    {filteredOrigins.map(airport => (
+                      <div
+                        key={airport.code}
+                        className="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setOrigin(airport.code);
+                          setOriginSearch('');
+                          setShowOriginDropdown(false);
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Plane className="w-6 h-6 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900">{airport.city}, {airport.state || airport.country}</div>
+                            <div className="text-sm text-gray-600">{airport.name}</div>
+                          </div>
+                          <div className="text-lg font-bold text-gray-700">{airport.code}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Destination */}
-              <div className="flex-1 bg-white p-3.5 hover:bg-gray-50 cursor-pointer flex items-center group relative transition-colors">
-                 <div className="md:pl-2 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900 truncate text-[15px]">{dest}</span>
-                    <X className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setDest(''); }} />
+              {/* Destination Input */}
+              <div ref={destRef} className="flex-1 min-w-[200px] relative">
+                <div 
+                  className="p-4 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    setShowDestDropdown(true);
+                    setShowOriginDropdown(false);
+                    setShowDatePicker(false);
+                    setShowTravelersPicker(false);
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder="To?"
+                    value={destination ? `${destination}` : destSearch}
+                    onChange={(e) => {
+                      setDestSearch(e.target.value);
+                      setDestination('');
+                      setShowDestDropdown(true);
+                    }}
+                    className="w-full text-lg font-medium outline-none bg-transparent"
+                  />
+                  {destination && (
+                    <div className="text-sm text-gray-600">
+                      {AIRPORTS.find(a => a.code === destination)?.city}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Destination Dropdown */}
+                {showDestDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 max-h-[400px] overflow-y-auto z-50">
+                    {filteredDestinations.map(airport => (
+                      <div
+                        key={airport.code}
+                        className="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setDestination(airport.code);
+                          setDestSearch('');
+                          setShowDestDropdown(false);
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Plane className="w-6 h-6 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900">{airport.city}, {airport.state || airport.country}</div>
+                            <div className="text-sm text-gray-600">{airport.name}</div>
+                          </div>
+                          <div className="text-lg font-bold text-gray-700">{airport.code}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Date Picker */}
+              <div ref={dateRef} className="flex-1 min-w-[250px] relative">
+                <div 
+                  className="p-4 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    setShowDatePicker(true);
+                    setShowOriginDropdown(false);
+                    setShowDestDropdown(false);
+                    setShowTravelersPicker(false);
+                  }}
+                >
+                  <div className="text-lg font-medium">
+                    {departureDate.toLocaleDateString('en-US', { weekday: 'short', month: '2-digit', day: '2-digit' })}
+                    {tripType === 'roundtrip' && (
+                      <> — {returnDate.toLocaleDateString('en-US', { weekday: 'short', month: '2-digit', day: '2-digit' })}</>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              {/* Dates */}
-              <div className="flex-[1.5] bg-white p-3.5 hover:bg-gray-50 cursor-pointer flex items-center justify-between transition-colors">
-                <div className="flex items-center gap-2 md:pl-2 w-full">
-                  <Calendar className="w-5 h-5 text-gray-400 md:hidden" />
-                  <span className="font-medium text-gray-900 text-[15px]">{dates}</span>
-                </div>
-              </div>
-
-              {/* Travelers/Class */}
-              <div className="flex-1 bg-white rounded-b-lg md:rounded-none p-3.5 hover:bg-gray-50 cursor-pointer flex items-center group relative transition-colors">
-                <div className="md:pl-2 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900 truncate text-[15px]">{travelersInfo}</span>
-                    <X className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); setTravelersInfo('1 adult, Economy'); }} />
+                
+                {/* Date Picker Dropdown */}
+                {showDatePicker && (
+                  <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 z-50">
+                    <div className="flex gap-4">
+                      <div>
+                        <div className="text-sm font-semibold mb-2">Departure</div>
+                        <DatePicker
+                          selected={departureDate}
+                          onChange={(date) => setDepartureDate(date)}
+                          inline
+                          minDate={new Date()}
+                        />
+                      </div>
+                      {tripType === 'roundtrip' && (
+                        <div>
+                          <div className="text-sm font-semibold mb-2">Return</div>
+                          <DatePicker
+                            selected={returnDate}
+                            onChange={(date) => setReturnDate(date)}
+                            inline
+                            minDate={departureDate}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Travelers Picker */}
+              <div ref={travelersRef} className="flex-1 min-w-[200px] relative">
+                <div 
+                  className="p-4 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                  onClick={() => {
+                    setShowTravelersPicker(true);
+                    setShowOriginDropdown(false);
+                    setShowDestDropdown(false);
+                    setShowDatePicker(false);
+                  }}
+                >
+                  <div className="text-lg font-medium">{getTravelersDisplay()}</div>
                 </div>
+                
+                {/* Travelers Dropdown */}
+                {showTravelersPicker && (
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 p-6 z-50 w-[400px]">
+                    <div className="space-y-4">
+                      <div className="text-xl font-bold mb-4">Travelers</div>
+                      
+                      <TravelerCounter label="Adults" sublabel="18-64" value={adults} onChange={setAdults} min={1} />
+                      <TravelerCounter label="Students" sublabel="over 18" value={students} onChange={setStudents} />
+                      <TravelerCounter label="Seniors" sublabel="over 65" value={seniors} onChange={setSeniors} />
+                      <TravelerCounter label="Youths" sublabel="12-17" value={youths} onChange={setYouths} />
+                      <TravelerCounter label="Children" sublabel="2-11" value={children} onChange={setChildren} />
+                      <TravelerCounter label="Toddlers in own seat" sublabel="under 2" value={toddlers} onChange={setToddlers} />
+                      <TravelerCounter label="Infants on lap" sublabel="under 2" value={infants} onChange={setInfants} />
+                      
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="text-xl font-bold mb-4">Cabin Class</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <CabinButton label="Economy" active={cabinClass === 'economy'} onClick={() => setCabinClass('economy')} />
+                          <CabinButton label="Premium Economy" active={cabinClass === 'premium_economy'} onClick={() => setCabinClass('premium_economy')} />
+                          <CabinButton label="Business" active={cabinClass === 'business'} onClick={() => setCabinClass('business')} />
+                          <CabinButton label="First" active={cabinClass === 'first'} onClick={() => setCabinClass('first')} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Search Button */}
               <button 
                 onClick={handleSearch}
-                className="bg-[#FF690F] hover:bg-[#d6570c] md:rounded-r-lg md:rounded-l-none rounded-lg md:w-[70px] flex items-center justify-center transition-colors cursor-pointer p-3 md:p-0 mt-[2px] md:mt-0"
+                className="bg-[#FF690F] hover:bg-[#d6570c] rounded-lg px-8 py-4 flex items-center justify-center transition-colors"
               >
                 <Search className="w-6 h-6 text-white" strokeWidth={2.5} />
               </button>
             </div>
-          </div>
 
-          {/* Right Column: Image Grid */}
-          <div className="lg:col-span-4 hidden lg:block">
-            <div className="grid grid-cols-2 gap-3 h-full max-h-[380px]">
-              {/* Large top left */}
-              <div className="col-span-1 row-span-1 overflow-hidden rounded-xl relative group cursor-pointer">
-                <img 
-                  src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=800&auto=format&fit=crop" 
-                  alt="Plane Wing" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-              </div>
-              {/* Top right */}
-              <div className="col-span-1 overflow-hidden rounded-xl relative group cursor-pointer">
-                <img 
-                  src="https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?q=80&w=800&auto=format&fit=crop" 
-                  alt="City" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-              </div>
-              {/* Bottom Left */}
-              <div className="col-span-1 overflow-hidden rounded-xl relative group cursor-pointer">
-                 <img 
-                  src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800&auto=format&fit=crop" 
-                  alt="Traveler" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-              </div>
-              {/* Bottom Right - Tall */}
-              <div className="col-span-1 row-span-2 overflow-hidden rounded-xl relative group -mt-12 cursor-pointer">
-                 <img 
-                  src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=800&auto=format&fit=crop" 
-                  alt="Nature" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-              </div>
-               {/* Extra filler */}
-               <div className="col-span-1 overflow-hidden rounded-xl relative group h-24 cursor-pointer">
-                 <img 
-                  src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=800&auto=format&fit=crop" 
-                  alt="Beach" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-              </div>
-            </div>
-          </div>
+            {/* Direct flights only checkbox */}
+            <div className="flex items-center gap-2 mt-4">
+              <input type="checkbox" id="direct" className="w-4 h-4" />
+              <label htmlFor="direct" className="text-sm text-gray-700 cursor-pointer">Direct flights only</label>
             </div>
           </div>
         </div>
-
       </main>
     </div>
   );
 }
 
-// Navigation Tab Component
-function NavTab({ icon, label, active, link }) {
-  const navigate = useNavigate();
-  
+// Helper Components
+function NavTab({ icon, label, active, onClick }) {
   return (
     <div 
-      className="flex flex-col items-center gap-1.5 cursor-pointer select-none"
-      onClick={() => link && navigate(link)}
+      className={`flex flex-col items-center gap-1.5 cursor-pointer select-none ${onClick ? '' : 'pointer-events-none'}`}
+      onClick={onClick}
     >
-      {/* Icon Container - Small Rounded Square */}
       <div className={`
         w-14 h-14 rounded-lg flex items-center justify-center shadow-sm transition-all
         ${active ? 'bg-[#FF690F] text-white' : 'bg-white text-black border border-gray-200'}
       `}>
-        <div className="text-2xl">
-          {icon}
-        </div>
+        <div className="text-2xl">{icon}</div>
       </div>
-      {/* Label */}
       <span className={`font-medium text-xs ${active ? 'text-[#FF690F]' : 'text-gray-900'}`}>
         {label}
       </span>
@@ -402,7 +526,6 @@ function NavTab({ icon, label, active, link }) {
   );
 }
 
-// Sidebar Menu Item Component
 function SidebarMenuItem({ icon, label, active, isNew, onClick }) {
   return (
     <div 
@@ -412,14 +535,10 @@ function SidebarMenuItem({ icon, label, active, isNew, onClick }) {
       `}
       onClick={onClick}
     >
-      {icon && (
-        <div className="text-lg flex items-center justify-center">
-          {icon}
-        </div>
-      )}
+      {icon && <div className="text-lg">{icon}</div>}
       <span className="font-medium text-sm flex-1">{label}</span>
       {isNew && (
-        <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-[9px] text-white px-1.5 py-0.5 rounded-full font-bold tracking-wide">
+        <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-[9px] text-white px-1.5 py-0.5 rounded-full font-bold">
           NEW
         </span>
       )}
@@ -427,11 +546,132 @@ function SidebarMenuItem({ icon, label, active, isNew, onClick }) {
   );
 }
 
-// User Menu Item Component
-function UserMenuItem({ label }) {
+function TripTypeDropdown({ value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
   return (
-    <div className="px-4 py-2.5 hover:bg-gray-100 cursor-pointer transition-colors">
-      <span className="text-sm font-medium text-gray-900">{label}</span>
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+      >
+        <span className="font-medium text-gray-700 capitalize">
+          {value === 'roundtrip' ? 'Round-trip' : 'One-way'}
+        </span>
+        <ChevronDown className="w-4 h-4 text-gray-600" />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 min-w-[150px]">
+          <button
+            onClick={() => { onChange('roundtrip'); setIsOpen(false); }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700"
+          >
+            Round-trip
+          </button>
+          <button
+            onClick={() => { onChange('oneway'); setIsOpen(false); }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700"
+          >
+            One-way
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
+function BagsDropdown({ value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+      >
+        <span className="font-medium text-gray-700">{value} bags</span>
+        <ChevronDown className="w-4 h-4 text-gray-600" />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 min-w-[120px]">
+          {[0, 1, 2, 3].map(num => (
+            <button
+              key={num}
+              onClick={() => { onChange(num); setIsOpen(false); }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm font-medium text-gray-700"
+            >
+              {num} {num === 1 ? 'bag' : 'bags'}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TravelerCounter({ label, sublabel, value, onChange, min = 0 }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="font-medium text-gray-900">{label}</div>
+        <div className="text-sm text-gray-600">{sublabel}</div>
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
+          className="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          −
+        </button>
+        <span className="w-6 text-center font-semibold">{value}</span>
+        <button
+          onClick={() => onChange(value + 1)}
+          className="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center hover:bg-gray-50"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CabinButton({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 rounded-lg border-2 font-medium transition-colors ${
+        active 
+          ? 'border-gray-900 bg-gray-50' 
+          : 'border-gray-300 hover:border-gray-400'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+

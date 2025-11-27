@@ -7,3 +7,30 @@
 body {
   font-family: 'Inter', sans-serif;
 }
+
+/* React DatePicker Customization */
+.react-datepicker {
+  font-family: 'Inter', sans-serif !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-datepicker__header {
+  background-color: white !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #FF690F !important;
+  color: white !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #FFF5F1 !important;
+}
+
+.react-datepicker__day--in-range {
+  background-color: #FFF5F1 !important;
+  color: #000 !important;
+}

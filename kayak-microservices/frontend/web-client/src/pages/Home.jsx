@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { searchFlights, updateSearchForm, addRecentSearch } from '../store/slices/flightsSlice';
 import { 
   Menu, 
   Heart, 
@@ -25,15 +27,56 @@ import kayakLogo from "../assets/images/kayak logo.png";
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  
   const [tripType, setTripType] = useState('Round-trip');
   const [travelers, setTravelers] = useState('1 adult, Economy');
   const [bags, setBags] = useState('0 bags');
-  const [origin, setOrigin] = useState('From?');
-  const [dest, setDest] = useState('To?');
+  const [origin, setOrigin] = useState('SFO');
+  const [dest, setDest] = useState('LAX');
   const [dates, setDates] = useState('Sun 12/14  —  Thu 12/18');
   const [travelersInfo, setTravelersInfo] = useState('1 adult, Economy');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  
+  // Handle flight search
+  const handleSearch = async () => {
+    // Parse dates (simplified for now)
+    const departureDate = '2025-12-14';
+    const returnDate = tripType === 'Round-trip' ? '2025-12-18' : null;
+    
+    // Update Redux state
+    dispatch(updateSearchForm({
+      tripType: tripType === 'Round-trip' ? 'roundtrip' : 'oneway',
+      origin,
+      destination: dest,
+      departureDate,
+      returnDate,
+      adults: 1,
+      cabinClass: 'economy'
+    }));
+    
+    // Perform search
+    await dispatch(searchFlights({
+      origin,
+      destination: dest,
+      departureDate,
+      returnDate
+    }));
+    
+    // Add to recent searches
+    dispatch(addRecentSearch({
+      origin,
+      destination: dest,
+      departureDate,
+      returnDate,
+      travelers: 1,
+      tripType: tripType === 'Round-trip' ? 'roundtrip' : 'oneway'
+    }));
+    
+    // Navigate to results
+    navigate('/flights/results');
+  };
 
   // Load Google Fonts dynamically
   useEffect(() => {
@@ -270,9 +313,12 @@ export default function App() {
               </div>
 
               {/* Search Button */}
-              <div className="bg-[#FF690F] hover:bg-[#d6570c] md:rounded-r-lg md:rounded-l-none rounded-lg md:w-[70px] flex items-center justify-center transition-colors cursor-pointer p-3 md:p-0 mt-[2px] md:mt-0">
+              <button 
+                onClick={handleSearch}
+                className="bg-[#FF690F] hover:bg-[#d6570c] md:rounded-r-lg md:rounded-l-none rounded-lg md:w-[70px] flex items-center justify-center transition-colors cursor-pointer p-3 md:p-0 mt-[2px] md:mt-0"
+              >
                 <Search className="w-6 h-6 text-white" strokeWidth={2.5} />
-              </div>
+              </button>
             </div>
           </div>
 

@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: Somalwar1!
       MYSQL_DATABASE: kayak
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ../databases/mysql/init:/docker-entrypoint-initdb.d
@@ -252,6 +252,31 @@ services:
       - KAFKA_BROKERS=kafka:29092
     depends_on:
       - kafka
+    networks:
+      - kayak-network
+
+  # Frontend Applications
+  web-client:
+    build:
+      context: ../../frontend/web-client
+      dockerfile: Dockerfile
+    container_name: kayak-web-client
+    ports:
+      - "5175:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - kayak-network
+
+  admin-portal:
+    build:
+      context: ../../frontend/admin-portal
+      dockerfile: Dockerfile
+    container_name: kayak-admin-portal
+    ports:
+      - "5176:80"
+    depends_on:
+      - api-gateway
     networks:
       - kayak-network
 

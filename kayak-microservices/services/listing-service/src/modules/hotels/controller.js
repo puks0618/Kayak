@@ -2,17 +2,21 @@
  * Hotel Controller
  */
 
+/**
+ * Hotel Controller
+ */
+
+const HotelModel = require('./model');
+
 class HotelController {
   async getAll(req, res) {
     try {
-      const { location, checkIn, checkOut, guests } = req.query;
-      
-      // TODO: Query database with filters
-      // TODO: Check Redis cache
-      
+      const { city, state, price_min, price_max, stars } = req.query;
+      const hotels = await HotelModel.findAll({ city, state, price_min, price_max, stars });
+
       res.json({
-        hotels: [],
-        total: 0,
+        hotels,
+        total: hotels.length,
         page: 1
       });
     } catch (error) {
@@ -24,13 +28,15 @@ class HotelController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      
-      // TODO: Get from cache or database
-      // TODO: Include reviews and images from MongoDB
-      
-      res.json({
-        // hotel
-      });
+      const hotel = await HotelModel.findById(id);
+
+      if (!hotel) {
+        return res.status(404).json({ error: 'Hotel not found' });
+      }
+
+      // TODO: Fetch reviews/images from MongoDB
+
+      res.json(hotel);
     } catch (error) {
       console.error('Get hotel error:', error);
       res.status(500).json({ error: 'Failed to get hotel' });
@@ -40,11 +46,18 @@ class HotelController {
   async create(req, res) {
     try {
       const hotelData = req.body;
-      
-      // TODO: Create hotel
-      
+
+      if (!hotelData.name || !hotelData.city || !hotelData.price_per_night) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const newHotel = await HotelModel.create(hotelData);
+
+      // TODO: Publish listing.created event
+
       res.status(201).json({
-        message: 'Hotel created successfully'
+        message: 'Hotel created successfully',
+        hotel: newHotel
       });
     } catch (error) {
       console.error('Create hotel error:', error);
@@ -56,11 +69,16 @@ class HotelController {
     try {
       const { id } = req.params;
       const updates = req.body;
-      
-      // TODO: Update hotel
-      
+
+      const updatedHotel = await HotelModel.update(id, updates);
+
+      if (!updatedHotel) {
+        return res.status(404).json({ error: 'Hotel not found' });
+      }
+
       res.json({
-        message: 'Hotel updated successfully'
+        message: 'Hotel updated successfully',
+        hotel: updatedHotel
       });
     } catch (error) {
       console.error('Update hotel error:', error);
@@ -71,12 +89,8 @@ class HotelController {
   async delete(req, res) {
     try {
       const { id } = req.params;
-      
-      // TODO: Delete hotel
-      
-      res.json({
-        message: 'Hotel deleted successfully'
-      });
+      await HotelModel.delete(id);
+      res.json({ message: 'Hotel deleted successfully' });
     } catch (error) {
       console.error('Delete hotel error:', error);
       res.status(500).json({ error: 'Failed to delete hotel' });

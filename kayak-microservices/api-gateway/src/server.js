@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors(corsConfig));
-app.use(express.json());
+// app.use(express.json()); // Removed to prevent body consumption before proxy
 app.use(requestIdMiddleware);
 app.use(logger);
 

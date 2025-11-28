@@ -64,7 +64,7 @@ export const searchFlights = createAsyncThunk(
   async (searchParams, { rejectWithValue }) => {
     try {
       // Try real API first
-      const response = await axios.get('http://localhost:3003/api/listings/flights', {
+      const response = await axios.get('http://localhost:3002/api/listings/flights/search', {
         params: searchParams
       });
       
@@ -248,4 +248,5 @@ export const {
 } = flightsSlice.actions;
 
 export default flightsSlice.reducer;
+
 

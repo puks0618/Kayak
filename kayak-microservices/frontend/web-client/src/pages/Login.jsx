@@ -20,6 +20,7 @@ const Login = () => {
         try {
             const response = await login({ email, password });
             localStorage.setItem('user', JSON.stringify(response.data.user));
+            localStorage.setItem('token', response.data.token);
 
             // Success animation before navigation
             setTimeout(() => {
@@ -27,7 +28,8 @@ const Login = () => {
             }, 500);
         } catch (err) {
             console.error('Login failed:', err);
-            setError('Invalid email or password. Please try again.');
+            const errorMessage = err.response?.data?.error || 'Invalid email or password. Please try again.';
+            setError(errorMessage);
             setIsLoading(false);
         }
     };

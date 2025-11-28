@@ -23,6 +23,7 @@ import { HiSparkles } from "react-icons/hi2";
 import { HiOutlineLogout } from "react-icons/hi";
 import { ImUserPlus } from "react-icons/im";
 import kayakLogo from "../assets/images/kayak logo.png";
+import DarkModeToggle from "../components/DarkModeToggle";
 
 // Mock airports data with images
 const AIRPORTS = [
@@ -495,7 +496,7 @@ export default function Home() {
           <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-xl z-50 overflow-y-auto pt-16">
             <div className="p-4">
               <div className="mb-6">
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Categories
                 </div>
                 <SidebarMenuItem icon={<PiAirplaneTiltFill />} label="Flights" active={location.pathname === '/'} onClick={() => navigate('/')} />
@@ -513,10 +514,10 @@ export default function Home() {
       <header className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center gap-4 flex-1">
           <button 
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            <Menu className="w-6 h-6 text-gray-700" />
+            <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
           <div className="h-8 md:h-10 w-32 md:w-40 overflow-hidden relative flex items-center cursor-pointer" onClick={() => navigate('/')}>
             <img 
@@ -556,12 +557,35 @@ export default function Home() {
           )}
         </div>
         <div className="flex items-center gap-3 relative">
-          <button className="p-2 hover:bg-gray-100 rounded-full">
-            <Heart className="w-5 h-5 text-gray-700" />
+          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+            <Heart className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </button>
+          <button 
+            onClick={() => {
+              const html = document.documentElement;
+              if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+              } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+              }
+            }}
+            style={{
+              padding: '8px',
+              backgroundColor: '#f3f4f6',
+              border: '2px solid #d1d5db',
+              borderRadius: '9999px',
+              cursor: 'pointer',
+              fontSize: '20px'
+            }}
+            title="Toggle dark mode"
+          >
+            🌙
           </button>
           <button 
             className="p-1 relative"
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            onClick={() => user ? setIsUserMenuOpen(!isUserMenuOpen) : navigate('/login')}
           >
             <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 font-semibold text-sm">
               K
@@ -588,8 +612,8 @@ export default function Home() {
                 </div>
                 <div className="p-4 border-t border-gray-200">
                   <button 
-                    onClick={() => navigate('/login')}
-                    className="w-full py-2.5 px-4 border border-gray-300 rounded-lg font-semibold text-gray-900 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                    onClick={handleSignOut}
+                    className="w-full py-2.5 px-4 border border-gray-300 dark:border-gray-600 rounded-lg font-semibold text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <HiOutlineLogout className="w-5 h-5" />
                     Sign out
@@ -1522,7 +1546,7 @@ function NavTab({ icon, label, active, onClick }) {
     >
       <div className={`
         w-14 h-14 rounded-lg flex items-center justify-center shadow-sm transition-all
-        ${active ? 'bg-[#FF690F] text-white' : 'bg-white text-black border border-gray-200'}
+        ${active ? 'bg-[#FF690F] text-white' : 'bg-white dark:bg-gray-700 text-black dark:text-gray-200 border border-gray-200 dark:border-gray-600'}
       `}>
         <div className="text-2xl">{icon}</div>
       </div>
@@ -1538,7 +1562,7 @@ function SidebarMenuItem({ icon, label, active, isNew, onClick }) {
     <div 
       className={`
         flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors select-none
-        ${active ? 'bg-[#FF690F] text-white' : 'hover:bg-gray-100 text-gray-900'}
+        ${active ? 'bg-[#FF690F] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100'}
       `}
       onClick={onClick}
     >

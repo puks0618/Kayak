@@ -51,7 +51,7 @@ const mockRegister = async (userData) => {
 
 export const login = async (credentials) => {
     try {
-        return await api.post('/users/login', credentials);
+        return await api.post('/auth/login', credentials);
     } catch (error) {
         console.error('Login API Error:', error.code, error.message);
         // Fallback if network error or server unreachable (no response)
@@ -64,7 +64,7 @@ export const login = async (credentials) => {
 
 export const register = async (userData) => {
     try {
-        return await api.post('/users/register', userData);
+        return await api.post('/auth/register', userData);
     } catch (error) {
         console.error('Register API Error:', error.code, error.message);
         // Fallback if network error or server unreachable (no response)

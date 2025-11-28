@@ -21,12 +21,20 @@ const Signup = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
         try {
-            await register(formData);
-            navigate('/login');
+            const response = await register(formData);
+            // Auto-login after successful registration
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+            localStorage.setItem('token', response.data.token);
+            // Navigate directly to home
+            setTimeout(() => {
+                navigate('/');
+            }, 500);
         } catch (err) {
             console.error('Signup failed:', err);
-            setError('Registration failed. Please try again.');
+            const errorMessage = err.response?.data?.error || 'Registration failed. Please try again.';
+            setError(errorMessage);
         }
     };
 

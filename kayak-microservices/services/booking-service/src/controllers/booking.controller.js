@@ -2,21 +2,43 @@
  * Booking Controller
  */
 
-const BookingSaga = require('../sagas/bookingSaga');
+const BookingModel = require('../models/booking.model');
+const BillingModel = require('../models/billing.model');
 
 class BookingController {
   async create(req, res) {
     try {
-      const bookingData = req.body;
-      const userId = req.user.id;
-      
-      // Execute booking saga
-      const saga = new BookingSaga();
-      const result = await saga.execute({ ...bookingData, userId });
-      
+      const { user_id, listing_id, listing_type, travel_date, total_amount, payment_details } = req.body;
+
+      // 1. Create Booking (Pending)
+      const booking = await BookingModel.create({
+        user_id, listing_id, listing_type,
+        travel_date, total_amount, status: 'pending'
+      });
+
+      // 2. Create Billing Record (Pending)
+      const tax = total_amount * 0.1; // 10% tax
+      const total = parseFloat(total_amount) + tax;
+
+      const billing = await BillingModel.create({
+        booking_id: booking.id,
+        user_id,
+        amount: total_amount,
+        tax,
+        total,
+        payment_method: payment_details.method,
+        status: 'pending',
+        invoice_details: { listing_id, listing_type, travel_date }
+      });
+
+      // TODO: Trigger Saga/Workflow for Payment Processing
+      // For MVP, we'll simulate payment success here if not using external service
+
       res.status(201).json({
-        message: 'Booking created successfully',
-        booking: result.booking
+        message: 'Booking initiated',
+        booking_id: booking.id,
+        billing_id: billing.id,
+        status: 'pending'
       });
     } catch (error) {
       console.error('Create booking error:', error);
@@ -27,44 +49,49 @@ class BookingController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      
-      // TODO: Get booking from database
-      
-      res.json({
-        // booking
-      });
+      const booking = await BookingModel.findById(id);
+
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      res.json(booking);
     } catch (error) {
       console.error('Get booking error:', error);
       res.status(500).json({ error: 'Failed to get booking' });
     }
   }
 
-  async getByUser(req, res) {
+  async getUserBookings(req, res) {
     try {
-      const userId = req.user.id;
-      
-      // TODO: Get all bookings for user
-      
-      res.json({
-        bookings: []
-      });
+      const { userId } = req.params;
+      const bookings = await BookingModel.findByUserId(userId);
+      res.json(bookings);
     } catch (error) {
       console.error('Get user bookings error:', error);
-      res.status(500).json({ error: 'Failed to get bookings' });
+      res.status(500).json({ error: 'Failed to get user bookings' });
     }
   }
 
   async cancel(req, res) {
     try {
       const { id } = req.params;
-      
-      // TODO: Cancel booking
-      // TODO: Process refund if applicable
-      // TODO: Publish booking.cancelled event
-      
-      res.json({
-        message: 'Booking cancelled successfully'
-      });
+      const booking = await BookingModel.findById(id);
+
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      // Check if cancellable (e.g., not already completed/cancelled)
+      if (booking.status === 'cancelled') {
+        return res.status(400).json({ error: 'Booking already cancelled' });
+      }
+
+      await BookingModel.updateStatus(id, 'cancelled');
+
+      // TODO: Trigger Refund Saga
+
+      res.json({ message: 'Booking cancelled successfully' });
     } catch (error) {
       console.error('Cancel booking error:', error);
       res.status(500).json({ error: 'Failed to cancel booking' });

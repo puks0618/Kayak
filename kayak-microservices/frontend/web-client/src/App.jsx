@@ -5,27 +5,30 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
+import Stays from './pages/Stays';
+import Cars from './pages/Cars';
+import Packages from './pages/Packages';
+import AIMode from './pages/AIMode';
+import Listings from './pages/Listings';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 
 function App() {
   return (
     <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/bookings" element={<Bookings />} />
-          <Route path="/profile" element={<Profile />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/stays" element={<Stays />} />
+        <Route path="/cars" element={<Cars />} />
+        <Route path="/packages" element={<Packages />} />
+        <Route path="/ai-mode" element={<AIMode />} />
+        <Route path="/listings" element={<Listings />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+      </Routes>
     </Router>
   );
 }
 
-// TODO: Implement actual components
-const Home = () => <div>Home Page - Search flights, hotels, cars</div>;
-const Search = () => <div>Search Results</div>;
-const Bookings = () => <div>My Bookings</div>;
-const Profile = () => <div>User Profile</div>;
-
 export default App;
-

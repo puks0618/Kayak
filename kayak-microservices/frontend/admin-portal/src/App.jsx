@@ -4,11 +4,21 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useTheme } from './context/ThemeContext';
 
 function App() {
+  const { isDarkMode, toggleTheme } = useTheme();
+  
   return (
     <Router>
       <div className="App">
+        <button 
+          onClick={toggleTheme} 
+          className="dark-mode-toggle"
+          aria-label="Toggle dark mode"
+        >
+          {isDarkMode ? '☀️' : '🌙'}
+        </button>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/users" element={<Users />} />

@@ -16,6 +16,11 @@ import AIMode from './pages/AIMode';
 import Listings from './pages/Listings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import BillingDashboard from './pages/BillingDashboard';
+import BillingList from './pages/BillingList';
+import BillingDetail from './pages/BillingDetail';
+import CreateBilling from './pages/CreateBilling';
+import InvoiceViewerPage from './pages/InvoiceViewerPage';
 
 function App() {
   return (
@@ -34,6 +39,13 @@ function App() {
         <Route path="/packages" element={<SharedLayout><Packages /></SharedLayout>} />
         <Route path="/ai-mode" element={<SharedLayout><AIMode /></SharedLayout>} />
         <Route path="/listings" element={<SharedLayout><Listings /></SharedLayout>} />
+        
+        {/* Billing routes */}
+        <Route path="/billing" element={<SharedLayout><BillingList /></SharedLayout>} />
+        <Route path="/billing/dashboard" element={<SharedLayout><BillingDashboard /></SharedLayout>} />
+        <Route path="/billing/new" element={<SharedLayout><CreateBilling /></SharedLayout>} />
+        <Route path="/billing/:id" element={<SharedLayout><BillingDetail /></SharedLayout>} />
+        <Route path="/billing/:id/invoice" element={<SharedLayout><InvoiceViewerPage /></SharedLayout>} />
       </Routes>
     </Router>
   );

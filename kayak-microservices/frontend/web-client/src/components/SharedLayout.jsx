@@ -152,6 +152,13 @@ export default function SharedLayout({ children }) {
                 {/* Navigation Links */}
                 <div className="py-2">
                   <UserMenuItem label="Trips" />
+                  <UserMenuItem 
+                    label="Billing" 
+                    onClick={() => { 
+                      navigate('/billing'); 
+                      setIsUserMenuOpen(false); 
+                    }} 
+                  />
                   <UserMenuItem label="Join KAYAK for Business" />
                   <UserMenuItem label="Help/FAQ" />
                   <UserMenuItem label="Your account" />
@@ -207,9 +214,12 @@ function SidebarMenuItem({ icon, label, active, isNew, onClick }) {
 }
 
 // User Menu Item Component
-function UserMenuItem({ label }) {
+function UserMenuItem({ label, onClick }) {
   return (
-    <div className="px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors">
+    <div 
+      className="px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+      onClick={onClick}
+    >
       <span className="text-sm font-medium text-gray-900 dark:text-white">{label}</span>
     </div>
   );

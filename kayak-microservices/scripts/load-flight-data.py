@@ -217,6 +217,7 @@ def load_flights_data(conn):
     
     print(f"  Generating flights for next {DAYS_TO_GENERATE} days...")
     
+    
     # Generate flights from sampled routes
     for idx, row in df.iterrows():
         # Extract base data from CSV

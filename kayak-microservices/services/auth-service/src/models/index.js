@@ -23,12 +23,61 @@ const sequelize = new Sequelize(
   }
 );
 
-// Define User Model
+// Define User Model (aligned with rubric requirements)
 const User = sequelize.define('User', {
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  ssn: {
+    type: DataTypes.STRING(11),
+    allowNull: false,
+    unique: true,
+    comment: 'User ID in SSN format: ###-##-####',
+    validate: {
+      is: /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/,
+      notEmpty: true
+    }
+  },
+  firstName: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    field: 'first_name'
+  },
+  lastName: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    field: 'last_name'
+  },
+  address: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  city: {
+    type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  state: {
+    type: DataTypes.CHAR(2),
+    allowNull: true,
+    comment: 'US State abbreviation',
+    validate: {
+      is: /^[A-Z]{2}$/i
+    }
+  },
+  zipCode: {
+    type: DataTypes.STRING(10),
+    allowNull: true,
+    field: 'zip_code',
+    comment: 'Format: ##### or #####-####',
+    validate: {
+      is: /^[0-9]{5}(-[0-9]{4})?$/
+    }
+  },
+  phone: {
+    type: DataTypes.STRING(20),
+    allowNull: true
   },
   email: {
     type: DataTypes.STRING(255),
@@ -40,15 +89,19 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING(255),
-    allowNull: false
+    allowNull: false,
+    field: 'password_hash'
   },
-  firstName: {
-    type: DataTypes.STRING(100),
-    allowNull: false
+  profileImage: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    field: 'profile_image_url'
   },
-  lastName: {
-    type: DataTypes.STRING(100),
-    allowNull: false
+  creditCardToken: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    field: 'credit_card_token',
+    comment: 'Mock token for payment details'
   },
   role: {
     type: DataTypes.ENUM('user', 'admin'),
@@ -56,12 +109,21 @@ const User = sequelize.define('User', {
   },
   isActive: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true
+    defaultValue: true,
+    field: 'is_active'
+  },
+  deletedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'deleted_at'
   }
 }, {
   tableName: 'users',
   timestamps: true,
-  underscored: true
+  underscored: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  paranoid: false // We're handling soft deletes manually with deletedAt
 });
 
 // Test database connection

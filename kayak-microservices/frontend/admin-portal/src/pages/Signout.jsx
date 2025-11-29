@@ -4,14 +4,15 @@
  */
 
 import React, { useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import './Signout.css';
 
 const Signout = () => {
+  const { logout } = useAuth();
+
   useEffect(() => {
-    // Clear any stored authentication data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    sessionStorage.clear();
+    // Clear authentication using AuthContext
+    logout();
     console.log('Signout component mounted - buttons should be visible');
   }, []);
 

@@ -6,18 +6,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import './Header.css';
 
 const Header = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  // TODO: Get actual user data from auth context
-  const user = {
-    name: 'Admin Panel',
-    email: 'john.doe@email.com',
-    avatar: null,
-  };
+  // Get user display name and email
+  const displayName = user ? `${user.firstName} ${user.lastName}` : 'Admin Panel';
+  const displayEmail = user?.email || 'user@kayak.com';
+  const avatarInitial = user?.firstName?.charAt(0).toUpperCase() || 'A';
 
   return (
     <header className="header">
@@ -42,15 +42,15 @@ const Header = () => {
           {/* User Profile */}
           <div className="header-user">
             <div className="user-avatar">
-              {user.avatar ? (
-                <img src={user.avatar} alt={user.name} />
+              {user?.profileImage ? (
+                <img src={user.profileImage} alt={displayName} />
               ) : (
-                <span>{user.name.charAt(0).toUpperCase()}</span>
+                <span>{avatarInitial}</span>
               )}
             </div>
             <div className="user-info">
-              <div className="user-name">{user.name}</div>
-              <div className="user-email">{user.email}</div>
+              <div className="user-name">{displayName}</div>
+              <div className="user-email">{displayEmail}</div>
             </div>
           </div>
 

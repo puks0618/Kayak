@@ -104,8 +104,8 @@ const User = sequelize.define('User', {
     comment: 'Mock token for payment details'
   },
   role: {
-    type: DataTypes.ENUM('user', 'admin'),
-    defaultValue: 'user'
+    type: DataTypes.ENUM('traveller', 'owner', 'admin'),
+    defaultValue: 'traveller'
   },
   isActive: {
     type: DataTypes.BOOLEAN,

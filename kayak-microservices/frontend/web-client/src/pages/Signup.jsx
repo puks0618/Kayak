@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import SocialLoginModal from '../components/SocialLoginModal';
 
 const Signup = () => {
+    const [step, setStep] = useState('userType'); // 'userType' or 'form'
+    const [userType, setUserType] = useState(''); // 'traveller' or 'owner'
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -18,6 +20,12 @@ const Signup = () => {
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleUserTypeSelection = (type) => {
+        setUserType(type);
+        setStep('form');
+        setError('');
     };
 
     const handleSubmit = async (e) => {
@@ -38,13 +46,24 @@ const Signup = () => {
         }
         
         try {
-            const result = await authRegister(formData);
+            // Include the selected user type in the registration data
+            const registrationData = {
+                ...formData,
+                role: userType
+            };
+            const result = await authRegister(registrationData);
             
             if (result.success) {
-                // Navigate to home
-                setTimeout(() => {
-                    navigate('/');
-                }, 500);
+                // Check if user should be redirected to a different portal
+                if (result.redirectUrl) {
+                    // Owner/Admin - redirect to admin portal
+                    window.location.href = result.redirectUrl;
+                } else {
+                    // Traveller - navigate to home on web-client
+                    setTimeout(() => {
+                        navigate('/');
+                    }, 500);
+                }
             } else {
                 // Registration failed with a known reason
                 const baseMessage = result.error || 'Registration failed.';
@@ -103,13 +122,134 @@ const Signup = () => {
         }
     };
 
+    // User Type Selection Step
+    if (step === 'userType') {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#f5f7f9]">
+                <div className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-sm border border-gray-200">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-black text-[#ff690f] mb-4 tracking-tighter cursor-pointer" onClick={() => navigate('/')}>KAYAK</h1>
+                        <h2 className="text-2xl font-bold text-gray-900">Join KAYAK</h2>
+                        <p className="text-gray-500 mt-2">Choose how you want to use KAYAK</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Traveller Option */}
+                        <button
+                            onClick={() => handleUserTypeSelection('traveller')}
+                            className="group relative p-8 border-2 border-gray-200 rounded-xl hover:border-[#ff690f] hover:shadow-lg transition-all duration-200 text-left bg-white"
+                        >
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
+                                    <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">Traveller</h3>
+                                <p className="text-gray-600 text-sm mb-4">
+                                    Search and book flights, hotels, and rental cars
+                                </p>
+                                <ul className="text-left text-sm text-gray-600 space-y-2">
+                                    <li className="flex items-start">
+                                        <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Book travel deals</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Manage your trips</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Save favorite destinations</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="inline-flex items-center px-4 py-2 bg-[#ff690f] text-white text-sm font-semibold rounded-full">
+                                    Continue →
+                                </span>
+                            </div>
+                        </button>
+
+                        {/* Owner Option */}
+                        <button
+                            onClick={() => handleUserTypeSelection('owner')}
+                            className="group relative p-8 border-2 border-gray-200 rounded-xl hover:border-[#ff690f] hover:shadow-lg transition-all duration-200 text-left bg-white"
+                        >
+                            <div className="flex flex-col items-center text-center">
+                                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+                                    <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">Owner</h3>
+                                <p className="text-gray-600 text-sm mb-4">
+                                    List and manage your properties or services
+                                </p>
+                                <ul className="text-left text-sm text-gray-600 space-y-2">
+                                    <li className="flex items-start">
+                                        <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Manage listings</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Track bookings</span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <svg className="w-5 h-5 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>View analytics</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="inline-flex items-center px-4 py-2 bg-[#ff690f] text-white text-sm font-semibold rounded-full">
+                                    Continue →
+                                </span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div className="mt-8 text-center border-t pt-6">
+                        <p className="text-gray-600 text-sm">
+                            Already have an account?{' '}
+                            <a href="/login" className="text-[#ff690f] font-bold hover:underline">
+                                Sign in
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Registration Form Step
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#f5f7f9]">
             <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-sm border border-gray-200">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-black text-[#ff690f] mb-4 tracking-tighter cursor-pointer" onClick={() => navigate('/')}>KAYAK</h1>
-                    <h2 className="text-xl font-bold text-gray-900">Create an account</h2>
-                    <p className="text-gray-500 mt-2 text-sm">Save on your next trip.</p>
+                    <h2 className="text-xl font-bold text-gray-900">Create {userType === 'owner' ? 'Owner' : 'Traveller'} Account</h2>
+                    <p className="text-gray-500 mt-2 text-sm">
+                        {userType === 'owner' ? 'Manage your listings and bookings' : 'Save on your next trip'}
+                    </p>
+                    <button
+                        onClick={() => setStep('userType')}
+                        className="mt-2 text-sm text-[#ff690f] hover:underline font-medium"
+                    >
+                        ← Change account type
+                    </button>
                 </div>
 
                 {error && (

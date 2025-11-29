@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     profile_image_url VARCHAR(255),
     credit_card_token VARCHAR(255), -- Mock token for payment
-    role ENUM('user', 'admin') DEFAULT 'user',
+    role ENUM('traveller', 'owner', 'admin') DEFAULT 'traveller',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     profile_image_url VARCHAR(255),
     credit_card_token VARCHAR(255), -- Mock token for payment
-    role ENUM('user', 'admin') DEFAULT 'user',
+    role ENUM('traveller', 'owner', 'admin') DEFAULT 'traveller',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

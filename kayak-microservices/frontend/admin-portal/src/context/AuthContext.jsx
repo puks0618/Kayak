@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
@@ -22,7 +21,15 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       
       if (storedUser && token) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        // Only set user if they are owner or admin
+        if (parsedUser.role === 'owner' || parsedUser.role === 'admin') {
+          setUser(parsedUser);
+        } else {
+          // Clear storage if user is not authorized for admin portal
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
       }
     } catch (error) {
       console.error('Error loading user from localStorage:', error);
@@ -59,22 +66,17 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
       
+      // Verify user has owner or admin role
+      if (data.user.role !== 'owner' && data.user.role !== 'admin') {
+        throw new Error('Access denied. Owner or Admin account required.');
+      }
+      
       // Store user and token
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
       setUser(data.user);
       
-      // Check user role and determine redirect URL
-      const userRole = data.user.role;
-      let redirectUrl = null;
-      
-      if (userRole === 'owner' || userRole === 'admin') {
-        // Owners and admins go to the admin portal
-        redirectUrl = 'http://localhost:5176';
-      }
-      // Travellers stay on the web-client (no redirect needed)
-      
-      return { success: true, user: data.user, redirectUrl };
+      return { success: true, user: data.user };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: error.message };
@@ -83,13 +85,19 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
+      // Ensure role is set to 'owner' for admin portal registration
+      const registrationData = {
+        ...userData,
+        role: 'owner'
+      };
+
       // Call the backend API
       const response = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify(registrationData),
       });
 
       if (!response.ok) {
@@ -110,17 +118,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', data.token);
       setUser(data.user);
       
-      // Check user role and determine redirect URL
-      const userRole = data.user.role;
-      let redirectUrl = null;
-      
-      if (userRole === 'owner' || userRole === 'admin') {
-        // Owners and admins go to the admin portal
-        redirectUrl = 'http://localhost:5174';
-      }
-      // Travellers stay on the web-client (no redirect needed)
-      
-      return { success: true, user: data.user, redirectUrl };
+      return { success: true, user: data.user };
     } catch (error) {
       console.error('Registration error:', error);
       return { success: false, error: error.message };
@@ -148,4 +146,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-

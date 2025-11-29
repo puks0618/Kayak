@@ -19,6 +19,36 @@ const dbConfig = {
 const pool = mysql.createPool(dbConfig);
 
 const FlightModel = {
+  /**
+   * Convert duration string (e.g., "5h 30m") to minutes
+   * or return the value if already a number
+   */
+  parseDuration(duration, departure_time, arrival_time) {
+    // If duration is already a number, return it
+    if (typeof duration === 'number') {
+      return duration;
+    }
+
+    // If duration is provided as string, parse it
+    if (typeof duration === 'string' && duration.trim()) {
+      const hourMatch = duration.match(/(\d+)h/);
+      const minMatch = duration.match(/(\d+)m/);
+      const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
+      const mins = minMatch ? parseInt(minMatch[1]) : 0;
+      return hours * 60 + mins;
+    }
+
+    // Calculate from departure and arrival times if available
+    if (departure_time && arrival_time) {
+      const departure = new Date(departure_time);
+      const arrival = new Date(arrival_time);
+      return Math.round((arrival - departure) / (1000 * 60)); // milliseconds to minutes
+    }
+
+    // Default fallback
+    return 0;
+  },
+
   async create(flightData) {
     const {
       flight_code, airline, departure_airport, arrival_airport,
@@ -27,6 +57,10 @@ const FlightModel = {
     } = flightData;
 
     const id = uuidv4();
+    
+    // Convert duration to minutes
+    const durationMinutes = this.parseDuration(duration, departure_time, arrival_time);
+
     const query = `
       INSERT INTO flights 
       (id, flight_code, airline, departure_airport, arrival_airport, departure_time, arrival_time, duration, price, total_seats, class) 
@@ -35,10 +69,10 @@ const FlightModel = {
 
     await pool.execute(query, [
       id, flight_code, airline, departure_airport, arrival_airport,
-      departure_time, arrival_time, duration, price, total_seats, flightClass
+      departure_time, arrival_time, durationMinutes, price, total_seats, flightClass
     ]);
 
-    return { id, ...flightData };
+    return { id, ...flightData, duration: durationMinutes };
   },
 
   async findAll(filters = {}) {
@@ -72,6 +106,15 @@ const FlightModel = {
   },
 
   async update(id, updates) {
+    // Convert duration if present
+    if (updates.duration !== undefined) {
+      updates.duration = this.parseDuration(
+        updates.duration, 
+        updates.departure_time, 
+        updates.arrival_time
+      );
+    }
+
     const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
     const values = [...Object.values(updates), id];
 

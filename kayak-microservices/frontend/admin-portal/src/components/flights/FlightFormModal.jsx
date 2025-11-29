@@ -61,7 +61,26 @@ const FlightFormModal = ({ isOpen, onClose, onSubmit, flight = null, loading = f
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // Auto-calculate duration when departure or arrival time changes
+      if ((name === 'departure_time' || name === 'arrival_time') && 
+          updated.departure_time && updated.arrival_time) {
+        const departure = new Date(updated.departure_time);
+        const arrival = new Date(updated.arrival_time);
+        
+        if (!isNaN(departure) && !isNaN(arrival) && arrival > departure) {
+          const durationMs = arrival - departure;
+          const hours = Math.floor(durationMs / (1000 * 60 * 60));
+          const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+          updated.duration = `${hours}h ${minutes}m`;
+        }
+      }
+      
+      return updated;
+    });
+    
     // Clear error for this field
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -111,10 +130,20 @@ const FlightFormModal = ({ isOpen, onClose, onSubmit, flight = null, loading = f
       return;
     }
 
+    // Convert datetime-local format to MySQL format
+    const formatForMySQL = (datetimeLocal) => {
+      if (!datetimeLocal) return '';
+      // datetime-local returns "YYYY-MM-DDTHH:mm"
+      // Convert to "YYYY-MM-DD HH:mm:ss"
+      return datetimeLocal.replace('T', ' ') + ':00';
+    };
+
     const submitData = {
       ...formData,
       departure_airport: formData.departure_airport.toUpperCase(),
       arrival_airport: formData.arrival_airport.toUpperCase(),
+      departure_time: formatForMySQL(formData.departure_time),
+      arrival_time: formatForMySQL(formData.arrival_time),
       price: parseFloat(formData.price),
       total_seats: parseInt(formData.total_seats)
     };
@@ -200,11 +229,12 @@ const FlightFormModal = ({ isOpen, onClose, onSubmit, flight = null, loading = f
           />
 
           <Input
-            label="Duration"
+            label="Duration (Auto-calculated)"
             name="duration"
             value={formData.duration}
             onChange={handleChange}
             placeholder="e.g., 5h 30m"
+            disabled={!!(formData.departure_time && formData.arrival_time)}
           />
 
           <Input

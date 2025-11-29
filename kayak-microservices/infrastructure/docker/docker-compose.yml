@@ -107,6 +107,7 @@ services:
     environment:
       - PORT=3001
       - DB_HOST=mysql
+      - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_auth
@@ -148,6 +149,7 @@ services:
     environment:
       - PORT=3003
       - DB_HOST=mysql
+      - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_listings

@@ -11,9 +11,13 @@ const userController = require('../controllers/user.controller');
 router.post('/register', userController.create);
 router.post('/login', userController.login);
 
+// Admin routes - get all users with filtering
+router.get('/', userController.getAll);
+
 // User CRUD
 router.get('/:id', userController.getById);
 router.patch('/:id', userController.update);
+router.put('/:id/status', userController.updateStatus);
 router.delete('/:id', userController.delete);
 
 // Profile routes (TODO: Implement profile methods in controller)

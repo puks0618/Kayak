@@ -1,0 +1,128 @@
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  background-color: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  z-index: 100;
+  width: 240px;
+}
+
+.sidebar-collapsed {
+  width: 70px;
+}
+
+.sidebar-header {
+  padding: 1.5rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 700;
+}
+
+.logo-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  background: #ff6b35;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  font-family: Arial, sans-serif;
+  text-transform: uppercase;
+}
+
+.sidebar-collapsed .logo-letter:not(:first-child) {
+  display: none;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.sidebar-link:hover {
+  background-color: rgba(100, 108, 255, 0.1);
+  color: #646cff;
+}
+
+.sidebar-link-active {
+  background-color: #646cff;
+  color: white;
+}
+
+.sidebar-link-active:hover {
+  background-color: #535bf2;
+  color: white;
+}
+
+.sidebar-icon {
+  font-size: 1.25rem;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.sidebar-label {
+  font-size: 0.875rem;
+}
+
+.sidebar-collapsed .sidebar-label {
+  display: none;
+}
+
+.sidebar-toggle {
+  padding: 1rem;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+  background-color: rgba(100, 108, 255, 0.1);
+}
+
+/* Scrollbar for navigation */
+.sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}

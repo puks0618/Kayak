@@ -68,6 +68,67 @@ const UserModel = {
     // Soft delete
     await pool.execute('UPDATE users SET deleted_at = NOW() WHERE id = ?', [id]);
     return true;
+  },
+
+  async findAll(options = {}) {
+    const { page = 1, limit = 20, status = 'all', search = '' } = options;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
+
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+
+    // Status filter: 'active' = deleted_at IS NULL, 'inactive' = deleted_at IS NOT NULL
+    if (status === 'active') {
+      whereClause += ' AND deleted_at IS NULL';
+    } else if (status === 'inactive') {
+      whereClause += ' AND deleted_at IS NOT NULL';
+    }
+
+    // Search filter
+    if (search) {
+      whereClause += ' AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)';
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
+    const [countResult] = await pool.query(countQuery, params);
+    const total = countResult[0].total;
+
+    // Get paginated users
+    const query = `
+      SELECT id, ssn, first_name, last_name, email, phone, address, city, state, zip_code,
+             profile_image_url, created_at, updated_at, deleted_at
+      FROM users 
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(limitNum, offset);
+    const [users] = await pool.query(query, params);
+
+    return {
+      users,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    };
+  },
+
+  async updateStatus(id, status) {
+    // Status: 'active' = set deleted_at to NULL, 'inactive' = set deleted_at to NOW()
+    const query = status === 'active' 
+      ? 'UPDATE users SET deleted_at = NULL WHERE id = ?'
+      : 'UPDATE users SET deleted_at = NOW() WHERE id = ?';
+    
+    await pool.execute(query, [id]);
+    return this.findById(id);
   }
 };
 

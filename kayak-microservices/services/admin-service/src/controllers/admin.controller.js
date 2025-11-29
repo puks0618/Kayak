@@ -62,6 +62,22 @@ class AdminController {
     }
   }
 
+  async manageListing(req, res) {
+    try {
+      const { listingId, listingType, action, updates } = req.body;
+
+      // TODO: Implement listing management
+      // This would require updating the appropriate listing table (flights, hotels, cars)
+      res.status(501).json({ 
+        error: 'Not implemented', 
+        message: 'Listing management will be implemented in Phase 3' 
+      });
+    } catch (error) {
+      console.error('Manage listing error:', error);
+      res.status(500).json({ error: 'Failed to manage listing' });
+    }
+  }
+
   async getReports(req, res) {
     try {
       const { type } = req.query;

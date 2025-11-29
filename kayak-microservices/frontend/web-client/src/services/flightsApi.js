@@ -3,7 +3,7 @@
  * Connects frontend to backend flight APIs
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const FLIGHTS_API = `${API_BASE_URL}/api/listings/flights`;
 
 /**

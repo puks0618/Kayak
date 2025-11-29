@@ -83,8 +83,17 @@ const CarModel = {
   },
 
   async delete(id) {
-    await pool.execute('DELETE FROM cars WHERE id = ?', [id]);
+    await pool.execute('UPDATE cars SET deleted_at = NOW() WHERE id = ?', [id]);
     return true;
+  },
+
+  async updateStatus(id, status) {
+    const query = status === 'active'
+      ? 'UPDATE cars SET deleted_at = NULL WHERE id = ?'
+      : 'UPDATE cars SET deleted_at = NOW() WHERE id = ?';
+    
+    await pool.execute(query, [id]);
+    return this.findById(id);
   }
 };
 

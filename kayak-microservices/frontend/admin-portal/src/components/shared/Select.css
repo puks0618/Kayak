@@ -1,0 +1,55 @@
+.select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.select-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.select-required {
+  color: #ef4444;
+  margin-left: 0.25rem;
+}
+
+.select-field {
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.select-field:focus {
+  outline: none;
+  border-color: #646cff;
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.1);
+}
+
+.select-field:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--color-bg-secondary);
+}
+
+.select-field.select-error {
+  border-color: #ef4444;
+}
+
+.select-field.select-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.select-error-message {
+  font-size: 0.875rem;
+  color: #ef4444;
+}

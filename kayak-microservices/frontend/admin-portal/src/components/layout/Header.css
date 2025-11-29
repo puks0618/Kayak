@@ -1,0 +1,121 @@
+.header {
+  position: sticky;
+  top: 0;
+  background-color: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 50;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  max-width: 100%;
+}
+
+.header-title h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.header-action-btn:hover {
+  border-color: #646cff;
+  transform: scale(1.05);
+}
+
+.logout-btn:hover {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.header-user:hover {
+  border-color: #646cff;
+}
+
+.user-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  overflow: hidden;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.user-email {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header-content {
+    padding: 1rem;
+  }
+
+  .user-info {
+    display: none;
+  }
+
+  .header-title h1 {
+    font-size: 1.25rem;
+  }
+}

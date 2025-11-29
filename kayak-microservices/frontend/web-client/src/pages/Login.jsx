@@ -126,6 +126,26 @@ const Login = () => {
                         <p className="welcome-subtitle">Sign in to continue your journey</p>
                     </div>
 
+                    {/* User Type Selection */}
+                    <div className="user-type-buttons">
+                        <button 
+                            type="button" 
+                            className="user-type-btn traveler-btn-login"
+                            onClick={() => {/* Already on traveler login */}}
+                        >
+                            <span className="user-type-icon">✈️</span>
+                            <span className="user-type-text">Traveler</span>
+                        </button>
+                        <button 
+                            type="button" 
+                            className="user-type-btn owner-btn-login"
+                            onClick={() => window.location.href = 'http://localhost:5174'}
+                        >
+                            <span className="user-type-icon">🏠</span>
+                            <span className="user-type-text">Owner</span>
+                        </button>
+                    </div>
+
                     {/* Error Message */}
                     {error && (
                         <div className="error-alert">

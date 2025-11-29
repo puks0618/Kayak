@@ -84,8 +84,17 @@ const FlightModel = {
   },
 
   async delete(id) {
-    await pool.execute('DELETE FROM flights WHERE id = ?', [id]);
+    await pool.execute('UPDATE flights SET deleted_at = NOW() WHERE id = ?', [id]);
     return true;
+  },
+
+  async updateStatus(id, status) {
+    const query = status === 'active'
+      ? 'UPDATE flights SET deleted_at = NULL WHERE id = ?'
+      : 'UPDATE flights SET deleted_at = NOW() WHERE id = ?';
+    
+    await pool.execute(query, [id]);
+    return this.findById(id);
   },
 
   /**
@@ -94,14 +103,8 @@ const FlightModel = {
   async search(filters) {
     let query = `
       SELECT 
-        f.*,
-        dep.name as departure_airport_name,
-        dep.city as departure_city,
-        arr.name as arrival_airport_name,
-        arr.city as arrival_city
+        f.*
       FROM flights f
-      LEFT JOIN airports dep ON f.departure_airport = dep.iata_code
-      LEFT JOIN airports arr ON f.arrival_airport = arr.iata_code
       WHERE 1=1
     `;
     const params = [];
@@ -122,11 +125,8 @@ const FlightModel = {
 
     // Optional filters
     if (filters.cabinClass) {
-      query += ' AND f.cabin_class = ?';
+      query += ' AND f.class = ?';
       params.push(filters.cabinClass);
-    }
-    if (filters.directOnly) {
-      query += ' AND f.stops = 0';
     }
     if (filters.maxPrice) {
       query += ' AND f.price <= ?';
@@ -164,19 +164,12 @@ const FlightModel = {
     
     const query = `
       SELECT 
-        f.*,
-        dep.name as departure_airport_name,
-        dep.city as departure_city,
-        arr.name as arrival_airport_name,
-        arr.city as arrival_city
+        f.*
       FROM flights f
-      LEFT JOIN airports dep ON f.departure_airport = dep.iata_code
-      LEFT JOIN airports arr ON f.arrival_airport = arr.iata_code
-      WHERE f.is_deal = 1
-        AND f.price <= ?
-        AND f.cabin_class = ?
+      WHERE f.price <= ?
+        AND f.class = ?
         AND f.departure_time >= NOW()
-      ORDER BY f.discount_percent DESC, f.price ASC
+      ORDER BY f.price ASC
       LIMIT ?
     `;
 
@@ -190,23 +183,22 @@ const FlightModel = {
   async getRouteSummaries(options) {
     let query = `
       SELECT 
-        frs.*,
-        dep.name as origin_airport_name,
-        dep.city as origin_city,
-        arr.name as destination_airport_name
-      FROM flight_routes_summary frs
-      LEFT JOIN airports dep ON frs.origin_airport = dep.iata_code
-      LEFT JOIN airports arr ON frs.destination_airport = arr.iata_code
-      WHERE 1=1
+        departure_airport as origin_airport,
+        arrival_airport as destination_airport,
+        MIN(price) as min_price,
+        COUNT(*) as flight_count
+      FROM flights
+      WHERE departure_time >= NOW()
     `;
     const params = [];
 
     if (options.origin) {
-      query += ' AND frs.origin_airport = ?';
+      query += ' AND departure_airport = ?';
       params.push(options.origin);
     }
 
-    query += ' ORDER BY frs.min_price ASC LIMIT ?';
+    query += ' GROUP BY departure_airport, arrival_airport';
+    query += ' ORDER BY min_price ASC LIMIT ?';
     params.push(options.limit);
 
     const [routes] = await pool.query(query, params);

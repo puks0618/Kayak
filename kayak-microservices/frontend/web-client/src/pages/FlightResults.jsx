@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { FaHeart, FaShareAlt } from 'react-icons/fa';
 import kayakLogo from "../assets/images/kayak logo.png";
+import { buildFareOptions, getFareAmenities } from '../utils/fareOptions';
 
 export default function FlightResults() {
   const navigate = useNavigate();
@@ -381,80 +382,70 @@ export default function FlightResults() {
                           )}
                         </div>
 
-                        {/* RIGHT COLUMN: Price & Select */}
-                        <div className="w-72 flex-shrink-0 text-right">
-                          <p className="text-3xl font-bold text-gray-900">
-                            {formatPrice(price)}
-                          </p>
-                          <p className="text-sm text-gray-600">/ person</p>
-                          <p className="text-sm font-semibold text-gray-900 mt-1">
-                            {formatPrice(price * (searchForm.adults || 1))} total
-                          </p>
-                          <p className="text-sm text-gray-700 mt-1">Delta Comfort Classic</p>
-                          
-                          {/* Amenities Icons */}
-                          <div className="flex items-center justify-end gap-3 mt-3 mb-3 relative">
-                            <div 
-                              className="flex items-center gap-3 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowAmenitiesPopup(showAmenitiesPopup === flight.id ? null : flight.id);
-                              }}
-                            >
-                              <div className="relative">
-                                <Briefcase className="w-5 h-5 text-gray-600" />
-                                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full flex items-center justify-center">
-                                  <Check className="w-2.5 h-2.5 text-white" />
-                                </div>
-                              </div>
-                              <div className="relative">
-                                <ShoppingBag className="w-5 h-5 text-gray-600" />
-                                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-white border-2 border-gray-600 rounded-full flex items-center justify-center">
-                                  <span className="text-[9px] font-bold text-gray-600">$</span>
-                                </div>
-                              </div>
-                              <div className="relative">
-                                <UtensilsCrossed className="w-5 h-5 text-gray-600" />
-                                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full flex items-center justify-center">
-                                  <Check className="w-2.5 h-2.5 text-white" />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Amenities Popup */}
-                            {showAmenitiesPopup === flight.id && (
-                              <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 z-50 w-72">
-                                <div className="space-y-2.5">
-                                  <div className="flex items-start gap-2.5">
-                                    <Wifi className="w-4 h-4 text-gray-700 mt-0.5 flex-shrink-0" />
-                                    <div>
-                                      <p className="text-xs font-medium text-gray-900">Streaming capable Wi-Fi</p>
-                                      <p className="text-xs text-gray-600">(fee)</p>
+                        {/* RIGHT COLUMN: Multiple Fare Options */}
+                        <div className="flex gap-3 flex-shrink-0">
+                          {buildFareOptions(price).map((fare) => {
+                            const amenities = getFareAmenities(fare.code);
+                            
+                            return (
+                              <div 
+                                key={fare.code}
+                                className="w-36 border border-gray-300 rounded-lg p-3 bg-white hover:border-gray-400 transition-colors"
+                              >
+                                {/* Price */}
+                                <p className="text-2xl font-bold text-gray-900 text-center">
+                                  {formatPrice(fare.price)}
+                                </p>
+                                
+                                {/* Fare Label */}
+                                <p className="text-xs text-gray-700 text-center mb-3">
+                                  {fare.label}
+                                </p>
+                                
+                                {/* Select Button */}
+                                <button 
+                                  className="w-full px-4 py-2 bg-[#FF690F] hover:bg-[#d6570c] text-white font-bold rounded text-sm transition-colors mb-3"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/fare-selection', {
+                                      state: {
+                                        flight,
+                                        fareCode: fare.code,
+                                        farePrice: fare.price,
+                                        searchForm
+                                      }
+                                    });
+                                  }}
+                                >
+                                  Select
+                                </button>
+                                
+                                {/* Divider */}
+                                <div className="border-t border-gray-200 mb-3"></div>
+                                
+                                {/* Amenity Icons */}
+                                <div className="flex items-center justify-center gap-2">
+                                  {amenities.map((amenity, idx) => (
+                                    <div key={idx} className="relative">
+                                      {amenity.icon === '💼' && <Briefcase className="w-4 h-4 text-gray-600" />}
+                                      {amenity.icon === '🧳' && <ShoppingBag className="w-4 h-4 text-gray-600" />}
+                                      {amenity.icon === '🪑' && <UtensilsCrossed className="w-4 h-4 text-gray-600" />}
+                                      
+                                      {amenity.included ? (
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                          <Check className="w-2 h-2 text-white" />
+                                        </div>
+                                      ) : (
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-white border-2 border-gray-600 rounded-full flex items-center justify-center">
+                                          <span className="text-[7px] font-bold text-gray-600">$</span>
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-2.5">
-                                    <Monitor className="w-4 h-4 text-gray-700 flex-shrink-0" />
-                                    <p className="text-xs font-medium text-gray-900">Streaming entertainment</p>
-                                  </div>
-                                  <div className="flex items-center gap-2.5">
-                                    <Plug className="w-4 h-4 text-gray-700 flex-shrink-0" />
-                                    <p className="text-xs font-medium text-gray-900">Power & USB outlets</p>
-                                  </div>
-                                  <div className="flex items-center gap-2.5">
-                                    <UtensilsCrossed className="w-4 h-4 text-gray-700 flex-shrink-0" />
-                                    <p className="text-xs font-medium text-gray-900">Lunch provided</p>
-                                  </div>
+                                  ))}
                                 </div>
                               </div>
-                            )}
-                          </div>
-
-                          <button 
-                            className="w-full px-6 py-2.5 bg-[#FF690F] hover:bg-[#d6570c] text-white font-bold rounded text-sm transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Select
-                          </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { register, login } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 import SocialLoginModal from '../components/SocialLoginModal';
 
@@ -14,6 +14,7 @@ const Signup = () => {
     const [error, setError] = useState('');
     const [socialModalOpen, setSocialModalOpen] = useState(false);
     const navigate = useNavigate();
+    const { register: authRegister, login: authLogin } = useAuth();
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,19 +23,40 @@ const Signup = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        
+        // Validate inputs
+        if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+            setError('Please fill in all fields');
+            return;
+        }
+
+        // Password strength: at least 8 chars, includes a number
+        const strongPasswordPattern = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+        if (!strongPasswordPattern.test(formData.password)) {
+            setError('Password must be at least 8 characters and include at least one number.');
+            return;
+        }
+        
         try {
-            const response = await register(formData);
-            // Auto-login after successful registration
-            localStorage.setItem('user', JSON.stringify(response.data.user));
-            localStorage.setItem('token', response.data.token);
-            // Navigate directly to home
-            setTimeout(() => {
-                navigate('/');
-            }, 500);
+            const result = await authRegister(formData);
+            
+            if (result.success) {
+                // Navigate to home
+                setTimeout(() => {
+                    navigate('/');
+                }, 500);
+            } else {
+                // Registration failed with a known reason
+                const baseMessage = result.error || 'Registration failed.';
+                const guidance =
+                    baseMessage.includes('already exists') || baseMessage.includes('already registered')
+                        ? 'Try signing in instead using that email.'
+                        : 'Please fix the issue above and submit the form again.';
+                setError(`${baseMessage} ${guidance}`);
+            }
         } catch (err) {
             console.error('Signup failed:', err);
-            const errorMessage = err.response?.data?.error || 'Registration failed. Please try again.';
-            setError(errorMessage);
+            setError('Something went wrong while creating your account. Please check your connection and try again.');
         }
     };
 
@@ -153,11 +175,14 @@ const Signup = () => {
                             id="password"
                             name="password"
                             className="w-full px-4 py-3 bg-gray-100 border border-transparent rounded focus:bg-white focus:border-[#ff690f] focus:outline-none transition-colors font-medium"
-                            placeholder="Password"
+                            placeholder="At least 8 characters, include a number"
                             value={formData.password}
                             onChange={handleChange}
                             required
                         />
+                        <p className="mt-1 text-xs text-gray-500">
+                            Use at least 8 characters and include at least one number.
+                        </p>
                     </div>
                     <button
                         type="submit"

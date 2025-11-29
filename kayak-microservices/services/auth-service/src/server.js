@@ -8,7 +8,22 @@ const authRoutes = require('./routes/auth.routes');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
+// CORS middleware to allow frontend on http://localhost:5175
+app.use((req, res, next) => {
+  // Allow the Vite dev server origin
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5175');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+// JSON body parsing
 app.use(express.json());
 
 // Health check

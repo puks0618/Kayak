@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Login.css';
 import SocialLoginModal from '../components/SocialLoginModal';
 
@@ -11,25 +11,41 @@ const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [socialModalOpen, setSocialModalOpen] = useState(false);
     const navigate = useNavigate();
+    const { login: authLogin } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        
+        // Validate inputs
+        if (!email || !password) {
+            setError('Please enter both email and password');
+            return;
+        }
+        
         setIsLoading(true);
 
         try {
-            const response = await login({ email, password });
-            localStorage.setItem('user', JSON.stringify(response.data.user));
-            localStorage.setItem('token', response.data.token);
-
-            // Success animation before navigation
-            setTimeout(() => {
-                navigate('/');
-            }, 500);
+            const result = await authLogin(email, password);
+            
+            if (result.success) {
+                // Success - navigate to home
+                setTimeout(() => {
+                    navigate('/');
+                }, 500);
+            } else {
+                // Login failed with a known reason
+                const baseMessage = result.error || 'Sign-in failed.';
+                const guidance =
+                    baseMessage.includes('incorrect') || baseMessage.includes('Invalid credentials')
+                        ? 'Double-check your email and password, then try again.'
+                        : 'If you think this is a mistake, try again in a minute or contact support.';
+                setError(`${baseMessage} ${guidance}`);
+                setIsLoading(false);
+            }
         } catch (err) {
             console.error('Login failed:', err);
-            const errorMessage = err.response?.data?.error || 'Invalid email or password. Please try again.';
-            setError(errorMessage);
+            setError('Something went wrong while signing you in. Please check your connection and try again.');
             setIsLoading(false);
         }
     };
@@ -40,26 +56,20 @@ const Login = () => {
 
     const handleSocialLogin = async (email, password, provider) => {
         try {
-            // Use the actual login API to authenticate
-            const response = await login({ email, password });
-
-            // Store user data with provider information
-            const userData = {
-                ...response.data.user,
-                loginProvider: provider // Track which provider was used
-            };
-
-            localStorage.setItem('user', JSON.stringify(userData));
-            setSocialModalOpen(false);
-
-            // Navigate to home
-            setTimeout(() => {
-                navigate('/');
-            }, 500);
+            const result = await authLogin(email, password);
+            
+            if (result.success) {
+                setSocialModalOpen(false);
+                // Navigate to home
+                setTimeout(() => {
+                    navigate('/');
+                }, 500);
+            } else {
+                throw new Error(result.error || 'Invalid email or password. Please try again.');
+            }
         } catch (err) {
             console.error('Social login failed:', err);
-            // Re-throw the error so the modal can display it
-            throw new Error('Invalid email or password. Please try again.');
+            throw new Error(err.message || 'Invalid email or password. Please try again.');
         }
     };
 

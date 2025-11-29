@@ -1,0 +1,160 @@
+.listings-table-container {
+  overflow-x: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.listings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.listings-table thead {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.listings-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.listings-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.listings-table th.sortable:hover {
+  background-color: #e9ecef;
+}
+
+.sort-indicator {
+  color: #ff6b35;
+  font-weight: bold;
+}
+
+.listings-table tbody tr {
+  border-bottom: 1px solid #dee2e6;
+  transition: background-color 0.2s;
+}
+
+.listings-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.listings-table td {
+  padding: 12px 16px;
+  color: #212529;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.type-badge.flight {
+  background-color: #cfe2ff;
+  color: #084298;
+}
+
+.type-badge.hotel {
+  background-color: #d1e7dd;
+  color: #0a3622;
+}
+
+.type-badge.car {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.type-badge.cruise {
+  background-color: #cff4fc;
+  color: #055160;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-badge.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-buttons button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-view {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-view:hover {
+  background-color: #0056b3;
+}
+
+.btn-toggle.deactivate {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.btn-toggle.deactivate:hover {
+  background-color: #e0a800;
+}
+
+.btn-toggle.activate {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-toggle.activate:hover {
+  background-color: #138496;
+}
+
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-delete:hover {
+  background-color: #c82333;
+}
+
+.no-data {
+  padding: 40px;
+  text-align: center;
+  color: #6c757d;
+  font-size: 16px;
+}

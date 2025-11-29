@@ -181,6 +181,51 @@ class UserController {
       res.status(500).json({ error: 'Failed to delete user' });
     }
   }
+
+  // Get all users (admin)
+  async getAll(req, res) {
+    try {
+      const { page = 1, limit = 20, status = 'all', search = '' } = req.query;
+      
+      const result = await UserModel.findAll({
+        page: parseInt(page),
+        limit: parseInt(limit),
+        status,
+        search
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Get all users error:', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  }
+
+  // Update user status (activate/deactivate)
+  async updateStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!['active', 'inactive'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status. Must be "active" or "inactive"' });
+      }
+
+      const updatedUser = await UserModel.updateStatus(id, status);
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json({
+        message: `User ${status === 'active' ? 'activated' : 'deactivated'} successfully`,
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error('Update status error:', error);
+      res.status(500).json({ error: 'Failed to update user status' });
+    }
+  }
 }
 
 module.exports = new UserController();

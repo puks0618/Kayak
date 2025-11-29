@@ -89,8 +89,17 @@ const HotelModel = {
   },
 
   async delete(id) {
-    await pool.execute('DELETE FROM hotels WHERE id = ?', [id]);
+    await pool.execute('UPDATE hotels SET deleted_at = NOW() WHERE id = ?', [id]);
     return true;
+  },
+
+  async updateStatus(id, status) {
+    const query = status === 'active'
+      ? 'UPDATE hotels SET deleted_at = NULL WHERE id = ?'
+      : 'UPDATE hotels SET deleted_at = NOW() WHERE id = ?';
+    
+    await pool.execute(query, [id]);
+    return this.findById(id);
   }
 };
 

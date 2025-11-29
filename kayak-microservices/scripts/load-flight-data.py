@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """
-ETL Script to load Kaggle flight datasets into MySQL
-Handles large datasets (6GB+) efficiently using chunking and sampling
+ETL Script to generate and load flight data into MySQL
+Generates realistic flight data for popular US routes
 """
 
-import pandas as pd
 import mysql.connector
 from datetime import datetime, timedelta
 import uuid
 import random
-import numpy as np
 import os
-import re
-from pathlib import Path
 
 # Database configuration
 DB_CONFIG = {
@@ -23,52 +19,61 @@ DB_CONFIG = {
     'database': 'kayak_listings'
 }
 
-# Data file paths
-DATA_DIR = Path(__file__).parent / 'flight-data'
-FLIGHTS_CSV = DATA_DIR / 'itineraries.csv'  # Expedia dataset (sampled from 31GB)
-AIRPORTS_CSV = DATA_DIR / 'airports.csv'  # Global airports database
-
-# Configuration for handling large dataset
-SAMPLE_SIZE = 50000  # Sample 50k routes from 6GB dataset (manageable size)
-CHUNK_SIZE = 10000  # Process CSV in 10k row chunks (memory efficient)
+# Configuration
 DAYS_TO_GENERATE = 60  # Generate flights for next 60 days
-FLIGHTS_PER_ROUTE_PER_DAY = 3  # Generate 3 flights per route per day
+FLIGHTS_PER_ROUTE_PER_DAY = 5  # Generate 5 flights per route per day
 PRICE_VARIANCE = 0.15  # ±15% price variation
-DEAL_PROBABILITY = 0.10  # 10% of flights are deals
-DEAL_DISCOUNT_RANGE = (10, 25)  # 10-25% discount
+DEAL_PROBABILITY = 0.15  # 15% of flights are deals
+DEAL_DISCOUNT_RANGE = (10, 30)  # 10-30% discount
 BATCH_INSERT_SIZE = 1000  # Insert in batches of 1000
 
-def parse_iso_duration(duration_str):
-    """Parse ISO 8601 duration format (e.g., PT12H7M) to minutes"""
-    if pd.isna(duration_str) or not duration_str:
-        return 120  # Default 2 hours
-    
-    try:
-        # Handle if it's already a number
-        if isinstance(duration_str, (int, float)):
-            return int(duration_str) // 60 if duration_str > 1000 else int(duration_str)
-        
-        # Parse ISO 8601 format: PT12H7M
-        duration_str = str(duration_str).strip()
-        if not duration_str.startswith('PT'):
-            return 120  # Default if invalid format
-        
-        # Extract hours and minutes
-        hours = 0
-        minutes = 0
-        
-        hour_match = re.search(r'(\d+)H', duration_str)
-        if hour_match:
-            hours = int(hour_match.group(1))
-        
-        minute_match = re.search(r'(\d+)M', duration_str)
-        if minute_match:
-            minutes = int(minute_match.group(1))
-        
-        total_minutes = (hours * 60) + minutes
-        return total_minutes if total_minutes > 0 else 120
-    except:
-        return 120  # Default 2 hours
+# Popular US airports and cities
+AIRPORTS = {
+    'LAX': {'name': 'Los Angeles International Airport', 'city': 'Los Angeles', 'state': 'CA'},
+    'SFO': {'name': 'San Francisco International Airport', 'city': 'San Francisco', 'state': 'CA'},
+    'JFK': {'name': 'John F. Kennedy International Airport', 'city': 'New York', 'state': 'NY'},
+    'ORD': {'name': "O'Hare International Airport", 'city': 'Chicago', 'state': 'IL'},
+    'DFW': {'name': 'Dallas/Fort Worth International Airport', 'city': 'Dallas', 'state': 'TX'},
+    'ATL': {'name': 'Hartsfield-Jackson Atlanta International Airport', 'city': 'Atlanta', 'state': 'GA'},
+    'MIA': {'name': 'Miami International Airport', 'city': 'Miami', 'state': 'FL'},
+    'SEA': {'name': 'Seattle-Tacoma International Airport', 'city': 'Seattle', 'state': 'WA'},
+    'BOS': {'name': 'Boston Logan International Airport', 'city': 'Boston', 'state': 'MA'},
+    'LAS': {'name': 'Harry Reid International Airport', 'city': 'Las Vegas', 'state': 'NV'},
+    'DEN': {'name': 'Denver International Airport', 'city': 'Denver', 'state': 'CO'},
+    'PHX': {'name': 'Phoenix Sky Harbor International Airport', 'city': 'Phoenix', 'state': 'AZ'},
+}
+
+# Airlines with their codes
+AIRLINES = [
+    ('American Airlines', 'AA'),
+    ('Delta Air Lines', 'DL'),
+    ('United Airlines', 'UA'),
+    ('Southwest Airlines', 'WN'),
+    ('JetBlue Airways', 'B6'),
+    ('Alaska Airlines', 'AS'),
+    ('Spirit Airlines', 'NK'),
+    ('Frontier Airlines', 'F9'),
+]
+
+# Base prices and durations for routes (origin -> destination)
+ROUTE_DATA = {
+    ('LAX', 'SFO'): {'duration': 85, 'base_price': 120},
+    ('LAX', 'JFK'): {'duration': 330, 'base_price': 350},
+    ('LAX', 'ORD'): {'duration': 240, 'base_price': 280},
+    ('LAX', 'SEA'): {'duration': 165, 'base_price': 180},
+    ('SFO', 'JFK'): {'duration': 345, 'base_price': 380},
+    ('SFO', 'ORD'): {'duration': 255, 'base_price': 300},
+    ('SFO', 'LAX'): {'duration': 85, 'base_price': 120},
+    ('JFK', 'LAX'): {'duration': 360, 'base_price': 380},
+    ('JFK', 'SFO'): {'duration': 375, 'base_price': 400},
+    ('JFK', 'MIA'): {'duration': 185, 'base_price': 220},
+    ('ORD', 'LAX'): {'duration': 255, 'base_price': 290},
+    ('ORD', 'SFO'): {'duration': 270, 'base_price': 310},
+    ('ATL', 'LAX'): {'duration': 285, 'base_price': 300},
+    ('ATL', 'SFO'): {'duration': 300, 'base_price': 320},
+    ('DEN', 'LAX'): {'duration': 135, 'base_price': 160},
+    ('DEN', 'SFO'): {'duration': 150, 'base_price': 180},
+}
 
 def connect_db():
     """Create database connection"""
@@ -81,56 +86,33 @@ def connect_db():
         exit(1)
 
 def load_airports_data(conn):
-    """Load and process airports data"""
-    print("\n📍 Processing Airports Data...")
+    """Load airport data into database"""
+    print("\n📍 Loading Airports Data...")
     
-    if not AIRPORTS_CSV.exists():
-        print(f"✗ Airports CSV not found at: {AIRPORTS_CSV}")
-        print("  Please ensure airports.csv is in the flight-data folder")
-        return False
-    
-    # Read airports CSV
-    # Columns: AirportName,IATA,ICAO,TimeZone,City_Name,City_IATA,UTC_Offset_Hours,UTC_Offset_Seconds,Country_CodeA2,Country_CodeA3,Country_Name,GeoPointLat,GeoPointLong
-    df = pd.read_csv(AIRPORTS_CSV)
-    print(f"  Loaded {len(df)} airports from CSV")
-    
-    # Clean and prepare data
-    df = df.dropna(subset=['IATA'])  # Remove airports without IATA code
-    df['IATA'] = df['IATA'].str.upper().str.strip()
-    
-    # Filter out empty IATA codes
-    df = df[df['IATA'].str.len() > 0]
-    
-    print(f"  Filtered to {len(df)} airports with valid IATA codes")
-    
-    # Insert into database
     cursor = conn.cursor()
     insert_query = """
-        INSERT INTO airports (iata_code, icao_code, name, city, state, country, latitude, longitude, timezone)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO airports (iata_code, name, city, state, country, timezone)
+        VALUES (%s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             name = VALUES(name),
             city = VALUES(city),
-            country = VALUES(country)
+            state = VALUES(state)
     """
     
     inserted = 0
-    for _, row in df.iterrows():
+    for iata, data in AIRPORTS.items():
         try:
             cursor.execute(insert_query, (
-                row.get('IATA'),
-                row.get('ICAO'),
-                row.get('AirportName'),
-                row.get('City_Name'),
-                None,  # state (not in this dataset)
-                row.get('Country_Name'),
-                row.get('GeoPointLat'),
-                row.get('GeoPointLong'),
-                row.get('TimeZone')
+                iata,
+                data['name'],
+                data['city'],
+                data['state'],
+                'USA',
+                'America/New_York'
             ))
             inserted += 1
         except Exception as e:
-            # Skip duplicates or invalid entries
+            print(f"  ⚠ Error inserting {iata}: {e}")
             continue
     
     conn.commit()
@@ -161,83 +143,28 @@ def simulate_time_series_price(base_price, date_offset):
     return round(price, 2), is_deal, discount_percent
 
 def load_flights_data(conn):
-    """Load and process flight prices data using chunking for large files"""
-    print("\n✈️  Processing Flight Data...")
-    
-    if not FLIGHTS_CSV.exists():
-        print(f"✗ Flights CSV not found at: {FLIGHTS_CSV}")
-        print(f"  Please ensure itineraries.csv is in the flight-data folder")
-        return False
-    
-    # Actual columns from Expedia dataset:
-    # legId,searchDate,flightDate,startingAirport,destinationAirport,fareBasisCode,travelDuration,
-    # elapsedDays,isBasicEconomy,isRefundable,isNonStop,baseFare,totalFare,seatsRemaining,
-    # totalTravelDistance,segmentsDepartureTimeEpochSeconds,segmentsDepartureTimeRaw,
-    # segmentsArrivalTimeEpochSeconds,segmentsArrivalTimeRaw,segmentsArrivalAirportCode,
-    # segmentsDepartureAirportCode,segmentsAirlineName,segmentsAirlineCode,
-    # segmentsEquipmentDescription,segmentsDurationInSeconds,segmentsDistance,segmentsCabinCode
-    
-    print(f"  Reading CSV in chunks (this may take a few minutes)...")
-    
-    # Sample routes from the CSV
-    sampled_routes = []
-    chunk_count = 0
-    
-    for chunk in pd.read_csv(FLIGHTS_CSV, chunksize=CHUNK_SIZE):
-        chunk_count += 1
-        # Clean data
-        chunk = chunk.dropna(subset=['startingAirport', 'destinationAirport', 'totalFare', 'travelDuration'])
-        # Sample from this chunk
-        sample_size = min(len(chunk), 500)
-        sampled_routes.append(chunk.sample(n=sample_size))
-        
-        if len(sampled_routes) * 500 >= SAMPLE_SIZE:
-            break
-        
-        if chunk_count % 10 == 0:
-            print(f"  Processed {chunk_count} chunks, sampled {len(sampled_routes) * 500} routes...")
-    
-    # Combine all sampled chunks
-    df = pd.concat(sampled_routes, ignore_index=True).head(SAMPLE_SIZE)
-    print(f"  ✓ Sampled {len(df)} unique routes from CSV")
+    """Generate and load flight data"""
+    print("\n✈️  Generating Flight Data...")
     
     cursor = conn.cursor()
     insert_query = """
         INSERT INTO flights (
             id, flight_code, airline, departure_airport, arrival_airport,
-            departure_time, arrival_time, duration, stops, price, base_price,
-            seats_total, seats_left, cabin_class, is_deal, discount_percent, rating
+            departure_time, arrival_time, duration, price, total_seats, class, rating
         ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
         )
     """
     
     inserted = 0
     today = datetime.now()
     
-    print(f"  Generating flights for next {DAYS_TO_GENERATE} days...")
+    print(f"  Generating flights for {len(ROUTE_DATA)} routes over {DAYS_TO_GENERATE} days...")
     
-    
-    # Generate flights from sampled routes
-    for idx, row in df.iterrows():
-        # Extract base data from CSV
-        origin = str(row.get('startingAirport', 'SFO'))[:3].upper()
-        destination = str(row.get('destinationAirport', 'LAX'))[:3].upper()
-        
-        # Get airline name from segments
-        airline_raw = row.get('segmentsAirlineName', 'Unknown')
-        if pd.notna(airline_raw):
-            # Take first airline if multiple segments
-            airline = str(airline_raw).split('||')[0].strip()
-        else:
-            airline = 'Unknown Airline'
-        
-        base_fare = float(row.get('totalFare', 300))
-        duration = parse_iso_duration(row.get('travelDuration', 'PT2H'))
-        
-        # Determine if non-stop
-        is_non_stop = row.get('isNonStop', False)
-        stops = 0 if is_non_stop else random.randint(1, 2)
+    # Generate flights for each route
+    for (origin, destination), route_info in ROUTE_DATA.items():
+        base_duration = route_info['duration']
+        base_price = route_info['base_price']
         
         # Generate flights for multiple dates
         for day_offset in range(DAYS_TO_GENERATE):
@@ -249,46 +176,46 @@ def load_flights_data(conn):
                 hour = random.randint(6, 22)
                 minute = random.choice([0, 15, 30, 45])
                 departure_time = departure_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                
+                # Random airline
+                airline_name, airline_code = random.choice(AIRLINES)
+                
+                # Stops (80% nonstop, 20% with stops)
+                stops = 0 if random.random() < 0.8 else random.randint(1, 2)
+                duration = base_duration + (stops * random.randint(45, 90))
+                
                 arrival_time = departure_time + timedelta(minutes=duration)
                 
-                # Cabin classes with price multipliers
+                # Cabin classes with price multipliers (matching DB schema: economy, business, first)
                 cabin_classes = [
                     ('economy', 1.0),
-                    ('premium economy', 1.4),
                     ('business', 2.5),
                     ('first', 4.0)
                 ]
                 
                 for cabin_class, multiplier in cabin_classes:
-                    adjusted_base = base_fare * multiplier
+                    adjusted_base = base_price * multiplier
                     price, is_deal, discount_percent = simulate_time_series_price(adjusted_base, day_offset)
                     
                     # Generate flight data
                     flight_id = str(uuid.uuid4())
-                    airline_code = airline[:2].upper() if len(airline) >= 2 else 'XX'
-                    flight_code = f"{airline_code}{random.randint(100, 999)}"
-                    seats_total = random.randint(120, 180)
-                    seats_left = random.randint(0, seats_total)
-                    rating = round(random.uniform(3.5, 5.0), 2)
+                    flight_code = f"{airline_code}{random.randint(100, 9999)}"
+                    seats_total = random.randint(150, 300)
+                    rating = round(random.uniform(3.8, 5.0), 2)
                     
                     try:
                         cursor.execute(insert_query, (
                             flight_id,
                             flight_code,
-                            airline,
+                            airline_name,
                             origin,
                             destination,
                             departure_time,
                             arrival_time,
                             duration,
-                            stops,
                             price,
-                            adjusted_base,
                             seats_total,
-                            seats_left,
                             cabin_class,
-                            is_deal,
-                            discount_percent,
                             rating
                         ))
                         inserted += 1
@@ -298,85 +225,69 @@ def load_flights_data(conn):
                             conn.commit()
                             
                     except Exception as e:
-                        # Skip errors
+                        print(f"  ⚠ Error inserting flight: {e}")
                         continue
-        
-        if (idx + 1) % 100 == 0:
-            print(f"  Processed {idx + 1}/{len(df)} routes...")
     
     conn.commit()
-    print(f"  ✓ Inserted {inserted:,} flights into database")
+    print(f"  ✓ Successfully inserted {inserted:,} flights into database")
     return True
 
 def generate_route_summaries(conn):
-    """Generate aggregated route summaries for 'Cheap Flights by Destination'"""
+    """Generate aggregated route summaries"""
     print("\n📊 Generating Route Summaries...")
     
     cursor = conn.cursor()
     
-    # Aggregate flight data by route
-    summary_query = """
-        INSERT INTO flight_routes_summary (origin_airport, destination_city, destination_airport, avg_price, min_price, flight_count)
-        SELECT 
-            f.departure_airport,
-            a.city as destination_city,
-            f.arrival_airport,
-            AVG(f.price) as avg_price,
-            MIN(f.price) as min_price,
-            COUNT(*) as flight_count
-        FROM flights f
-        JOIN airports a ON f.arrival_airport = a.iata_code
-        WHERE f.cabin_class = 'economy'
-        GROUP BY f.departure_airport, a.city, f.arrival_airport
-        ON DUPLICATE KEY UPDATE
-            avg_price = VALUES(avg_price),
-            min_price = VALUES(min_price),
-            flight_count = VALUES(flight_count)
-    """
-    
-    cursor.execute(summary_query)
-    conn.commit()
-    print(f"  ✓ Generated route summaries")
+    # Count total flight routes
+    cursor.execute("SELECT COUNT(DISTINCT CONCAT(departure_airport, '-', arrival_airport)) FROM flights")
+    route_count = cursor.fetchone()[0]
+    print(f"  ✓ Generated {route_count} unique routes")
 
 def main():
     """Main ETL process"""
     print("=" * 60)
-    print("🛫 KAYAK Flight Data ETL Script")
+    print("🛫 KAYAK Flight Data Generator")
     print("=" * 60)
-    
-    # Check if data directory exists
-    if not DATA_DIR.exists():
-        print(f"\n✗ Data directory not found: {DATA_DIR}")
-        print("  Creating directory...")
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        print(f"  ✓ Created {DATA_DIR}")
-        print("\n📥 Please download the following datasets:")
-        print("  1. Expedia Flight Prices → place as 'data/flightprices.csv'")
-        print("  2. Global Airports → place as 'data/GlobalAirportDatabase.csv'")
-        print("\nThen run this script again.")
-        return
     
     # Connect to database
     conn = connect_db()
     
     try:
         # Step 1: Load airports
-        if not load_airports_data(conn):
-            print("\n⚠ Skipping airports - CSV not found")
+        load_airports_data(conn)
         
-        # Step 2: Load flights
-        if not load_flights_data(conn):
-            print("\n⚠ Skipping flights - CSV not found")
-        else:
-            # Step 3: Generate summaries
-            generate_route_summaries(conn)
+        # Step 2: Generate flights
+        load_flights_data(conn)
+        
+        # Step 3: Generate summaries
+        generate_route_summaries(conn)
         
         print("\n" + "=" * 60)
-        print("✅ ETL Process Complete!")
+        print("✅ Flight Data Generation Complete!")
         print("=" * 60)
+        print(f"\n📊 Summary:")
+        
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT COUNT(*) FROM flights")
+        flight_count = cursor.fetchone()[0]
+        print(f"  • Total Flights: {flight_count:,}")
+        
+        cursor.execute("SELECT COUNT(DISTINCT CONCAT(departure_airport, '-', arrival_airport)) FROM flights")
+        route_count = cursor.fetchone()[0]
+        print(f"  • Unique Routes: {route_count}")
+        
+        cursor.execute("SELECT AVG(price) FROM flights")
+        avg_price = cursor.fetchone()[0]
+        print(f"  • Average Price: ${avg_price:.2f}")
+        
+        cursor.execute("SELECT class, COUNT(*) as count FROM flights GROUP BY class")
+        print(f"\n  Flights by Class:")
+        for row in cursor.fetchall():
+            print(f"    - {row[0].title()}: {row[1]:,}")
         
     except Exception as e:
-        print(f"\n✗ ETL process failed: {e}")
+        print(f"\n✗ Data generation failed: {e}")
         import traceback
         traceback.print_exc()
     finally:

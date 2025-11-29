@@ -73,6 +73,55 @@ class BookingController {
     }
   }
 
+  async getAll(req, res) {
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        status,
+        user_id,
+        listing_type,
+        sortBy = 'booking_date',
+        sortOrder = 'desc'
+      } = req.query;
+
+      const bookings = await BookingModel.findAll({
+        page: parseInt(page),
+        limit: parseInt(limit),
+        status,
+        user_id,
+        listing_type,
+        sortBy,
+        sortOrder
+      });
+
+      res.json(bookings);
+    } catch (error) {
+      console.error('Get all bookings error:', error);
+      res.status(500).json({ error: 'Failed to get bookings' });
+    }
+  }
+
+  async updateStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const booking = await BookingModel.findById(id);
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      await BookingModel.updateStatus(id, status);
+      const updatedBooking = await BookingModel.findById(id);
+
+      res.json(updatedBooking);
+    } catch (error) {
+      console.error('Update booking status error:', error);
+      res.status(500).json({ error: 'Failed to update booking status' });
+    }
+  }
+
   async cancel(req, res) {
     try {
       const { id } = req.params;

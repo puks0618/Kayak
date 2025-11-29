@@ -4,39 +4,37 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useTheme } from './context/ThemeContext';
+import Layout from './components/layout/Layout';
+import Dashboard from './pages/Dashboard';
+import FlightsManagement from './pages/FlightsManagement';
+import BookingsManagement from './pages/BookingsManagement';
+import UsersManagement from './pages/UsersManagement';
+import Analytics from './pages/Analytics';
+import Signout from './pages/Signout';
 
 function App() {
-  const { isDarkMode, toggleTheme } = useTheme();
-  
   return (
     <Router>
-      <div className="App">
-        <button 
-          onClick={toggleTheme} 
-          className="dark-mode-toggle"
-          aria-label="Toggle dark mode"
-        >
-          {isDarkMode ? '☀️' : '🌙'}
-        </button>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/listings" element={<Listings />} />
-          <Route path="/bookings" element={<Bookings />} />
-          <Route path="/analytics" element={<Analytics />} />
-        </Routes>
-      </div>
+      <Routes>
+        {/* Signout route without Layout */}
+        <Route path="/signout" element={<Signout />} />
+        
+        {/* All other routes with Layout */}
+        <Route path="/*" element={
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/flights" element={<FlightsManagement />} />
+              <Route path="/bookings" element={<BookingsManagement />} />
+              <Route path="/users" element={<UsersManagement />} />
+              <Route path="/analytics" element={<Analytics />} />
+            </Routes>
+          </Layout>
+        } />
+      </Routes>
     </Router>
   );
 }
-
-// TODO: Implement actual admin components
-const Dashboard = () => <div>Admin Dashboard - Overview with charts</div>;
-const Users = () => <div>User Management</div>;
-const Listings = () => <div>Listing Management</div>;
-const Bookings = () => <div>Booking Management</div>;
-const Analytics = () => <div>Analytics & Reports (Recharts)</div>;
 
 export default App;
 

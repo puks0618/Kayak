@@ -49,6 +49,71 @@ const BookingModel = {
     return rows;
   },
 
+  async findAll(options = {}) {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      user_id,
+      listing_type,
+      sortBy = 'booking_date',
+      sortOrder = 'desc'
+    } = options;
+
+    let query = 'SELECT * FROM bookings WHERE 1=1';
+    const params = [];
+
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    if (user_id) {
+      query += ' AND user_id = ?';
+      params.push(user_id);
+    }
+
+    if (listing_type) {
+      query += ' AND listing_type = ?';
+      params.push(listing_type);
+    }
+
+    query += ` ORDER BY ${sortBy} ${sortOrder}`;
+    query += ' LIMIT ? OFFSET ?';
+    params.push(limit, (page - 1) * limit);
+
+    const [rows] = await pool.execute(query, params);
+
+    // Get total count
+    let countQuery = 'SELECT COUNT(*) as total FROM bookings WHERE 1=1';
+    const countParams = [];
+    if (status) {
+      countQuery += ' AND status = ?';
+      countParams.push(status);
+    }
+    if (user_id) {
+      countQuery += ' AND user_id = ?';
+      countParams.push(user_id);
+    }
+    if (listing_type) {
+      countQuery += ' AND listing_type = ?';
+      countParams.push(listing_type);
+    }
+
+    const [countResult] = await pool.execute(countQuery, countParams);
+    const total = countResult[0].total;
+
+    return {
+      bookings: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  },
+
   async updateStatus(id, status, paymentId = null) {
     let query = 'UPDATE bookings SET status = ?';
     const params = [status];

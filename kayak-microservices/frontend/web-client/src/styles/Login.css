@@ -257,6 +257,76 @@
     color: #9ca3af;
 }
 
+/* User Type Selection Buttons */
+.user-type-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+.user-type-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    max-width: 200px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.user-type-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.user-type-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.traveler-btn-login {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.traveler-btn-login:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%);
+}
+
+.owner-btn-login {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+}
+
+.owner-btn-login:hover {
+    background: linear-gradient(135deg, #e85a28 0%, #e07d0f 100%);
+}
+
+.user-type-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.user-type-text {
+    line-height: 1;
+}
+
+.dark .user-type-btn {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark .user-type-btn:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
 /* Error Alert */
 .error-alert {
     display: flex;

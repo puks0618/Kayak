@@ -64,7 +64,7 @@ export const searchFlights = createAsyncThunk(
   async (searchParams, { rejectWithValue }) => {
     try {
       // Try real API first
-      const response = await axios.get('http://localhost:3002/api/listings/flights/search', {
+      const response = await axios.get('http://localhost:3000/api/listings/flights/search', {
         params: searchParams
       });
       

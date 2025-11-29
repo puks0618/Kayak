@@ -276,7 +276,7 @@ services:
       dockerfile: Dockerfile
     container_name: kayak-admin-portal
     ports:
-      - "5176:80"
+      - "5174:80"
     depends_on:
       - api-gateway
     networks:

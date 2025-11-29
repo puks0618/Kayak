@@ -33,33 +33,31 @@ async function generateUniqueSSN() {
   return generateOnce();
 }
 
+// Validation helper functions (outside class to avoid binding issues)
+function validateSSN(ssn) {
+  const ssnPattern = /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/;
+  return ssnPattern.test(ssn);
+}
+
+function validateZipCode(zipCode) {
+  if (!zipCode) return true; // Optional field
+  const zipPattern = /^[0-9]{5}(-[0-9]{4})?$/;
+  return zipPattern.test(zipCode);
+}
+
+function validateState(state) {
+  if (!state) return true; // Optional field
+  const validStates = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  ];
+  return validStates.includes(state.toUpperCase());
+}
+
 class AuthController {
-  // Validation helper for SSN format
-  validateSSN(ssn) {
-    const ssnPattern = /^[0-9]{3}-[0-9]{2}-[0-9]{4}$/;
-    return ssnPattern.test(ssn);
-  }
-
-  // Validation helper for ZIP code format
-  validateZipCode(zipCode) {
-    if (!zipCode) return true; // Optional field
-    const zipPattern = /^[0-9]{5}(-[0-9]{4})?$/;
-    return zipPattern.test(zipCode);
-  }
-
-  // Validation helper for US state abbreviation
-  validateState(state) {
-    if (!state) return true; // Optional field
-    const validStates = [
-      'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-      'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-      'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-      'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
-    ];
-    return validStates.includes(state.toUpperCase());
-  }
-
   // Register new user
   async register(req, res) {
     try {
@@ -75,7 +73,8 @@ class AuthController {
         zipCode,
         phone,
         profileImage,
-        creditCardToken
+        creditCardToken,
+        role // optional - defaults to 'traveller' if not provided
       } = req.body;
 
       // Validate required fields (SSN is NOT required from the UI)
@@ -85,11 +84,18 @@ class AuthController {
         });
       }
 
+      // Validate role if provided
+      if (role && !['traveller', 'owner', 'admin'].includes(role)) {
+        return res.status(400).json({ 
+          error: 'Invalid role. Must be traveller, owner, or admin' 
+        });
+      }
+
       let finalSSN = ssn;
 
       // If SSN provided, validate format; otherwise generate one
       if (finalSSN) {
-        if (!this.validateSSN(finalSSN)) {
+        if (!validateSSN(finalSSN)) {
           return res.status(400).json({ 
             error: 'Invalid SSN format. Must be ###-##-####' 
           });
@@ -99,14 +105,14 @@ class AuthController {
       }
 
       // Validate state if provided
-      if (state && !this.validateState(state)) {
+      if (state && !validateState(state)) {
         return res.status(400).json({ 
           error: 'Invalid state abbreviation. Must be a valid US state code.' 
         });
       }
 
       // Validate ZIP code if provided
-      if (zipCode && !this.validateZipCode(zipCode)) {
+      if (zipCode && !validateZipCode(zipCode)) {
         return res.status(400).json({ 
           error: 'Invalid ZIP code format. Must be ##### or #####-####' 
         });
@@ -154,7 +160,8 @@ class AuthController {
         zipCode: zipCode || null,
         phone: phone || null,
         profileImage: profileImage || null,
-        creditCardToken: creditCardToken || null
+        creditCardToken: creditCardToken || null,
+        role: role || 'traveller' // default to 'traveller' if not specified
       });
 
       // TODO: Publish user.created event to Kafka

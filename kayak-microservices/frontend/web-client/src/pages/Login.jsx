@@ -29,10 +29,16 @@ const Login = () => {
             const result = await authLogin(email, password);
             
             if (result.success) {
-                // Success - navigate to home
-                setTimeout(() => {
-                    navigate('/');
-                }, 500);
+                // Check if user should be redirected to a different portal
+                if (result.redirectUrl) {
+                    // Owner/Admin - redirect to admin portal
+                    window.location.href = result.redirectUrl;
+                } else {
+                    // Traveller - navigate to home on web-client
+                    setTimeout(() => {
+                        navigate('/');
+                    }, 500);
+                }
             } else {
                 // Login failed with a known reason
                 const baseMessage = result.error || 'Sign-in failed.';
@@ -60,10 +66,16 @@ const Login = () => {
             
             if (result.success) {
                 setSocialModalOpen(false);
-                // Navigate to home
-                setTimeout(() => {
-                    navigate('/');
-                }, 500);
+                // Check if user should be redirected to a different portal
+                if (result.redirectUrl) {
+                    // Owner/Admin - redirect to admin portal
+                    window.location.href = result.redirectUrl;
+                } else {
+                    // Traveller - navigate to home
+                    setTimeout(() => {
+                        navigate('/');
+                    }, 500);
+                }
             } else {
                 throw new Error(result.error || 'Invalid email or password. Please try again.');
             }

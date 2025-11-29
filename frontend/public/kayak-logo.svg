@@ -1,0 +1,25 @@
+<svg width="160" height="36" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- KAYAK Logo with Orange Boxes -->
+  <g>
+    <!-- K box -->
+    <rect x="0" y="4" width="28" height="28" rx="2" fill="#FF6A13"/>
+    <text x="14" y="25" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="white" text-anchor="middle">K</text>
+    
+    <!-- A box -->
+    <rect x="32" y="4" width="28" height="28" rx="2" fill="#FF6A13"/>
+    <text x="46" y="25" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="white" text-anchor="middle">A</text>
+    
+    <!-- Y box -->
+    <rect x="64" y="4" width="28" height="28" rx="2" fill="#FF6A13"/>
+    <text x="78" y="25" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="white" text-anchor="middle">Y</text>
+    
+    <!-- A box -->
+    <rect x="96" y="4" width="28" height="28" rx="2" fill="#FF6A13"/>
+    <text x="110" y="25" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="white" text-anchor="middle">A</text>
+    
+    <!-- K box -->
+    <rect x="128" y="4" width="28" height="28" rx="2" fill="#FF6A13"/>
+    <text x="142" y="25" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="white" text-anchor="middle">K</text>
+  </g>
+</svg>
+

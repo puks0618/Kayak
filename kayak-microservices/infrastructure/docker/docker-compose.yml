@@ -1,0 +1,263 @@
+version: '3.8'
+
+services:
+  # Databases
+  mysql:
+    image: mysql:8.0
+    container_name: kayak-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: kayak
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../databases/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - kayak-network
+
+  mongodb:
+    image: mongo:7.0
+    container_name: kayak-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ../databases/mongodb/init:/docker-entrypoint-initdb.d
+    networks:
+      - kayak-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: kayak-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ../databases/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - kayak-network
+
+  # Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: kayak-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - kayak-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kayak-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - kayak-network
+
+  # Microservices
+  api-gateway:
+    build:
+      context: ../../api-gateway
+      dockerfile: Dockerfile
+    container_name: kayak-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - USER_SERVICE_URL=http://user-service:3002
+      - LISTING_SERVICE_URL=http://listing-service:3003
+      - SEARCH_SERVICE_URL=http://search-service:3004
+      - BOOKING_SERVICE_URL=http://booking-service:3005
+      - ANALYTICS_SERVICE_URL=http://analytics-service:3006
+      - ADMIN_SERVICE_URL=http://admin-service:3007
+      - AI_AGENT_URL=http://ai-agent:8000
+    depends_on:
+      - auth-service
+      - user-service
+      - listing-service
+    networks:
+      - kayak-network
+
+  auth-service:
+    build:
+      context: ../../services/auth-service
+      dockerfile: Dockerfile
+    container_name: kayak-auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=kayak_auth
+      - JWT_SECRET=your-secret-key-change-in-production
+    depends_on:
+      - mysql
+    networks:
+      - kayak-network
+
+  user-service:
+    build:
+      context: ../../services/user-service
+      dockerfile: Dockerfile
+    container_name: kayak-user-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=kayak_users
+      - REDIS_HOST=redis
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      - mysql
+      - redis
+      - kafka
+    networks:
+      - kayak-network
+
+  listing-service:
+    build:
+      context: ../../services/listing-service
+      dockerfile: Dockerfile
+    container_name: kayak-listing-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=kayak_listings
+      - MONGO_URI=mongodb://mongodb:27017/kayak_listings
+      - REDIS_HOST=redis
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      - mysql
+      - mongodb
+      - redis
+      - kafka
+    networks:
+      - kayak-network
+
+  search-service:
+    build:
+      context: ../../services/search-service
+      dockerfile: Dockerfile
+    container_name: kayak-search-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=kayak_listings
+      - REDIS_HOST=redis
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - kayak-network
+
+  booking-service:
+    build:
+      context: ../../services/booking-service
+      dockerfile: Dockerfile
+    container_name: kayak-booking-service
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=kayak_bookings
+      - REDIS_HOST=redis
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      - mysql
+      - redis
+      - kafka
+    networks:
+      - kayak-network
+
+  analytics-service:
+    build:
+      context: ../../services/analytics-service
+      dockerfile: Dockerfile
+    container_name: kayak-analytics-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - MONGO_URI=mongodb://mongodb:27017/kayak_analytics
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      - mongodb
+      - kafka
+    networks:
+      - kayak-network
+
+  admin-service:
+    build:
+      context: ../../services/admin-service
+      dockerfile: Dockerfile
+    container_name: kayak-admin-service
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      - kafka
+    networks:
+      - kayak-network
+
+  ai-agent:
+    build:
+      context: ../../services/ai-agent
+      dockerfile: Dockerfile
+    container_name: kayak-ai-agent
+    ports:
+      - "8000:8000"
+    environment:
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      - kafka
+    networks:
+      - kayak-network
+
+volumes:
+  mysql_data:
+  mongodb_data:
+  redis_data:
+  zookeeper_data:
+  kafka_data:
+
+networks:
+  kayak-network:
+    driver: bridge
+

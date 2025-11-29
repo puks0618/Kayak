@@ -1,265 +1,317 @@
-# Kayak Billing System
+# Kayak Microservices Platform
 
-A mini clone of Kayak focused on billing management, built with Node.js, Express, TypeScript, React, MySQL, and MongoDB Atlas.
+A comprehensive travel booking platform built with microservices architecture, featuring flight, hotel, and car rental services with AI-powered recommendations.
 
-## Tech Stack
+## 🏗️ Architecture Overview
 
-### Backend
-- **Node.js** + **Express** + **TypeScript**
-- **MySQL** - Main billing records storage
-- **MongoDB Atlas** - Invoice documents and logs storage
+This project consists of:
+- **8 Microservices** (API Gateway, Auth, User, Listing, Search, Booking, Analytics, Admin)
+- **AI Agent** for intelligent recommendations and trip planning
+- **2 Frontend Applications** (Web Client & Admin Portal)
+- **Infrastructure** (MySQL, MongoDB, Redis, Kafka, Zookeeper)
 
-### Frontend
-- **React** + **TypeScript**
-- **Tailwind CSS** - Styling
-- **Vite** - Build tool
+## 📋 Prerequisites
 
-## Project Structure
+Before getting started, ensure you have the following installed:
 
-```
-kayak-packages/
-├── backend/
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── database.ts          # MySQL & MongoDB connections
-│   │   ├── models/
-│   │   │   ├── mysql/
-│   │   │   │   └── BillingRecord.ts # MySQL billing record model
-│   │   │   └── mongodb/
-│   │   │       ├── InvoiceDocument.ts # MongoDB invoice model
-│   │   │       └── Log.ts            # MongoDB log model
-│   │   ├── middleware/
-│   │   │   ├── errorHandler.ts       # Error handling middleware
-│   │   │   └── logger.ts             # Request/error logging
-│   │   ├── routes/
-│   │   │   ├── billing.ts            # Billing API routes
-│   │   │   └── logs.ts               # Logs API routes
-│   │   └── server.ts                 # Express server setup
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── Layout.tsx            # Main layout component
-│   │   ├── pages/
-│   │   │   ├── Dashboard.tsx         # Dashboard page
-│   │   │   ├── BillingList.tsx       # Billing records list
-│   │   │   ├── BillingDetail.tsx     # Billing record details
-│   │   │   └── CreateBilling.tsx     # Create billing record
-│   │   ├── services/
-│   │   │   └── api.ts                # API service layer
-│   │   ├── App.tsx
-│   │   ├── main.tsx
-│   │   └── index.css
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── .env.example
-└── README.md
+- **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
+- **Python** (v3.9 or higher) - [Download](https://python.org/)
+- **Docker** & **Docker Compose** - [Download](https://docker.com/)
+- **Git** - [Download](https://git-scm.com/)
+
+### Verify Installation
+```bash
+node --version    # Should be v18+
+python --version  # Should be v3.9+
+docker --version
+docker-compose --version
 ```
 
-## Setup Instructions
+## 🚀 Quick Start
 
-### Prerequisites
+### 1. Clone the Repository
+```bash
+git clone https://github.com/puks0618/Kayak.git
+cd Kayak/kayak-microservices
+```
 
-- Node.js (v18 or higher)
-- MySQL (v8.0 or higher)
-- MongoDB Atlas account (or local MongoDB)
-- npm or yarn
+### 2. Automated Setup (Recommended)
+```bash
+# Make setup script executable and run
+chmod +x scripts/setup-local.sh
+./scripts/setup-local.sh
+```
 
-### Backend Setup
+### 3. Manual Setup (Alternative)
 
-1. **Navigate to backend directory:**
+#### Step 3a: Install Dependencies
+```bash
+# API Gateway
+cd api-gateway && npm install && cd ..
+
+# Install all service dependencies
+for service in auth-service user-service listing-service search-service booking-service analytics-service admin-service; do
+  cd services/$service && npm install && cd ../..
+done
+
+# AI Agent (Python)
+cd services/ai-agent && pip install -r requirements.txt && cd ../..
+
+# Frontend Applications
+cd frontend/web-client && npm install && cd ../..
+cd frontend/admin-portal && npm install && cd ../..
+```
+
+#### Step 3b: Start Infrastructure
+```bash
+cd infrastructure/docker
+docker-compose up -d mysql mongodb redis zookeeper kafka
+cd ../..
+```
+
+#### Step 3c: Create Kafka Topics
+```bash
+# Wait for Kafka to be ready (30-60 seconds)
+sleep 60
+
+# Create topics
+chmod +x infrastructure/kafka/topics/create-topics.sh
+docker exec kayak-kafka /bin/bash -c "
+  kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --topic user.created --partitions 3 --replication-factor 1
+  kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --topic listing.created --partitions 5 --replication-factor 1
+  kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --topic booking.created --partitions 5 --replication-factor 1
+"
+```
+
+### 4. Start All Services
+
+#### Option A: Using Docker Compose (Recommended)
+```bash
+cd infrastructure/docker
+docker-compose up --build
+```
+
+#### Option B: Start Services Individually
+```bash
+# Terminal 1 - API Gateway
+cd api-gateway && npm start
+
+# Terminal 2 - Auth Service
+cd services/auth-service && npm start
+
+# Terminal 3 - User Service
+cd services/user-service && npm start
+
+# Terminal 4 - Listing Service
+cd services/listing-service && npm start
+
+# Terminal 5 - Search Service
+cd services/search-service && npm start
+
+# Terminal 6 - Booking Service
+cd services/booking-service && npm start
+
+# Terminal 7 - Analytics Service
+cd services/analytics-service && npm start
+
+# Terminal 8 - Admin Service
+cd services/admin-service && npm start
+
+# Terminal 9 - AI Agent
+cd services/ai-agent && python main.py
+
+# Terminal 10 - Web Client
+cd frontend/web-client && npm run dev
+
+# Terminal 11 - Admin Portal
+cd frontend/admin-portal && npm run dev
+```
+
+## 🌐 Service URLs
+
+Once all services are running, you can access:
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **API Gateway** | http://localhost:3000 | Main entry point for all API requests |
+| **Web Client** | http://localhost:5173 | Customer-facing web application |
+| **Admin Portal** | http://localhost:5174 | Administrative dashboard |
+| Auth Service | http://localhost:3001 | User authentication & authorization |
+| User Service | http://localhost:3002 | User profile management |
+| Listing Service | http://localhost:3003 | Hotels, flights, cars listings |
+| Search Service | http://localhost:3004 | Search and filtering |
+| Booking Service | http://localhost:3005 | Reservation management |
+| Analytics Service | http://localhost:3006 | Business intelligence |
+| Admin Service | http://localhost:3007 | Administrative operations |
+| AI Agent | http://localhost:8000 | AI recommendations & trip planning |
+
+## 🗄️ Database Access
+
+| Database | URL | Credentials |
+|----------|-----|-------------|
+| **MySQL** | localhost:3306 | root / rootpassword |
+| **MongoDB** | localhost:27017 | No authentication |
+| **Redis** | localhost:6379 | No authentication |
+| **Kafka** | localhost:9092 | No authentication |
+
+## 🔍 Health Checks
+
+Check if all services are running properly:
+
+```bash
+# Run health check script
+chmod +x scripts/health-check.sh
+./scripts/health-check.sh
+```
+
+Or check individual services:
+```bash
+curl http://localhost:3000/health  # API Gateway
+curl http://localhost:3001/health  # Auth Service
+curl http://localhost:8000/health  # AI Agent
+```
+
+## 🧪 Testing
+
+### Generate Test Data
+```bash
+# Generate sample data for testing
+python scripts/generate-test-data.py
+```
+
+### Run Tests
+```bash
+# Unit tests for individual services
+cd services/auth-service && npm test
+cd services/user-service && npm test
+
+# Integration tests
+cd testing/integration-tests && npm test
+
+# Contract tests
+cd testing/contract-tests && npm test
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Port Already in Use**
    ```bash
-   cd backend
+   # Find and kill process using port 3000
+   lsof -ti:3000 | xargs kill -9
    ```
 
-2. **Install dependencies:**
+2. **Docker Services Won't Start**
    ```bash
-   npm install
+   # Clean up Docker
+   docker-compose down -v
+   docker system prune -f
+   docker-compose up --build
    ```
 
-3. **Set up environment variables:**
-   
-   Create a `.env` file in the `backend` folder with the following content:
-   ```env
-   PORT=3001
-   NODE_ENV=development
-   
-   # MySQL Configuration
-   MYSQL_HOST=localhost
-   MYSQL_PORT=3306
-   MYSQL_USER=root
-   MYSQL_PASSWORD=your_mysql_password
-   MYSQL_DATABASE=kayak_billing
-   
-   # MongoDB Atlas Configuration
-   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/kayak_billing?retryWrites=true&w=majority
-   
-   # CORS Configuration
-   FRONTEND_URL=http://localhost:3000
-   ```
-   
-   **To get your MongoDB Atlas connection string:**
-   1. Go to your MongoDB Atlas dashboard
-   2. Click "Connect" on your cluster (e.g., "Cluster1")
-   3. Select "Drivers" or "Connect your application"
-   4. Choose "Node.js" and copy the connection string
-   5. Replace `<username>` and `<password>` with your database user credentials
-   6. Add `/kayak_billing` before the `?` in the connection string (e.g., `...mongodb.net/kayak_billing?retryWrites...`)
-   7. If you don't have a database user, go to "Database Access" → "Add New Database User" to create one
-   8. Make sure your IP address is whitelisted in "Network Access" (your current IP should already be added)
-
-4. **Create MySQL database:**
-   ```sql
-   CREATE DATABASE kayak_billing;
-   ```
-   (The tables will be created automatically on first run)
-
-5. **Start the backend server:**
+3. **Kafka Connection Issues**
    ```bash
-   npm run dev
+   # Restart Kafka services
+   docker-compose restart zookeeper kafka
+   # Wait 60 seconds, then restart dependent services
    ```
+
+4. **Database Connection Errors**
+   ```bash
+   # Check if databases are running
+   docker ps | grep -E "(mysql|mongo|redis)"
    
-   The server will start on `http://localhost:3001`
-
-### Frontend Setup
-
-1. **Navigate to frontend directory:**
-   ```bash
-   cd frontend
+   # Restart databases
+   docker-compose restart mysql mongodb redis
    ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables (optional):**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` if you need to change the API URL:
-   ```env
-   VITE_API_URL=http://localhost:3001
-   ```
-
-4. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
-   
-   The frontend will start on `http://localhost:3000`
-
-## API Endpoints
-
-### Billing Records
-
-- `GET /api/billing` - Get all billing records (with optional filters: `customer_id`, `status`, `limit`, `offset`)
-- `GET /api/billing/:id` - Get billing record by ID
-- `POST /api/billing` - Create new billing record
-- `PUT /api/billing/:id` - Update billing record
-- `DELETE /api/billing/:id` - Delete billing record
-- `POST /api/billing/:id/invoice` - Create invoice document for billing record
-- `GET /api/billing/:id/invoice` - Get invoice document for billing record
 
 ### Logs
+```bash
+# View logs for specific service
+docker-compose logs -f api-gateway
+docker-compose logs -f auth-service
 
-- `GET /api/logs` - Get logs (with optional filters: `level`, `service`, `billing_record_id`, `customer_id`, `limit`)
-- `POST /api/logs` - Create log entry
-
-### Health Check
-
-- `GET /health` - Server health check
-
-## Database Schema
-
-### MySQL - billing_records
-
-```sql
-CREATE TABLE billing_records (
-  id VARCHAR(36) PRIMARY KEY,
-  customer_id VARCHAR(100) NOT NULL,
-  customer_name VARCHAR(255) NOT NULL,
-  invoice_number VARCHAR(100) UNIQUE NOT NULL,
-  amount DECIMAL(10, 2) NOT NULL,
-  currency VARCHAR(3) DEFAULT 'USD',
-  status ENUM('pending', 'paid', 'overdue', 'cancelled') DEFAULT 'pending',
-  due_date DATE NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+# View all logs
+docker-compose logs -f
 ```
 
-### MongoDB Collections
+## 📁 Project Structure
 
-**InvoiceDocument:**
-- Stores detailed invoice information with line items
-- Linked to billing records via `billing_record_id`
+```
+kayak-microservices/
+├── api-gateway/           # API Gateway service
+├── services/              # All microservices
+│   ├── auth-service/      # Authentication & authorization
+│   ├── user-service/      # User management
+│   ├── listing-service/   # Hotels, flights, cars
+│   ├── search-service/    # Search & filtering
+│   ├── booking-service/   # Reservations & payments
+│   ├── analytics-service/ # Business intelligence
+│   ├── admin-service/     # Admin operations
+│   └── ai-agent/          # AI recommendations (Python)
+├── frontend/              # Frontend applications
+│   ├── web-client/        # Customer web app (React)
+│   └── admin-portal/      # Admin dashboard (React)
+├── infrastructure/        # Infrastructure setup
+│   ├── docker/            # Docker Compose files
+│   ├── databases/         # Database initialization
+│   └── kafka/             # Kafka configuration
+├── shared/                # Shared utilities & models
+├── scripts/               # Setup & utility scripts
+└── testing/               # Test suites
+```
 
-**Log:**
-- Stores application logs
-- Auto-expires after 90 days (TTL index)
+## 🔧 Development
 
-## Features
+### Environment Variables
 
-- ✅ Full CRUD operations for billing records
-- ✅ Invoice document management (MongoDB)
-- ✅ Request and error logging (MongoDB)
-- ✅ Dashboard with statistics
-- ✅ Filter and search billing records
-- ✅ Responsive UI with Tailwind CSS
-- ✅ TypeScript for type safety
-- ✅ Environment variable configuration
+Create `.env` files in each service directory with required configurations:
 
-## Development
+```bash
+# Example for auth-service/.env
+PORT=3001
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=rootpassword
+DB_NAME=kayak_auth
+JWT_SECRET=your-secret-key
+```
 
-### Backend Scripts
+### Adding New Services
 
-- `npm run dev` - Start development server with nodemon
-- `npm run build` - Build TypeScript to JavaScript
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
+1. Create service directory in `services/`
+2. Add Dockerfile
+3. Update `docker-compose.yml`
+4. Add service routes to API Gateway
+5. Update this README
 
-### Frontend Scripts
+## 📚 API Documentation
 
-- `npm run dev` - Start Vite development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
+API documentation is available in the `docs/` directory:
+- [API Design](docs/API-Design.md)
 
-## Environment Variables
+## 🤝 Contributing
 
-### Backend (.env)
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3001` |
-| `NODE_ENV` | Environment | `development` |
-| `MYSQL_HOST` | MySQL host | `localhost` |
-| `MYSQL_PORT` | MySQL port | `3306` |
-| `MYSQL_USER` | MySQL username | `root` |
-| `MYSQL_PASSWORD` | MySQL password | - |
-| `MYSQL_DATABASE` | MySQL database name | `kayak_billing` |
-| `MONGODB_URI` | MongoDB connection string | - |
-| `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:3000` |
+## 📄 License
 
-### Frontend (.env)
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_API_URL` | Backend API URL | `http://localhost:3001` |
+## 🆘 Support
 
-## Notes
+If you encounter any issues:
 
-- The MySQL tables are automatically created on first server start
-- MongoDB collections are created automatically when first document is inserted
-- Logs in MongoDB have a TTL index that auto-deletes entries after 90 days
-- All API responses follow a consistent format: `{ success: boolean, data: any, ... }`
+1. Check the [Troubleshooting](#-troubleshooting) section
+2. Review service logs: `docker-compose logs -f [service-name]`
+3. Run health checks: `./scripts/health-check.sh`
+4. Open an issue on GitHub
 
-## License
+---
 
-ISC
-
+**Happy Coding! 🚀**

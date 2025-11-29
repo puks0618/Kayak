@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Booking Events Schema",
+  "definitions": {
+    "BookingCompleted": {
+      "type": "object",
+      "properties": {
+        "eventType": { "const": "booking.completed" },
+        "eventId": { "type": "string", "format": "uuid" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "bookingId": { "type": "string", "format": "uuid" },
+            "userId": { "type": "string", "format": "uuid" },
+            "listingId": { "type": "string", "format": "uuid" },
+            "listingType": { "enum": ["flight", "hotel", "car"] },
+            "amount": { "type": "number", "minimum": 0 }
+          },
+          "required": ["bookingId", "userId", "listingId", "listingType", "amount"]
+        }
+      },
+      "required": ["eventType", "eventId", "timestamp", "data"]
+    }
+  }
+}
+

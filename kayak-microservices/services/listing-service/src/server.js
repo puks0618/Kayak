@@ -4,15 +4,18 @@
  */
 
 const express = require('express');
+const cors = require('cors');
 const flightRoutes = require('./modules/flights/route');
 const hotelRoutes = require('./modules/hotels/route');
 const carRoutes = require('./modules/cars/route');
+const listingsRoutes = require('./routes/listings.routes');
 const redisCache = require('./cache/redis');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 
 // Health check
@@ -28,6 +31,7 @@ app.get('/health', (req, res) => {
 app.use('/api/listings/flights', flightRoutes);
 app.use('/api/listings/hotels', hotelRoutes);
 app.use('/api/listings/cars', carRoutes);
+app.use('/api/listings', listingsRoutes); // Admin unified listings route
 
 // Error handler
 app.use((err, req, res, next) => {

@@ -14,10 +14,16 @@ const rateLimitConfig = {
 
 // CORS configuration
 const corsConfig = {
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+    'http://localhost:3000',
+    'http://localhost:5175',  // Web client
+    'http://localhost:5176',  // Admin portal
+    'http://localhost:8080',
+    'http://localhost:8081'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Trace-ID']
 };
 
 // Request ID middleware

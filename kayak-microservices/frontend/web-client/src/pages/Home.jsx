@@ -53,10 +53,42 @@ const MOCK_RECENT_SEARCHES = [
 
 // Mock travel deals
 const MOCK_DEALS = [
-  { city: 'Los Angeles', duration: '1h 21m, non-stop', dates: 'Sun 12/14 → Thu 12/18', price: 107, image: 'https://images.unsplash.com/photo-1534190239940-9ba8944ea261?w=400' },
-  { city: 'Las Vegas', duration: '1h 15m, non-stop', dates: 'Sun 12/21 → Thu 12/25', price: 141, image: 'https://images.unsplash.com/photo-1605833556294-ea5d3b5b6b5e?w=400' },
-  { city: 'San Diego', duration: '1h 35m, non-stop', dates: 'Wed 12/17 → Wed 12/24', price: 147, image: 'https://images.unsplash.com/photo-1583511666407-5f06533f2113?w=400' },
-  { city: 'Burbank', duration: '1h 15m, non-stop', dates: 'Thu 12/25 → Mon 12/29', price: 236, image: 'https://images.unsplash.com/photo-1564221710304-0b37c8b9d729?w=400' },
+  { 
+    city: 'Los Angeles', 
+    duration: '1h 21m, non-stop', 
+    dates: 'Sun 12/14', 
+    price: 93, 
+    image: 'https://picsum.photos/seed/lax/400/300',
+    destination: 'LAX',
+    origin: 'SFO'
+  },
+  { 
+    city: 'Las Vegas', 
+    duration: '1h 42m, non-stop', 
+    dates: 'Sun 12/14', 
+    price: 75, 
+    image: 'https://picsum.photos/seed/las/400/300',
+    destination: 'LAS',
+    origin: 'SFO'
+  },
+  { 
+    city: 'San Diego', 
+    duration: '1h 43m, non-stop', 
+    dates: 'Mon 12/22', 
+    price: 177, 
+    image: 'https://picsum.photos/seed/san/400/300',
+    destination: 'SAN',
+    origin: 'SFO'
+  },
+  { 
+    city: 'Long Beach', 
+    duration: '1h 20m, non-stop', 
+    dates: 'Thu 12/25', 
+    price: 256, 
+    image: 'https://picsum.photos/seed/lgb/400/300',
+    destination: 'LGB',
+    origin: 'SFO'
+  },
 ];
 
 export default function Home() {
@@ -66,7 +98,7 @@ export default function Home() {
   const { user, logout } = useAuth();
   
   // Get search form from Redux
-  const { searchForm } = useSelector(state => state.flights);
+  const { searchForm, recentSearches } = useSelector(state => state.flights);
   
   // Helper to normalize trip type from Redux
   const normalizeTripType = (type) => {
@@ -113,6 +145,9 @@ export default function Home() {
   // API data state
   const [deals, setDeals] = useState(MOCK_DEALS); // Start with mock data
   const [dealsLoading, setDealsLoading] = useState(true);
+  const [currentDealIndex, setCurrentDealIndex] = useState(0);
+  const [showAllDeals, setShowAllDeals] = useState(false);
+  const [maxDealPrice, setMaxDealPrice] = useState(310); // Calculated from actual deals
   
   // Calculate total travelers
   const totalTravelers = adults + students + seniors + youths + children + toddlers + infants;
@@ -163,23 +198,72 @@ export default function Home() {
     const loadDeals = async () => {
       try {
         setDealsLoading(true);
-        const response = await getFlightDeals({ maxPrice: 310, limit: 12 });
+        // Fetch top 12 cheapest deals from origin (no max price filter)
+        const response = await getFlightDeals({ 
+          origin: origin,
+          limit: 12 
+        });
+        
+        console.log('=== Flight Deals API Response ===', response);
         
         if (response.success && response.deals) {
+          // Airport code to city name and image mapping
+          const airportData = {
+            'LAX': { city: 'Los Angeles', image: 'https://picsum.photos/seed/lax/400/300' },
+            'LAS': { city: 'Las Vegas', image: 'https://picsum.photos/seed/las/400/300' },
+            'SAN': { city: 'San Diego', image: 'https://picsum.photos/seed/san/400/300' },
+            'LGB': { city: 'Long Beach', image: 'https://picsum.photos/seed/lgb/400/300' },
+            'SFO': { city: 'San Francisco', image: 'https://picsum.photos/seed/sfo/400/300' },
+            'JFK': { city: 'New York', image: 'https://picsum.photos/seed/jfk/400/300' },
+            'LGA': { city: 'New York', image: 'https://picsum.photos/seed/lga/400/300' },
+            'EWR': { city: 'Newark', image: 'https://picsum.photos/seed/ewr/400/300' },
+            'MIA': { city: 'Miami', image: 'https://picsum.photos/seed/mia/400/300' },
+            'ORD': { city: 'Chicago', image: 'https://picsum.photos/seed/ord/400/300' },
+            'SEA': { city: 'Seattle', image: 'https://picsum.photos/seed/sea/400/300' },
+            'BOS': { city: 'Boston', image: 'https://picsum.photos/seed/bos/400/300' },
+            'PHX': { city: 'Phoenix', image: 'https://picsum.photos/seed/phx/400/300' },
+            'DEN': { city: 'Denver', image: 'https://picsum.photos/seed/den/400/300' },
+            'ATL': { city: 'Atlanta', image: 'https://picsum.photos/seed/atl/400/300' },
+            'DFW': { city: 'Dallas', image: 'https://picsum.photos/seed/dfw/400/300' },
+            'DTW': { city: 'Detroit', image: 'https://picsum.photos/seed/dtw/400/300' },
+            'OAK': { city: 'Oakland', image: 'https://picsum.photos/seed/oak/400/300' },
+            'MCO': { city: 'Orlando', image: 'https://picsum.photos/seed/mco/400/300' },
+            'MSP': { city: 'Minneapolis', image: 'https://picsum.photos/seed/msp/400/300' },
+            'default': { city: 'Popular Destination', image: 'https://picsum.photos/seed/default/400/300' }
+          };
+          
           // Transform API data to match the format expected by the UI
-          const transformedDeals = response.deals.map(deal => ({
-            city: deal.arrival_city || deal.arrival_airport,
-            duration: `${Math.floor(deal.duration / 60)}h ${deal.duration % 60}m, ${deal.stops === 0 ? 'non-stop' : `${deal.stops} stop${deal.stops > 1 ? 's' : ''}`}`,
-            dates: `${new Date(deal.departure_time).toLocaleDateString('en-US', { weekday: 'short', month: '2-digit', day: '2-digit' })}`,
-            price: Math.round(parseFloat(deal.price)),
-            image: `https://images.unsplash.com/photo-1534190239940-9ba8944ea261?w=400`,
-            flightCode: deal.flight_code,
-            airline: deal.airline,
-            origin: deal.departure_city || deal.departure_airport,
-            destination: deal.arrival_city || deal.arrival_airport
-          }));
+          const transformedDeals = response.deals.map(deal => {
+            const airportCode = deal.arrival_airport;
+            const cityInfo = airportData[airportCode] || airportData['default'];
+            const cityName = deal.arrival_city || cityInfo.city;
+            
+            console.log(`Deal: ${airportCode} → ${cityName}, Raw Price: ${deal.price} (type: ${typeof deal.price}), Rounded: ${Math.round(parseFloat(deal.price))}, Image: ${cityInfo.image}`);
+            
+            return {
+              city: cityName,
+              duration: `${Math.floor(deal.duration / 60)}h ${deal.duration % 60}m, ${deal.stops === 0 ? 'non-stop' : `${deal.stops} stop${deal.stops > 1 ? 's' : ''}`}`,
+              dates: `${new Date(deal.departure_time).toLocaleDateString('en-US', { weekday: 'short', month: '2-digit', day: '2-digit' })}`,
+              price: Math.round(parseFloat(deal.price)),
+              image: cityInfo.image,
+              // Store flight details for search population
+              origin: deal.departure_airport,
+              destination: deal.arrival_airport,
+              originCity: deal.departure_city || deal.departure_airport,
+              destinationCity: deal.arrival_city || deal.arrival_airport,
+              departureDate: new Date(deal.departure_time).toISOString().split('T')[0],
+              airline: deal.airline
+            };
+          });
           
           setDeals(transformedDeals);
+          
+          // Calculate max price from the deals we're showing
+          if (transformedDeals.length > 0) {
+            const calculatedMaxPrice = Math.max(...transformedDeals.map(d => d.price));
+            setMaxDealPrice(calculatedMaxPrice);
+            console.log(`Max deal price calculated: $${calculatedMaxPrice}`);
+          }
         }
       } catch (error) {
         console.error('Failed to load deals:', error);
@@ -190,7 +274,7 @@ export default function Home() {
     };
     
     loadDeals();
-  }, []);
+  }, [origin]); // Reload when search form origin changes
   
   // Filter airports - search by city, code, airport name, state, country, and full location
   const filteredOrigins = AIRPORTS.filter(airport => {
@@ -425,6 +509,7 @@ export default function Home() {
                                     e.stopPropagation();
                                     console.log('Selected nearby origin:', airport.code);
                                     setOrigin(airport.code);
+                                    dispatch(updateSearchForm({ origin: airport.code }));
                                     setOriginSearch('');
                                     setShowOriginDropdown(false);
                                   }}
@@ -460,9 +545,11 @@ export default function Home() {
                                     if (isSelected) {
                                       // Unselect if already selected
                                       setOrigin('');
+                                      dispatch(updateSearchForm({ origin: '' }));
                                     } else {
                                       // Select if not selected
                                       setOrigin(airport.code);
+                                      dispatch(updateSearchForm({ origin: airport.code }));
                                       setOriginSearch('');
                                       setShowOriginDropdown(false);
                                     }
@@ -979,22 +1066,66 @@ export default function Home() {
           <div className="max-w-[1200px] mx-auto px-4">
             <h2 className="text-2xl font-bold mb-6 dark:text-white">Your recent searches</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {MOCK_RECENT_SEARCHES.map(search => (
-                <div key={search.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow cursor-pointer">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="font-bold text-base mb-2 dark:text-white">{search.originCity} ({search.origin}) → {search.destinationCity}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{search.departureDate} → {search.returnDate}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{search.travelers} traveler</div>
-                      {search.comboType && <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{search.comboType}</div>}
+              {recentSearches && recentSearches.length > 0 ? (
+                recentSearches.slice(0, 2).map((search, index) => (
+                  <div 
+                    key={index} 
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => {
+                      // Populate search form with saved search
+                      setOrigin(search.origin);
+                      setDestination(search.destination);
+                      setDepartureDate(new Date(search.departureDate));
+                      if (search.returnDate) {
+                        setReturnDate(new Date(search.returnDate));
+                        setTripType('Round-trip');
+                      } else {
+                        setTripType('One-way');
+                      }
+                      setAdults(search.adults || 1);
+                      setCabinClass(search.cabinClass || 'Economy');
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="font-bold text-base mb-2 dark:text-white">
+                          {search.origin} → {search.destination}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {new Date(search.departureDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                          {search.returnDate && ` → ${new Date(search.returnDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}`}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {search.adults || 1} traveler
+                        </div>
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Populate and search immediately
+                          setOrigin(search.origin);
+                          setDestination(search.destination);
+                          setDepartureDate(new Date(search.departureDate));
+                          if (search.returnDate) {
+                            setReturnDate(new Date(search.returnDate));
+                          }
+                          setAdults(search.adults || 1);
+                          setCabinClass(search.cabinClass || 'Economy');
+                          setTimeout(() => handleSearch(), 100);
+                        }}
+                        className="w-12 h-12 bg-[#FF690F] rounded-lg flex items-center justify-center text-white hover:bg-[#d6570c] flex-shrink-0 ml-3"
+                      >
+                        <Search className="w-5 h-5" />
+                      </button>
                     </div>
-                    <button className="w-12 h-12 bg-[#FF690F] rounded-lg flex items-center justify-center text-white hover:bg-[#d6570c] flex-shrink-0 ml-3">
-                      <Search className="w-5 h-5" />
-                    </button>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">${search.price}</div>
+                ))
+              ) : (
+                // Show message if no recent searches
+                <div className="col-span-full text-center py-8 text-gray-500 dark:text-gray-400">
+                  No recent searches yet. Start searching for flights to see your history here!
                 </div>
-              ))}
+              )}
               <div className="bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 p-6 flex flex-col items-center justify-center text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors cursor-pointer min-h-[180px]">
                 <div className="text-5xl text-gray-400 dark:text-gray-500 mb-3">+</div>
                 <div className="font-bold text-gray-700 dark:text-gray-300">Start a new search</div>
@@ -1003,15 +1134,41 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Travel Deals Under $310 */}
+        {/* Travel Deals Under $X */}
         <div className="max-w-[1200px] mx-auto px-4 py-12">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold dark:text-white">Travel deals under $310</h2>
-            <button className="text-[#FF690F] font-bold text-sm hover:underline flex items-center gap-1">
-              Explore more <span>→</span>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold dark:text-white">
+                Travel deals under ${maxDealPrice}
+              </h2>
+              {!showAllDeals && deals.length > 4 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentDealIndex(prev => Math.max(0, prev - 1))}
+                    disabled={currentDealIndex === 0}
+                    className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronDown className="w-5 h-5 rotate-90 dark:text-white" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentDealIndex(prev => Math.min(deals.length - 4, prev + 1))}
+                    disabled={currentDealIndex >= deals.length - 4}
+                    className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronDown className="w-5 h-5 -rotate-90 dark:text-white" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={() => setShowAllDeals(!showAllDeals)}
+              className="text-[#FF690F] font-bold text-sm hover:underline flex items-center gap-1"
+            >
+              {showAllDeals ? 'Show less' : 'Explore more'} <span>→</span>
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+          
+          <div className={`grid grid-cols-1 md:grid-cols-4 gap-5 ${showAllDeals ? '' : 'overflow-hidden'}`}>
             {dealsLoading ? (
               // Loading skeleton
               Array.from({ length: 4 }).map((_, idx) => (
@@ -1026,8 +1183,31 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              deals.map((deal, idx) => (
-                <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow cursor-pointer">
+              (showAllDeals ? deals : deals.slice(currentDealIndex, currentDealIndex + 4)).map((deal, idx) => (
+                <div 
+                  key={idx} 
+                  className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => {
+                    // Use deal's origin and destination
+                    setDestination(deal.destination);
+                    if (deal.departureDate) {
+                      setDepartureDate(new Date(deal.departureDate));
+                    }
+                    setTripType('One-way');
+                    setAdults(1);
+                    
+                    // Navigate with deal price for filtering, using deal's actual origin
+                    const searchParams = new URLSearchParams({
+                      origin: deal.origin,
+                      destination: deal.destination,
+                      departureDate: deal.departureDate || new Date().toISOString().split('T')[0],
+                      adults: '1',
+                      cabinClass: 'economy',
+                      maxDealPrice: deal.price.toString() // Pass the deal price
+                    });
+                    navigate(`/flights/results?${searchParams.toString()}`);
+                  }}
+                >
                   <img src={deal.image} alt={deal.city} className="w-full h-48 object-cover" />
                   <div className="p-4">
                     <div className="font-bold text-lg mb-1 dark:text-white">{deal.city}</div>

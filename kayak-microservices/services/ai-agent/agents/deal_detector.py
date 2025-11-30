@@ -1,19 +1,14 @@
 """
 Deal Detector Agent
-Detects and identifies travel deals using ML
+Identifies deals from listing data
 """
 
-class DealDetectorAgent:
+from typing import List
+from models.schemas import Deal
+import random
+
+class DealDetector:
     def __init__(self):
-        self.model = None
-    
-    def detect_deals(self, listings):
-        """Detect deals from listings"""
-        # TODO: Implement ML-based deal detection
-        print("Detecting deals...")
-        return []
-    
-    def calculate_deal_score(self, listing):
         """Calculate deal score for a listing"""
         # TODO: Calculate score based on price history, seasonality, etc.
         return 0.0

@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS billing (
     tax DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     total DECIMAL(10, 2) NOT NULL,
     payment_method VARCHAR(50),
-    status ENUM('paid', 'pending', 'refunded') NOT NULL DEFAULT 'pending',
+    status ENUM('paid', 'pending', 'refunded', 'overdue') NOT NULL DEFAULT 'pending',
+    invoice_details JSON, -- Stores snapshot of items billed
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_booking_id (booking_id),

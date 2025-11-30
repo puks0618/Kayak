@@ -1,0 +1,135 @@
+.recent-bookings {
+  margin-top: 2rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-bg-primary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bookings-table thead {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.bookings-table thead th {
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bookings-table tbody tr {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.2s ease;
+}
+
+.bookings-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.bookings-table tbody tr:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.bookings-table tbody td {
+  padding: 1rem;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+}
+
+.booking-reference {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+.booking-type {
+  padding: 0.25rem 0.5rem;
+  background-color: var(--color-bg-secondary);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.booking-amount {
+  font-weight: 600;
+}
+
+.booking-date {
+  color: var(--color-text-secondary);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-secondary);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Loading skeleton */
+.table-skeleton {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.skeleton-row {
+  height: 3rem;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-secondary) 25%,
+    var(--color-border) 50%,
+    var(--color-bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-row:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bookings-table {
+    font-size: 0.75rem;
+  }
+
+  .bookings-table thead th,
+  .bookings-table tbody td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .booking-reference {
+    font-size: 0.7rem;
+  }
+}

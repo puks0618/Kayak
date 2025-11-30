@@ -4,56 +4,65 @@
 
 const PaymentSaga = require('../sagas/paymentSaga');
 
+/**
+ * Payment Controller
+ */
+
+const BillingModel = require('../models/billing.model');
+const BookingModel = require('../models/booking.model');
+
 class PaymentController {
-  async process(req, res) {
+  async processPayment(req, res) {
     try {
-      const paymentData = req.body;
-      
-      // Execute payment saga
-      const saga = new PaymentSaga();
-      const result = await saga.execute(paymentData);
-      
-      res.json({
-        message: 'Payment processed successfully',
-        payment: result.payment
-      });
+      const { bookingId, paymentDetails } = req.body;
+
+      // 1. Get Billing Record
+      const billing = await BillingModel.findByBookingId(bookingId);
+      if (!billing) {
+        return res.status(404).json({ error: 'Billing record not found' });
+      }
+
+      // 2. Simulate Payment Gateway Call
+      const success = true; // Mock success
+      const transactionId = 'tx_' + Math.random().toString(36).substr(2, 9);
+
+      if (success) {
+        // 3. Update Billing Status
+        await BillingModel.updateStatus(billing.id, 'paid');
+
+        // 4. Update Booking Status
+        await BookingModel.updateStatus(bookingId, 'confirmed', billing.id);
+
+        res.json({
+          message: 'Payment successful',
+          transactionId,
+          status: 'confirmed'
+        });
+      } else {
+        await BillingModel.updateStatus(billing.id, 'failed');
+        res.status(400).json({ error: 'Payment failed' });
+      }
     } catch (error) {
       console.error('Process payment error:', error);
-      res.status(500).json({ error: 'Payment failed' });
+      res.status(500).json({ error: 'Payment processing failed', details: error.message });
     }
   }
 
-  async getById(req, res) {
+  async getBill(req, res) {
     try {
       const { id } = req.params;
-      
-      // TODO: Get payment details
-      
-      res.json({
-        // payment
-      });
-    } catch (error) {
-      console.error('Get payment error:', error);
-      res.status(500).json({ error: 'Failed to get payment' });
-    }
-  }
+      const bill = await BillingModel.findById(id);
 
-  async refund(req, res) {
-    try {
-      const { id } = req.params;
-      
-      // TODO: Process refund
-      // TODO: Publish payment.refunded event
-      
-      res.json({
-        message: 'Refund processed successfully'
-      });
+      if (!bill) {
+        return res.status(404).json({ error: 'Bill not found' });
+      }
+
+      res.json(bill);
     } catch (error) {
-      console.error('Refund error:', error);
-      res.status(500).json({ error: 'Refund failed' });
+      console.error('Get bill error:', error);
+      res.status(500).json({ error: 'Failed to get bill' });
     }
   }
 }
 
 module.exports = new PaymentController();
-

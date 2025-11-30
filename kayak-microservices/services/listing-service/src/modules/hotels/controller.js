@@ -2,13 +2,49 @@
  * Hotel Controller
  */
 
-/**
- * Hotel Controller
- */
-
 const HotelModel = require('./model');
+const cache = require('../../cache/redis');
+const crypto = require('crypto');
 
 class HotelController {
+  /**
+   * Advanced search endpoint
+   * POST /api/listings/hotels/search
+   */
+  async search(req, res) {
+    try {
+      const searchParams = req.body;
+      
+      // Generate cache key from search parameters
+      const cacheKey = `hotel_search:${crypto
+        .createHash('md5')
+        .update(JSON.stringify(searchParams))
+        .digest('hex')}`;
+
+      // Check cache first
+      const cachedResult = await cache.get(cacheKey);
+      if (cachedResult) {
+        return res.json({
+          ...cachedResult,
+          cached: true
+        });
+      }
+
+      // Perform search
+      const result = await HotelModel.search(searchParams);
+
+      // Cache results for 10 minutes
+      await cache.set(cacheKey, result, 600);
+
+      res.json({
+        ...result,
+        cached: false
+      });
+    } catch (error) {
+      console.error('Hotel search error:', error);
+      res.status(500).json({ error: 'Failed to search hotels' });
+    }
+  }
   async getAll(req, res) {
     try {
       const { city, state, price_min, price_max, stars } = req.query;
@@ -28,15 +64,25 @@ class HotelController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      const hotel = await HotelModel.findById(id);
+      
+      // Check cache first
+      const cacheKey = `hotel:${id}`;
+      const cachedHotel = await cache.get(cacheKey);
+      
+      if (cachedHotel) {
+        return res.json({ ...cachedHotel, cached: true });
+      }
+
+      const hotel = await HotelModel.findByIdWithDetails(id);
 
       if (!hotel) {
         return res.status(404).json({ error: 'Hotel not found' });
       }
 
-      // TODO: Fetch reviews/images from MongoDB
+      // Cache for 30 minutes
+      await cache.set(cacheKey, hotel, 1800);
 
-      res.json(hotel);
+      res.json({ ...hotel, cached: false });
     } catch (error) {
       console.error('Get hotel error:', error);
       res.status(500).json({ error: 'Failed to get hotel' });

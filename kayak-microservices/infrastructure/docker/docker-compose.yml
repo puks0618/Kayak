@@ -87,6 +87,7 @@ services:
       - LISTING_SERVICE_URL=http://listing-service:3003
       - SEARCH_SERVICE_URL=http://search-service:3004
       - BOOKING_SERVICE_URL=http://booking-service:3005
+      - BILLING_SERVICE_URL=http://billing-service:4000
       - ANALYTICS_SERVICE_URL=http://analytics-service:3006
       - ADMIN_SERVICE_URL=http://admin-service:3007
       - AI_AGENT_URL=http://ai-agent:8000
@@ -203,6 +204,28 @@ services:
       - mysql
       - redis
       - kafka
+    networks:
+      - kayak-network
+
+  billing-service:
+    build:
+      context: ../../services/billing-service
+      dockerfile: Dockerfile
+    container_name: kayak-billing-service
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=Somalwar1!
+      - MYSQL_DATABASE=kayak_billing
+      - MONGODB_URI=mongodb+srv://Aish:Star*Juice09@cluster1.0ssglwi.mongodb.net/kayak_billing?retryWrites=true&w=majority
+      - FRONTEND_URL=http://web-client
+    depends_on:
+      - mysql
+      - mongodb
     networks:
       - kayak-network
 

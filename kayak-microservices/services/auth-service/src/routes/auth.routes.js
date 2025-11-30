@@ -20,6 +20,9 @@ router.post('/verify', authController.verify);
 // POST /api/auth/refresh
 router.post('/refresh', authController.refresh);
 
+// GET /api/auth/validate - Validate current session and return user data
+router.get('/validate', verifyToken, authController.validateSession);
+
 // Protected routes (authentication required)
 // GET /api/auth/user - Get current user information
 router.get('/user', verifyToken, authController.getUserInfo);

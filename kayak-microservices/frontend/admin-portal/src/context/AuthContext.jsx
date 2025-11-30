@@ -22,11 +22,11 @@ export const AuthProvider = ({ children }) => {
       
       if (storedUser && token) {
         const parsedUser = JSON.parse(storedUser);
-        // Only set user if they are owner or admin
-        if (parsedUser.role === 'owner' || parsedUser.role === 'admin') {
+        // CRITICAL: Only allow admin role for admin portal
+        if (parsedUser.role === 'admin') {
           setUser(parsedUser);
         } else {
-          // Clear storage if user is not authorized for admin portal
+          // Clear storage if user is not admin
           localStorage.removeItem('user');
           localStorage.removeItem('token');
         }
@@ -66,9 +66,9 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
       
-      // Verify user has owner or admin role
-      if (data.user.role !== 'owner' && data.user.role !== 'admin') {
-        throw new Error('Access denied. Owner or Admin account required.');
+      // CRITICAL: Only admins can access admin portal
+      if (data.user.role !== 'admin') {
+        throw new Error('Access denied. Admin account required.');
       }
       
       // Store user and token
@@ -85,13 +85,20 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      // Ensure role is set to 'owner' for admin portal registration
-      const registrationData = {
-        ...userData,
-        role: 'owner'
+      // DISABLED: Admin accounts should not be created via signup
+      // Admins are created via database seeding or CLI commands only
+      return { 
+        success: false, 
+        error: 'Admin registration is not allowed. Please contact system administrator.' 
       };
 
-      // Call the backend API
+      // Original code kept for reference (DISABLED)
+      /*
+      const registrationData = {
+        ...userData,
+        role: 'admin'  // Changed from 'owner' to 'admin'
+      };
+
       const response = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
         headers: {

@@ -1,0 +1,130 @@
+.flights-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-primary);
+}
+
+.flights-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.flights-table thead {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.flights-table thead th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.flights-table thead th.sortable {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.flights-table thead th.sortable:hover {
+  background-color: var(--color-border);
+}
+
+.sort-indicator {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.flights-table tbody tr {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.2s ease;
+}
+
+.flights-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.flights-table tbody tr:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.flights-table tbody td {
+  padding: 1rem;
+  color: var(--color-text-primary);
+}
+
+.flight-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #646cff;
+}
+
+.flight-route {
+  font-weight: 500;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-secondary);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Loading skeleton */
+.table-skeleton {
+  padding: 1rem;
+}
+
+.skeleton-row {
+  height: 3.5rem;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-secondary) 25%,
+    var(--color-border) 50%,
+    var(--color-bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-row:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .flights-table {
+    font-size: 0.75rem;
+  }
+
+  .flights-table thead th,
+  .flights-table tbody td {
+    padding: 0.75rem 0.5rem;
+  }
+}

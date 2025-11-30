@@ -3,16 +3,16 @@
  */
 
 import { configureStore } from '@reduxjs/toolkit';
+import flightsReducer from './slices/flightsSlice';
 
-// TODO: Import reducers
+// TODO: Import other reducers
 // import authReducer from './slices/authSlice';
-// import searchReducer from './slices/searchSlice';
 // import bookingReducer from './slices/bookingSlice';
 
 export const store = configureStore({
   reducer: {
+    flights: flightsReducer,
     // auth: authReducer,
-    // search: searchReducer,
     // booking: bookingReducer,
   },
 });

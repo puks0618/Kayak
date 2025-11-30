@@ -14,16 +14,33 @@ class RedisCache {
   async connect() {
     try {
       this.client = redis.createClient({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
+        socket: {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: process.env.REDIS_PORT || 6379,
+          reconnectStrategy: false // Don't try to reconnect if connection fails
+        },
         password: process.env.REDIS_PASSWORD
       });
 
-      await this.client.connect();
+      // Handle connection errors gracefully - don't crash the service
+      this.client.on('error', (err) => {
+        console.warn('Redis client error:', err.message);
+        this.isConnected = false;
+      });
+
+      // Set a timeout for connection attempt
+      const connectPromise = this.client.connect();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Redis connection timeout')), 2000)
+      );
+
+      await Promise.race([connectPromise, timeoutPromise]);
       this.isConnected = true;
       console.log('Connected to Redis');
     } catch (error) {
-      console.error('Redis connection error:', error);
+      console.warn('Redis connection failed (continuing without cache):', error.message);
+      this.isConnected = false;
+      // Don't throw - allow service to continue without Redis
     }
   }
 

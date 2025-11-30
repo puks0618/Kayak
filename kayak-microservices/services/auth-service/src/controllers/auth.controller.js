@@ -6,6 +6,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { User } = require('../models');
+const Session = require('../models/session.model');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '24h';
@@ -178,6 +179,24 @@ class AuthController {
         { expiresIn: JWT_EXPIRY }
       );
 
+      // Store session in MongoDB
+      try {
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours from now
+
+        await Session.create({
+          userId: newUser.id,
+          token,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          ipAddress: req.ip || req.connection.remoteAddress,
+          expiresAt,
+          role: newUser.role
+        });
+      } catch (sessionError) {
+        console.error('Session storage error:', sessionError);
+        // Continue even if session storage fails
+      }
+
       res.status(201).json({
         message: 'User registered successfully',
         user: {
@@ -249,6 +268,24 @@ class AuthController {
         JWT_SECRET,
         { expiresIn: JWT_EXPIRY }
       );
+
+      // Store session in MongoDB
+      try {
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours from now
+
+        await Session.create({
+          userId: user.id,
+          token,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          ipAddress: req.ip || req.connection.remoteAddress,
+          expiresAt,
+          role: user.role
+        });
+      } catch (sessionError) {
+        console.error('Session storage error:', sessionError);
+        // Continue even if session storage fails
+      }
 
       res.json({
         token,
@@ -443,6 +480,51 @@ class AuthController {
     } catch (error) {
       console.error('Refresh error:', error);
       res.status(500).json({ error: 'Token refresh failed' });
+    }
+  }
+
+  /**
+   * Validate current session
+   * Returns user data if token is valid
+   */
+  async validateSession(req, res) {
+    try {
+      // User data is already attached by verifyToken middleware
+      const userId = req.user.id;
+      
+      // Fetch fresh user data from database
+      const user = await User.findByPk(userId);
+      
+      if (!user) {
+        return res.status(404).json({ 
+          error: 'User not found',
+          valid: false 
+        });
+      }
+
+      res.json({
+        valid: true,
+        user: {
+          id: user.id,
+          ssn: user.ssn,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          address: user.address,
+          city: user.city,
+          state: user.state,
+          zipCode: user.zipCode,
+          phone: user.phone,
+          profileImage: user.profileImage,
+          role: user.role
+        }
+      });
+    } catch (error) {
+      console.error('Session validation error:', error);
+      res.status(500).json({ 
+        error: 'Session validation failed',
+        valid: false 
+      });
     }
   }
 }

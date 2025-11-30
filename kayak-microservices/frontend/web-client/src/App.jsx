@@ -6,6 +6,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import SharedLayout from './components/SharedLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import FlightResults from './pages/FlightResults';
 import FareSelectionPage from './pages/FareSelectionPage';
@@ -21,6 +22,9 @@ import BillingList from './pages/BillingList';
 import BillingDetail from './pages/BillingDetail';
 import CreateBilling from './pages/CreateBilling';
 import InvoiceViewerPage from './pages/InvoiceViewerPage';
+import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerCars from './pages/OwnerCars';
+import CarForm from './pages/CarForm';
 
 // Component to remove hash from URL
 function HashRemover() {
@@ -47,22 +51,147 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
-        {/* Pages with shared layout */}
-        <Route path="/" element={<SharedLayout><Home /></SharedLayout>} />
-        <Route path="/flights/results" element={<SharedLayout><FlightResults /></SharedLayout>} />
-        <Route path="/flights/fare-selection" element={<SharedLayout><FareSelectionPage /></SharedLayout>} />
-        <Route path="/stays" element={<SharedLayout><Stays /></SharedLayout>} />
-        <Route path="/cars" element={<SharedLayout><Cars /></SharedLayout>} />
-        <Route path="/packages" element={<SharedLayout><Packages /></SharedLayout>} />
-        <Route path="/ai-mode" element={<SharedLayout><AIMode /></SharedLayout>} />
-        <Route path="/listings" element={<SharedLayout><Listings /></SharedLayout>} />
+        {/* Traveller routes - Protected (only travellers can access) */}
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><Home /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/flights/results" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><FlightResults /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/flights/fare-selection" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><FareSelectionPage /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/stays" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><Stays /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/cars" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><Cars /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/packages" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><Packages /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/ai-mode" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><AIMode /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/listings" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><Listings /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
         
-        {/* Billing routes */}
-        <Route path="/billing" element={<SharedLayout><BillingList /></SharedLayout>} />
-        <Route path="/billing/dashboard" element={<SharedLayout><BillingDashboard /></SharedLayout>} />
-        <Route path="/billing/new" element={<SharedLayout><CreateBilling /></SharedLayout>} />
-        <Route path="/billing/:id" element={<SharedLayout><BillingDetail /></SharedLayout>} />
-        <Route path="/billing/:id/invoice" element={<SharedLayout><InvoiceViewerPage /></SharedLayout>} />
+        {/* Billing routes - Protected (only travellers) */}
+        <Route 
+          path="/billing" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><BillingList /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/billing/dashboard" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><BillingDashboard /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/billing/new" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><CreateBilling /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/billing/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><BillingDetail /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/billing/:id/invoice" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><InvoiceViewerPage /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Owner routes - Protected */}
+        <Route 
+          path="/owner/dashboard" 
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <SharedLayout><OwnerDashboard /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/owner/cars" 
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <SharedLayout><OwnerCars /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/owner/cars/new" 
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <SharedLayout><CarForm /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/owner/cars/edit/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['owner']}>
+              <SharedLayout><CarForm /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </>
   );

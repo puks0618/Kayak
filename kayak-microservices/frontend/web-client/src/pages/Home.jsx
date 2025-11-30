@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { searchFlights, updateSearchForm, addRecentSearch } from '../store/slices/flightsSlice';
 import { getFlightDeals } from '../services/flightsApi';
-import { useAuth } from '../context/AuthContext';
+import { logoutUser } from '../store/authSlice';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { 
@@ -95,7 +95,7 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const { user, logout } = useAuth();
+  const { user } = useSelector((state) => state.auth);
   
   // Get search form from Redux
   const { searchForm, recentSearches } = useSelector(state => state.flights);

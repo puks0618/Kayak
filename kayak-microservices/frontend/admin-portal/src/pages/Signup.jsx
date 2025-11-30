@@ -57,100 +57,44 @@ const Signup = () => {
       <div className="auth-card">
         <div className="auth-header">
           <h1 className="auth-logo">KAYAK</h1>
-          <h2 className="auth-title">Create Owner Account</h2>
-          <p className="auth-subtitle">Start managing your travel listings</p>
+          <h2 className="auth-title">Admin Registration Unavailable</h2>
+          <p className="auth-subtitle">Admin accounts cannot be created through signup</p>
         </div>
 
-        {error && (
-          <div className="auth-error">
-            <svg className="error-icon" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <div style={{ 
+            backgroundColor: '#FEF3C7', 
+            border: '1px solid #F59E0B', 
+            borderRadius: '8px', 
+            padding: '16px', 
+            marginBottom: '20px' 
+          }}>
+            <svg style={{ width: '48px', height: '48px', margin: '0 auto 12px', color: '#F59E0B' }} fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
-            <span>{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="firstName" className="form-label">
-                First Name
-              </label>
-              <input
-                type="text"
-                id="firstName"
-                name="firstName"
-                className="form-input"
-                placeholder="First name"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="lastName" className="form-label">
-                Last Name
-              </label>
-              <input
-                type="text"
-                id="lastName"
-                name="lastName"
-                className="form-input"
-                placeholder="Last name"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              className="form-input"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              className="form-input"
-              placeholder="At least 8 characters, include a number"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              disabled={isLoading}
-            />
-            <p className="form-hint">
-              Use at least 8 characters and include at least one number
+            <p style={{ color: '#92400E', fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+              Admin accounts are created by system administrators only.
+            </p>
+            <p style={{ color: '#78350F', fontSize: '14px' }}>
+              If you need admin access, please contact your system administrator.
             </p>
           </div>
 
-          <button
-            type="submit"
-            className="auth-button"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </form>
+          <div style={{ marginTop: '24px', padding: '20px', backgroundColor: '#F3F4F6', borderRadius: '8px' }}>
+            <p style={{ fontWeight: '600', marginBottom: '12px', color: '#374151' }}>Looking for something else?</p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link to="/login" className="auth-button" style={{ flex: '0 0 auto', padding: '8px 16px' }}>
+                Admin Login
+              </Link>
+              <a href="http://localhost:5175/signup" className="auth-button" style={{ flex: '0 0 auto', padding: '8px 16px', backgroundColor: '#6366F1' }}>
+                Sign up as Traveller
+              </a>
+              <a href="http://localhost:5175/signup" className="auth-button" style={{ flex: '0 0 auto', padding: '8px 16px', backgroundColor: '#10B981' }}>
+                Sign up as Owner
+              </a>
+            </div>
+          </div>
+        </div>
 
         <div className="auth-footer">
           <p>
@@ -158,12 +102,6 @@ const Signup = () => {
             <Link to="/login" className="auth-link">
               Sign In
             </Link>
-          </p>
-          <p className="text-sm text-gray-500 mt-4">
-            Looking to book travel?{' '}
-            <a href="http://localhost:5175/signup" className="auth-link">
-              Traveller Signup
-            </a>
           </p>
         </div>
       </div>

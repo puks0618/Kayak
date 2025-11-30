@@ -1,58 +1,62 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginUser } from '../store/authSlice';
 import '../styles/Login.css';
 import SocialLoginModal from '../components/SocialLoginModal';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [localError, setLocalError] = useState('');
     const [socialModalOpen, setSocialModalOpen] = useState(false);
     const navigate = useNavigate();
-    const { login: authLogin } = useAuth();
+    const dispatch = useDispatch();
+    const { loading, error: reduxError } = useSelector((state) => state.auth);
+    
+    const error = localError || reduxError;
+    const isLoading = loading;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        setLocalError('');
         
         // Validate inputs
         if (!email || !password) {
-            setError('Please enter both email and password');
+            setLocalError('Please enter both email and password');
             return;
         }
-        
-        setIsLoading(true);
 
         try {
-            const result = await authLogin(email, password);
+            const result = await dispatch(loginUser({ email, password })).unwrap();
             
-            if (result.success) {
-                // Check if user should be redirected to a different portal
-                if (result.redirectUrl) {
-                    // Owner/Admin - redirect to admin portal
-                    window.location.href = result.redirectUrl;
-                } else {
-                    // Traveller - navigate to home on web-client
-                    setTimeout(() => {
-                        navigate('/');
-                    }, 500);
-                }
+            // Store token in localStorage for API client
+            if (result.token) {
+                localStorage.setItem('token', result.token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+            }
+            
+            // Navigate based on user role
+            const userRole = result.user.role;
+            
+            if (userRole === 'admin') {
+                // Admins go to admin portal (port 5174)
+                window.location.href = 'http://localhost:5174';
+            } else if (userRole === 'owner') {
+                // Owners go to owner dashboard on web-client
+                navigate('/owner/dashboard');
             } else {
-                // Login failed with a known reason
-                const baseMessage = result.error || 'Sign-in failed.';
-                const guidance =
-                    baseMessage.includes('incorrect') || baseMessage.includes('Invalid credentials')
-                        ? 'Double-check your email and password, then try again.'
-                        : 'If you think this is a mistake, try again in a minute or contact support.';
-                setError(`${baseMessage} ${guidance}`);
-                setIsLoading(false);
+                // Travellers go to home
+                navigate('/');
             }
         } catch (err) {
             console.error('Login failed:', err);
-            setError('Something went wrong while signing you in. Please check your connection and try again.');
-            setIsLoading(false);
+            const baseMessage = err || 'Sign-in failed.';
+            const guidance =
+                baseMessage.includes('incorrect') || baseMessage.includes('Invalid credentials')
+                    ? 'Double-check your email and password, then try again.'
+                    : 'If you think this is a mistake, try again in a minute or contact support.';
+            setLocalError(`${baseMessage} ${guidance}`);
         }
     };
 
@@ -62,22 +66,25 @@ const Login = () => {
 
     const handleSocialLogin = async (email, password, provider) => {
         try {
-            const result = await authLogin(email, password);
+            const result = await dispatch(loginUser({ email, password })).unwrap();
             
-            if (result.success) {
-                setSocialModalOpen(false);
-                // Check if user should be redirected to a different portal
-                if (result.redirectUrl) {
-                    // Owner/Admin - redirect to admin portal
-                    window.location.href = result.redirectUrl;
-                } else {
-                    // Traveller - navigate to home
-                    setTimeout(() => {
-                        navigate('/');
-                    }, 500);
-                }
+            // Store token
+            if (result.token) {
+                localStorage.setItem('token', result.token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+            }
+            
+            setSocialModalOpen(false);
+            
+            // Navigate based on user role
+            const userRole = result.user.role;
+            
+            if (userRole === 'admin') {
+                window.location.href = 'http://localhost:5174';
+            } else if (userRole === 'owner') {
+                navigate('/owner/dashboard');
             } else {
-                throw new Error(result.error || 'Invalid email or password. Please try again.');
+                navigate('/');
             }
         } catch (err) {
             console.error('Social login failed:', err);
@@ -136,26 +143,6 @@ const Login = () => {
                     <div className="welcome-section">
                         <h2 className="welcome-title">Welcome back</h2>
                         <p className="welcome-subtitle">Sign in to continue your journey</p>
-                    </div>
-
-                    {/* User Type Selection */}
-                    <div className="user-type-buttons">
-                        <button 
-                            type="button" 
-                            className="user-type-btn traveler-btn-login"
-                            onClick={() => {/* Already on traveler login */}}
-                        >
-                            <span className="user-type-icon">✈️</span>
-                            <span className="user-type-text">Traveler</span>
-                        </button>
-                        <button 
-                            type="button" 
-                            className="user-type-btn owner-btn-login"
-                            onClick={() => window.location.href = 'http://localhost:5174'}
-                        >
-                            <span className="user-type-icon">🏠</span>
-                            <span className="user-type-text">Owner</span>
-                        </button>
                     </div>
 
                     {/* Error Message */}

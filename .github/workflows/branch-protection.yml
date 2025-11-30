@@ -4,8 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
     branches:
-      - main
+      - master
       - dev
+      - Admin
+      - Owner
       - Stays
       - Flights
       - Cars
@@ -31,28 +33,28 @@ jobs:
           
           echo "🔍 Validating merge: $SOURCE_BRANCH → $TARGET_BRANCH"
           
-          # Rule 1: main can only accept merges from dev
-          if [ "$TARGET_BRANCH" = "main" ]; then
+          # Rule 1: master can only accept merges from dev
+          if [ "$TARGET_BRANCH" = "master" ]; then
             if [ "$SOURCE_BRANCH" != "dev" ]; then
-              echo "❌ ERROR: main branch can only accept merges from 'dev' branch"
+              echo "❌ ERROR: master branch can only accept merges from 'dev' branch"
               echo "   Attempted merge from: $SOURCE_BRANCH"
               exit 1
             fi
-            echo "✅ Valid: dev → main"
+            echo "✅ Valid: dev → master"
           fi
           
-          # Rule 2: dev can only accept merges from Stays, Flights, or Cars
+          # Rule 2: dev can only accept merges from Owner, Admin, Cars, Flights, or Stays
           if [ "$TARGET_BRANCH" = "dev" ]; then
-            if [[ "$SOURCE_BRANCH" != "Stays" && "$SOURCE_BRANCH" != "Flights" && "$SOURCE_BRANCH" != "Cars" ]]; then
-              echo "❌ ERROR: dev branch can only accept merges from 'Stays', 'Flights', or 'Cars' branches"
+            if [[ "$SOURCE_BRANCH" != "Owner" && "$SOURCE_BRANCH" != "Admin" && "$SOURCE_BRANCH" != "Cars" && "$SOURCE_BRANCH" != "Flights" && "$SOURCE_BRANCH" != "Stays" ]]; then
+              echo "❌ ERROR: dev branch can only accept merges from 'Owner', 'Admin', 'Cars', 'Flights', or 'Stays' branches"
               echo "   Attempted merge from: $SOURCE_BRANCH"
               exit 1
             fi
             echo "✅ Valid: $SOURCE_BRANCH → dev"
           fi
           
-          # Rule 3: Stays, Flights, Cars can only accept merges from feature/* branches
-          if [[ "$TARGET_BRANCH" = "Stays" || "$TARGET_BRANCH" = "Flights" || "$TARGET_BRANCH" = "Cars" ]]; then
+          # Rule 3: Owner, Admin, Cars, Flights, Stays can only accept merges from feature/* branches
+          if [[ "$TARGET_BRANCH" = "Owner" || "$TARGET_BRANCH" = "Admin" || "$TARGET_BRANCH" = "Cars" || "$TARGET_BRANCH" = "Flights" || "$TARGET_BRANCH" = "Stays" ]]; then
             if [[ ! "$SOURCE_BRANCH" =~ ^feature/ ]]; then
               echo "❌ ERROR: $TARGET_BRANCH branch can only accept merges from 'feature/*' branches"
               echo "   Attempted merge from: $SOURCE_BRANCH"
@@ -77,9 +79,9 @@ jobs:
             Merge: \`${sourceBranch}\` → \`${targetBranch}\`
             
             This PR follows the branch protection rules:
-            - \`main\` ← \`dev\`
-            - \`dev\` ← \`Stays\`, \`Flights\`, \`Cars\`
-            - \`Stays/Flights/Cars\` ← \`feature/*\``;
+            - \`master\` ← \`dev\`
+            - \`dev\` ← \`Owner\`, \`Admin\`, \`Cars\`, \`Flights\`, \`Stays\`
+            - \`Owner/Admin/Cars/Flights/Stays\` ← \`feature/*\``;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -97,11 +99,11 @@ jobs:
             const sourceBranch = context.payload.pull_request.head.ref;
             
             let errorMsg = '';
-            if (targetBranch === 'main' && sourceBranch !== 'dev') {
-              errorMsg = '`main` can only accept merges from `dev` branch';
-            } else if (targetBranch === 'dev' && !['Stays', 'Flights', 'Cars'].includes(sourceBranch)) {
-              errorMsg = '`dev` can only accept merges from `Stays`, `Flights`, or `Cars` branches';
-            } else if (['Stays', 'Flights', 'Cars'].includes(targetBranch) && !sourceBranch.startsWith('feature/')) {
+            if (targetBranch === 'master' && sourceBranch !== 'dev') {
+              errorMsg = '`master` can only accept merges from `dev` branch';
+            } else if (targetBranch === 'dev' && !['Owner', 'Admin', 'Cars', 'Flights', 'Stays'].includes(sourceBranch)) {
+              errorMsg = '`dev` can only accept merges from `Owner`, `Admin`, `Cars`, `Flights`, or `Stays` branches';
+            } else if (['Owner', 'Admin', 'Cars', 'Flights', 'Stays'].includes(targetBranch) && !sourceBranch.startsWith('feature/')) {
               errorMsg = `\`${targetBranch}\` can only accept merges from \`feature/*\` branches`;
             }
             
@@ -112,9 +114,9 @@ jobs:
             **Error:** ${errorMsg}
             
             ### Branch Protection Rules:
-            - \`main\` ← \`dev\` only
-            - \`dev\` ← \`Stays\`, \`Flights\`, \`Cars\` only
-            - \`Stays/Flights/Cars\` ← \`feature/*\` only
+            - \`master\` ← \`dev\` only
+            - \`dev\` ← \`Owner\`, \`Admin\`, \`Cars\`, \`Flights\`, \`Stays\` only
+            - \`Owner/Admin/Cars/Flights/Stays\` ← \`feature/*\` only
             
             Please create your PR to the correct target branch.`;
             

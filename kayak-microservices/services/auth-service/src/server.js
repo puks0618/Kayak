@@ -3,10 +3,40 @@
  */
 
 const express = require('express');
+const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth.routes');
+const Session = require('./models/session.model');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://kayak-mongodb:27017/kayak';
+
+// Connect to MongoDB for session storage
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => {
+  console.log('✅ Connected to MongoDB for session storage');
+  // Clean expired sessions on startup
+  Session.cleanExpired().then(count => {
+    if (count > 0) console.log(`🧹 Cleaned ${count} expired sessions`);
+  });
+})
+.catch(err => {
+  console.error('❌ MongoDB connection error:', err);
+  console.log('⚠️  Continuing without session persistence');
+});
+
+// Clean expired sessions every hour
+setInterval(async () => {
+  try {
+    const count = await Session.cleanExpired();
+    if (count > 0) console.log(`🧹 Cleaned ${count} expired sessions`);
+  } catch (error) {
+    console.error('Session cleanup error:', error);
+  }
+}, 3600000); // 1 hour
 
 // CORS middleware to allow both frontend portals
 app.use((req, res, next) => {

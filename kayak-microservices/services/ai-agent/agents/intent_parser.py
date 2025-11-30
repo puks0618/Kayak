@@ -1,19 +1,32 @@
 """
 Intent Parser Agent
-Parses user intent from natural language queries
+Analyzes user queries to determine intent
 """
 
-class IntentParserAgent:
+from models.schemas import UserQuery
+
+class IntentParser:
     def __init__(self):
-        self.intents = []
-    
-    def parse_intent(self, user_query):
-        """Parse user intent from query"""
-        # TODO: NLP-based intent parsing
-        # Example intents: 'book_flight', 'find_hotel', 'rent_car', 'get_deals'
+        self.intents = {
+            'book': ['book', 'reserve', 'buy'],
+            'search': ['find', 'search', 'show', 'looking for'],
+            'cancel': ['cancel', 'refund'],
+            'status': ['status', 'check']
+        }
+
+    async def parse(self, query: UserQuery) -> dict:
+        """
+        Parse the user query and return intent and entities
+        """
+        text = query.query.lower()
+        detected_intent = 'unknown'
+        
+        for intent, keywords in self.intents.items():
+            if any(keyword in text for keyword in keywords):
+                detected_intent = intent
+                break
+        
         return {
-            'intent': 'unknown',
-            'entities': {},
             'confidence': 0.0
         }
     

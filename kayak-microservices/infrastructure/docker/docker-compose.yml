@@ -6,10 +6,10 @@ services:
     image: mysql:8.0
     container_name: kayak-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: Somalwar1!
       MYSQL_DATABASE: kayak
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ../databases/mysql/init:/docker-entrypoint-initdb.d
@@ -87,6 +87,7 @@ services:
       - LISTING_SERVICE_URL=http://listing-service:3003
       - SEARCH_SERVICE_URL=http://search-service:3004
       - BOOKING_SERVICE_URL=http://booking-service:3005
+      - BILLING_SERVICE_URL=http://billing-service:4000
       - ANALYTICS_SERVICE_URL=http://analytics-service:3006
       - ADMIN_SERVICE_URL=http://admin-service:3007
       - AI_AGENT_URL=http://ai-agent:8000
@@ -107,8 +108,9 @@ services:
     environment:
       - PORT=3001
       - DB_HOST=mysql
+      - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_auth
       - JWT_SECRET=your-secret-key-change-in-production
     depends_on:
@@ -127,7 +129,7 @@ services:
       - PORT=3002
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_users
       - REDIS_HOST=redis
       - KAFKA_BROKERS=kafka:29092
@@ -148,10 +150,11 @@ services:
     environment:
       - PORT=3003
       - DB_HOST=mysql
+      - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_listings
-      - MONGO_URI=mongodb://mongodb:27017/kayak_listings
+      - MONGO_URI=mongodb+srv://pprathkanthiwar_db_user:Somalwar1!@cluster1.0ssglwi.mongodb.net/kayak_listings
       - REDIS_HOST=redis
       - KAFKA_BROKERS=kafka:29092
     depends_on:
@@ -173,7 +176,7 @@ services:
       - PORT=3004
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_listings
       - REDIS_HOST=redis
     depends_on:
@@ -193,7 +196,7 @@ services:
       - PORT=3005
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=Somalwar1!
       - DB_NAME=kayak_bookings
       - REDIS_HOST=redis
       - KAFKA_BROKERS=kafka:29092
@@ -201,6 +204,28 @@ services:
       - mysql
       - redis
       - kafka
+    networks:
+      - kayak-network
+
+  billing-service:
+    build:
+      context: ../../services/billing-service
+      dockerfile: Dockerfile
+    container_name: kayak-billing-service
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=Somalwar1!
+      - MYSQL_DATABASE=kayak_billing
+      - MONGODB_URI=mongodb+srv://Aish:Star*Juice09@cluster1.0ssglwi.mongodb.net/kayak_billing?retryWrites=true&w=majority
+      - FRONTEND_URL=http://web-client
+    depends_on:
+      - mysql
+      - mongodb
     networks:
       - kayak-network
 
@@ -213,7 +238,7 @@ services:
       - "3006:3006"
     environment:
       - PORT=3006
-      - MONGO_URI=mongodb://mongodb:27017/kayak_analytics
+      - MONGO_URI=mongodb+srv://pprathkanthiwar_db_user:Somalwar1!@cluster1.0ssglwi.mongodb.net/kayak_analytics
       - KAFKA_BROKERS=kafka:29092
     depends_on:
       - mongodb
@@ -230,8 +255,13 @@ services:
       - "3007:3007"
     environment:
       - PORT=3007
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=Somalwar1!
+      - DB_NAME=kayak_users
       - KAFKA_BROKERS=kafka:29092
     depends_on:
+      - mysql
       - kafka
     networks:
       - kayak-network
@@ -247,6 +277,31 @@ services:
       - KAFKA_BROKERS=kafka:29092
     depends_on:
       - kafka
+    networks:
+      - kayak-network
+
+  # Frontend Applications
+  web-client:
+    build:
+      context: ../../frontend/web-client
+      dockerfile: Dockerfile
+    container_name: kayak-web-client
+    ports:
+      - "5175:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - kayak-network
+
+  admin-portal:
+    build:
+      context: ../../frontend/admin-portal
+      dockerfile: Dockerfile
+    container_name: kayak-admin-portal
+    ports:
+      - "5174:80"
+    depends_on:
+      - api-gateway
     networks:
       - kayak-network
 

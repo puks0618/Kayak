@@ -7,6 +7,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from models.schemas import Deal, UserQuery, TripPlan
 from services.websocket_service import WebSocketService
+from agents.deal_detector import DealDetector
+from agents.intent_parser import IntentParser
 from typing import List
 
 app = FastAPI(
@@ -27,6 +29,10 @@ app.add_middleware(
 # WebSocket service
 ws_service = WebSocketService()
 
+# Agents
+deal_detector = DealDetector()
+intent_parser = IntentParser()
+
 @app.get("/")
 def root():
     return {"message": "Kayak AI Agent Service", "version": "1.0.0"}
@@ -39,26 +45,37 @@ def health_check():
 @app.get("/api/ai/deals", response_model=List[Deal])
 async def get_deals(limit: int = 10):
     """Get current deals"""
-    # TODO: Return deals from database
-    return []
+    # For MVP, return mock detected deals
+    deals = await deal_detector.run_mock_detection()
+    return deals[:limit]
 
 @app.post("/api/ai/deals/detect")
 async def detect_deals():
     """Trigger deal detection"""
-    # TODO: Run deal detection agent
-    return {"message": "Deal detection started"}
+    # In a real scenario, this would trigger a background task
+    deals = await deal_detector.run_mock_detection()
+    return {"message": "Deal detection completed", "deals_found": len(deals)}
 
 # Concierge Router
 @app.post("/api/ai/concierge/query")
 async def process_query(query: UserQuery):
     """Process natural language query"""
-    # TODO: Parse intent and generate response
-    return {"response": "Query processed", "intent": "unknown"}
+    result = await intent_parser.parse(query)
+    
+    response_text = f"I understood you want to {result['intent']} a {result['entities'].get('type', 'listing')}."
+    if result['intent'] == 'unknown':
+        response_text = "I'm not sure what you mean. Can you please clarify?"
+        
+    return {
+        "response": response_text,
+        "intent": result['intent'],
+        "entities": result['entities']
+    }
 
 @app.post("/api/ai/concierge/plan-trip")
 async def plan_trip(trip_plan: TripPlan):
     """Plan a complete trip"""
-    # TODO: Generate trip itinerary
+    # TODO: Integrate TripPlanner agent
     return {"itinerary": [], "estimated_cost": 0}
 
 # WebSocket endpoint for real-time events

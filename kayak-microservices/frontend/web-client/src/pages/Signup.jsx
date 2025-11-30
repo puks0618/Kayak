@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser } from '../store/authSlice';
 import SocialLoginModal from '../components/SocialLoginModal';
 
 const Signup = () => {
@@ -13,10 +13,13 @@ const Signup = () => {
         firstName: '',
         lastName: ''
     });
-    const [error, setError] = useState('');
+    const [localError, setLocalError] = useState('');
     const [socialModalOpen, setSocialModalOpen] = useState(false);
     const navigate = useNavigate();
-    const { register: authRegister, login: authLogin } = useAuth();
+    const dispatch = useDispatch();
+    const { loading, error: reduxError } = useSelector((state) => state.auth);
+    
+    const error = localError || reduxError;
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,23 +28,23 @@ const Signup = () => {
     const handleUserTypeSelection = (type) => {
         setUserType(type);
         setStep('form');
-        setError('');
+        setLocalError('');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        setLocalError('');
         
         // Validate inputs
         if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
-            setError('Please fill in all fields');
+            setLocalError('Please fill in all fields');
             return;
         }
 
         // Password strength: at least 8 chars, includes a number
         const strongPasswordPattern = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
         if (!strongPasswordPattern.test(formData.password)) {
-            setError('Password must be at least 8 characters and include at least one number.');
+            setLocalError('Password must be at least 8 characters and include at least one number.');
             return;
         }
         
@@ -51,31 +54,36 @@ const Signup = () => {
                 ...formData,
                 role: userType
             };
-            const result = await authRegister(registrationData);
             
-            if (result.success) {
-                // Check if user should be redirected to a different portal
-                if (result.redirectUrl) {
-                    // Owner/Admin - redirect to admin portal
-                    window.location.href = result.redirectUrl;
-                } else {
-                    // Traveller - navigate to home on web-client
-                    setTimeout(() => {
-                        navigate('/');
-                    }, 500);
-                }
+            const result = await dispatch(registerUser(registrationData)).unwrap();
+            
+            // Store token in localStorage for API client
+            if (result.token) {
+                localStorage.setItem('token', result.token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+            }
+            
+            // Navigate based on user role
+            const role = result.user.role;
+            
+            if (role === 'admin') {
+                // Admins go to admin portal (port 5174)
+                window.location.href = 'http://localhost:5174';
+            } else if (role === 'owner') {
+                // Owners go to owner dashboard on web-client (port 5175)
+                navigate('/owner/dashboard');
             } else {
-                // Registration failed with a known reason
-                const baseMessage = result.error || 'Registration failed.';
-                const guidance =
-                    baseMessage.includes('already exists') || baseMessage.includes('already registered')
-                        ? 'Try signing in instead using that email.'
-                        : 'Please fix the issue above and submit the form again.';
-                setError(`${baseMessage} ${guidance}`);
+                // Travellers go to home
+                navigate('/');
             }
         } catch (err) {
             console.error('Signup failed:', err);
-            setError('Something went wrong while creating your account. Please check your connection and try again.');
+            const baseMessage = err || 'Registration failed.';
+            const guidance =
+                baseMessage.includes('already exists') || baseMessage.includes('already registered')
+                    ? 'Try signing in instead using that email.'
+                    : 'Please fix the issue above and submit the form again.';
+            setLocalError(`${baseMessage} ${guidance}`);
         }
     };
 

@@ -63,13 +63,21 @@ export const searchFlights = createAsyncThunk(
   'flights/search',
   async (searchParams, { rejectWithValue }) => {
     try {
+      console.log('=== Searching flights with params ===', searchParams);
       // Try real API first
       const response = await axios.get('http://localhost:3000/api/listings/flights/search', {
         params: searchParams
       });
       
+      console.log('=== API Response ===', response.data);
+      console.log('Flights:', response.data.flights?.length);
+      console.log('Return flights:', response.data.returnFlights?.length);
+      console.log('Is round trip:', response.data.isRoundTrip);
+      
       return {
         flights: response.data.flights || response.data,
+        returnFlights: response.data.returnFlights || [],
+        isRoundTrip: response.data.isRoundTrip || false,
         total: response.data.total || response.data.length
       };
     } catch (error) {
@@ -139,6 +147,8 @@ const initialState = {
   
   // Search results
   results: [],
+  returnFlights: [],
+  isRoundTrip: false,
   totalResults: 0,
   isSearching: false,
   searchError: null,
@@ -225,6 +235,8 @@ const flightsSlice = createSlice({
       .addCase(searchFlights.fulfilled, (state, action) => {
         state.isSearching = false;
         state.results = action.payload.flights;
+        state.returnFlights = action.payload.returnFlights || [];
+        state.isRoundTrip = action.payload.isRoundTrip || false;
         state.totalResults = action.payload.total;
         state.hasSearched = true;
         state.searchError = null;

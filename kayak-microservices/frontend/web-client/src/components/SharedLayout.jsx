@@ -91,7 +91,7 @@ export default function SharedLayout({ children }) {
           >
             <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
-          <div className="h-8 md:h-10 w-32 md:w-40 overflow-hidden relative flex items-center cursor-pointer" onClick={() => navigate('/')}>
+          <div className="h-8 md:h-10 w-32 md:w-40 overflow-hidden relative flex items-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.location.href = '/'} title="Reload page">
             <img 
               src={kayakLogo} 
               alt="KAYAK" 

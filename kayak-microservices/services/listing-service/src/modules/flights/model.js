@@ -92,7 +92,7 @@ const FlightModel = {
       params.push(filters.date);
     }
     if (filters.class) {
-      query += ' AND class = ?';
+      query += ' AND cabin_class = ?';
       params.push(filters.class);
     }
 
@@ -142,17 +142,19 @@ const FlightModel = {
 
   /**
    * Advanced search with filters, sorting, and pagination
+   * Handles both one-way and round-trip searches
    */
   async search(filters) {
+    // Search outbound flights
     let query = `
       SELECT 
-        f.*
+        f.*, 'outbound' as flight_type
       FROM flights f
       WHERE 1=1
     `;
     const params = [];
 
-    // Required filters
+    // Required filters for outbound
     if (filters.origin) {
       query += ' AND f.departure_airport = ?';
       params.push(filters.origin);
@@ -168,7 +170,7 @@ const FlightModel = {
 
     // Optional filters
     if (filters.cabinClass) {
-      query += ' AND f.class = ?';
+      query += ' AND f.cabin_class = ?';
       params.push(filters.cabinClass);
     }
     if (filters.maxPrice) {
@@ -176,7 +178,7 @@ const FlightModel = {
       params.push(filters.maxPrice);
     }
 
-    // Get total count
+    // Get total count for outbound
     const countQuery = query.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) as total FROM');
     const [countResult] = await pool.query(countQuery, params);
     const total = countResult[0].total;
@@ -191,11 +193,56 @@ const FlightModel = {
     query += ' LIMIT ? OFFSET ?';
     params.push(filters.limit, filters.offset);
 
-    const [flights] = await pool.query(query, params);
+    const [outboundFlights] = await pool.query(query, params);
+
+    // If round trip, also search return flights (destination -> origin)
+    let returnFlights = [];
+    if (filters.returnDate) {
+      let returnQuery = `
+        SELECT 
+          f.*, 'return' as flight_type
+        FROM flights f
+        WHERE 1=1
+      `;
+      const returnParams = [];
+
+      // Swap origin and destination for return flights
+      if (filters.destination) {
+        returnQuery += ' AND f.departure_airport = ?';
+        returnParams.push(filters.destination);
+      }
+      if (filters.origin) {
+        returnQuery += ' AND f.arrival_airport = ?';
+        returnParams.push(filters.origin);
+      }
+      if (filters.returnDate) {
+        returnQuery += ' AND DATE(f.departure_time) = ?';
+        returnParams.push(filters.returnDate);
+      }
+
+      // Same optional filters
+      if (filters.cabinClass) {
+        returnQuery += ' AND f.cabin_class = ?';
+        returnParams.push(filters.cabinClass);
+      }
+      if (filters.maxPrice) {
+        returnQuery += ' AND f.price <= ?';
+        returnParams.push(filters.maxPrice);
+      }
+
+      returnQuery += ` ORDER BY f.${sortBy} ${sortOrder}`;
+      returnQuery += ' LIMIT ? OFFSET ?';
+      returnParams.push(filters.limit, filters.offset);
+
+      const [returnResults] = await pool.query(returnQuery, returnParams);
+      returnFlights = returnResults;
+    }
 
     return {
-      flights,
-      total
+      flights: outboundFlights,
+      returnFlights: returnFlights,
+      total,
+      isRoundTrip: !!filters.returnDate
     };
   },
 
@@ -210,7 +257,7 @@ const FlightModel = {
         f.*
       FROM flights f
       WHERE f.price <= ?
-        AND f.class = ?
+        AND f.cabin_class = ?
         AND f.departure_time >= NOW()
       ORDER BY f.price ASC
       LIMIT ?

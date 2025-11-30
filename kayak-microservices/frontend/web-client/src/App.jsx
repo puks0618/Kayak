@@ -11,6 +11,8 @@ import Home from './pages/Home';
 import FlightResults from './pages/FlightResults';
 import FareSelectionPage from './pages/FareSelectionPage';
 import Stays from './pages/Stays';
+import StaysSearch from './pages/StaysSearch';
+import HotelDetail from './pages/HotelDetail';
 import Cars from './pages/Cars';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
@@ -64,6 +66,22 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['traveller']}>
               <SharedLayout><Stays /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/stays/search" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><StaysSearch /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/stays/hotel/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><HotelDetail /></SharedLayout>
             </ProtectedRoute>
           } 
         />

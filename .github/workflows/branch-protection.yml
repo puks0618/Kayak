@@ -1,0 +1,121 @@
+name: Branch Protection
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - main
+      - dev
+      - Stays
+      - Flights
+      - Cars
+
+jobs:
+  validate-merge-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Branch Merge Rules
+        run: |
+          TARGET_BRANCH="${{ github.base_ref }}"
+          SOURCE_BRANCH="${{ github.head_ref }}"
+          
+          echo "🔍 Validating merge: $SOURCE_BRANCH → $TARGET_BRANCH"
+          
+          # Rule 1: main can only accept merges from dev
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            if [ "$SOURCE_BRANCH" != "dev" ]; then
+              echo "❌ ERROR: main branch can only accept merges from 'dev' branch"
+              echo "   Attempted merge from: $SOURCE_BRANCH"
+              exit 1
+            fi
+            echo "✅ Valid: dev → main"
+          fi
+          
+          # Rule 2: dev can only accept merges from Stays, Flights, or Cars
+          if [ "$TARGET_BRANCH" = "dev" ]; then
+            if [[ "$SOURCE_BRANCH" != "Stays" && "$SOURCE_BRANCH" != "Flights" && "$SOURCE_BRANCH" != "Cars" ]]; then
+              echo "❌ ERROR: dev branch can only accept merges from 'Stays', 'Flights', or 'Cars' branches"
+              echo "   Attempted merge from: $SOURCE_BRANCH"
+              exit 1
+            fi
+            echo "✅ Valid: $SOURCE_BRANCH → dev"
+          fi
+          
+          # Rule 3: Stays, Flights, Cars can only accept merges from feature/* branches
+          if [[ "$TARGET_BRANCH" = "Stays" || "$TARGET_BRANCH" = "Flights" || "$TARGET_BRANCH" = "Cars" ]]; then
+            if [[ ! "$SOURCE_BRANCH" =~ ^feature/ ]]; then
+              echo "❌ ERROR: $TARGET_BRANCH branch can only accept merges from 'feature/*' branches"
+              echo "   Attempted merge from: $SOURCE_BRANCH"
+              exit 1
+            fi
+            echo "✅ Valid: $SOURCE_BRANCH → $TARGET_BRANCH"
+          fi
+          
+          echo ""
+          echo "🎉 Branch merge rules validated successfully!"
+
+      - name: Add PR Comment
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const targetBranch = context.payload.pull_request.base.ref;
+            const sourceBranch = context.payload.pull_request.head.ref;
+            
+            const comment = `✅ **Branch Protection Validated**
+            
+            Merge: \`${sourceBranch}\` → \`${targetBranch}\`
+            
+            This PR follows the branch protection rules:
+            - \`main\` ← \`dev\`
+            - \`dev\` ← \`Stays\`, \`Flights\`, \`Cars\`
+            - \`Stays/Flights/Cars\` ← \`feature/*\``;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Add Failure Comment
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const targetBranch = context.payload.pull_request.base.ref;
+            const sourceBranch = context.payload.pull_request.head.ref;
+            
+            let errorMsg = '';
+            if (targetBranch === 'main' && sourceBranch !== 'dev') {
+              errorMsg = '`main` can only accept merges from `dev` branch';
+            } else if (targetBranch === 'dev' && !['Stays', 'Flights', 'Cars'].includes(sourceBranch)) {
+              errorMsg = '`dev` can only accept merges from `Stays`, `Flights`, or `Cars` branches';
+            } else if (['Stays', 'Flights', 'Cars'].includes(targetBranch) && !sourceBranch.startsWith('feature/')) {
+              errorMsg = `\`${targetBranch}\` can only accept merges from \`feature/*\` branches`;
+            }
+            
+            const comment = `❌ **Branch Protection Failed**
+            
+            Attempted merge: \`${sourceBranch}\` → \`${targetBranch}\`
+            
+            **Error:** ${errorMsg}
+            
+            ### Branch Protection Rules:
+            - \`main\` ← \`dev\` only
+            - \`dev\` ← \`Stays\`, \`Flights\`, \`Cars\` only
+            - \`Stays/Flights/Cars\` ← \`feature/*\` only
+            
+            Please create your PR to the correct target branch.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

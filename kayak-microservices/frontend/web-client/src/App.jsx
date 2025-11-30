@@ -3,8 +3,8 @@
  * User-facing web application
  */
 
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import SharedLayout from './components/SharedLayout';
 import Home from './pages/Home';
 import FlightResults from './pages/FlightResults';
@@ -22,9 +22,26 @@ import BillingDetail from './pages/BillingDetail';
 import CreateBilling from './pages/CreateBilling';
 import InvoiceViewerPage from './pages/InvoiceViewerPage';
 
-function App() {
+// Component to remove hash from URL
+function HashRemover() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // If URL has a hash, remove it
+    if (window.location.hash) {
+      const cleanPath = window.location.pathname + window.location.search;
+      window.history.replaceState(null, '', cleanPath);
+    }
+  }, [location]);
+
+  return null;
+}
+
+function AppRoutes() {
   return (
-    <Router>
+    <>
+      <HashRemover />
       <Routes>
         {/* Pages without layout (Login/Signup) */}
         <Route path="/login" element={<Login />} />
@@ -33,7 +50,7 @@ function App() {
         {/* Pages with shared layout */}
         <Route path="/" element={<SharedLayout><Home /></SharedLayout>} />
         <Route path="/flights/results" element={<SharedLayout><FlightResults /></SharedLayout>} />
-        <Route path="/fare-selection" element={<SharedLayout><FareSelectionPage /></SharedLayout>} />
+        <Route path="/flights/fare-selection" element={<SharedLayout><FareSelectionPage /></SharedLayout>} />
         <Route path="/stays" element={<SharedLayout><Stays /></SharedLayout>} />
         <Route path="/cars" element={<SharedLayout><Cars /></SharedLayout>} />
         <Route path="/packages" element={<SharedLayout><Packages /></SharedLayout>} />
@@ -47,6 +64,14 @@ function App() {
         <Route path="/billing/:id" element={<SharedLayout><BillingDetail /></SharedLayout>} />
         <Route path="/billing/:id/invoice" element={<SharedLayout><InvoiceViewerPage /></SharedLayout>} />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppRoutes />
     </Router>
   );
 }

@@ -3,7 +3,7 @@
  */
 
 module.exports = {
-  uri: process.env.MONGO_URI || 'mongodb://localhost:27017/kayak_listings',
+  uri: process.env.MONGO_URI || 'mongodb+srv://pprathkanthiwar_db_user:Somalwar1!@cluster1.0ssglwi.mongodb.net/kayak_listings',
   options: {
     useNewUrlParser: true,
     useUnifiedTopology: true,

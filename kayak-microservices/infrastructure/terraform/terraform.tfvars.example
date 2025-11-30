@@ -1,0 +1,23 @@
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "dev"
+
+# Network Configuration - UPDATE THESE VALUES
+vpc_id     = "vpc-xxxxxxxxx"        # Replace with your VPC ID
+subnet_ids = ["subnet-xxx", "subnet-yyy"]  # Replace with your subnet IDs
+
+# Security - Update for production
+allowed_cidr_blocks = ["0.0.0.0/0"]  # Replace with your IP/VPC CIDR
+
+# Database Configuration
+db_identifier       = "kayak-mysql-db"
+db_name            = "kayak_db"
+db_username        = "admin"
+db_password        = "ChangeMe123!"  # Use AWS Secrets Manager in production
+
+# Instance Settings
+db_instance_class      = "db.t3.micro"  # Free tier eligible
+db_allocated_storage   = 20
+publicly_accessible    = true           # Set to false for production
+skip_final_snapshot    = true           # Set to false for production
+backup_retention_period = 7

@@ -49,7 +49,14 @@ class FlightController {
 
       const result = await FlightModel.search(filters);
 
-      res.json({
+      console.log('Search result:', {
+        outboundCount: result.flights?.length,
+        returnCount: result.returnFlights?.length,
+        isRoundTrip: result.isRoundTrip,
+        hasReturnDate: !!filters.returnDate
+      });
+
+      const response = {
         success: true,
         flights: result.flights,
         total: result.total,
@@ -66,7 +73,15 @@ class FlightController {
           offset: filters.offset,
           hasMore: result.total > (filters.offset + filters.limit)
         }
-      });
+      };
+
+      // Add return flights if round trip
+      if (result.isRoundTrip && result.returnFlights) {
+        response.returnFlights = result.returnFlights;
+        response.isRoundTrip = true;
+      }
+
+      res.json(response);
     } catch (error) {
       console.error('Search flights error:', error);
       res.status(500).json({ error: 'Failed to search flights', message: error.message });

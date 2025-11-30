@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { logoutUser } from '../store/authSlice';
 import { Menu, Heart } from 'lucide-react';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { ImUserPlus } from 'react-icons/im';
@@ -10,7 +12,6 @@ import { FaUmbrellaBeach, FaFlag, FaDollarSign } from "react-icons/fa6";
 import { HiSparkles } from "react-icons/hi2";
 import kayakLogo from "../assets/images/kayak logo.png";
 import DarkModeToggle from "./DarkModeToggle";
-import { useAuth } from '../context/AuthContext';
 
 /**
  * Shared Layout Component
@@ -19,13 +20,14 @@ import { useAuth } from '../context/AuthContext';
 export default function SharedLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const handleSignOut = () => {
-    logout();
+  const handleSignOut = async () => {
+    await dispatch(logoutUser());
     setIsUserMenuOpen(false);
     navigate('/login');
   };

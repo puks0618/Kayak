@@ -9,6 +9,8 @@ const flightRoutes = require('./modules/flights/route');
 const hotelRoutes = require('./modules/hotels/route');
 const carRoutes = require('./modules/cars/route');
 const listingsRoutes = require('./routes/listings.routes');
+const ownerRoutes = require('./routes/owner.routes');
+const adminListingsRoutes = require('./routes/admin.routes');
 const redisCache = require('./cache/redis');
 
 const app = express();
@@ -17,6 +19,20 @@ const PORT = process.env.PORT || 3003;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Middleware to attach user from JWT (populated by API Gateway)
+// API Gateway forwards user info in req headers after JWT verification
+app.use((req, res, next) => {
+  // If API Gateway added user info to headers, parse it
+  if (req.headers['x-user-id']) {
+    req.user = {
+      id: req.headers['x-user-id'],
+      email: req.headers['x-user-email'],
+      role: req.headers['x-user-role']
+    };
+  }
+  next();
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -27,7 +43,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes
+// Owner routes (protected by isOwner middleware at API Gateway)
+app.use('/api/owner', ownerRoutes);
+
+// Admin routes for listings (protected by isAdmin middleware at API Gateway)
+app.use('/api/admin/listings', adminListingsRoutes);
+
+// Public routes (for searching approved listings)
 app.use('/api/listings/flights', flightRoutes);
 app.use('/api/listings/hotels', hotelRoutes);
 app.use('/api/listings/cars', carRoutes);

@@ -94,6 +94,146 @@ class CarController {
       res.status(500).json({ error: 'Failed to delete car' });
     }
   }
+
+  // ===== OWNER-SPECIFIC FUNCTIONS =====
+
+  /**
+   * Get all cars owned by the authenticated owner
+   * Requires: req.user.id (from JWT middleware)
+   */
+  async getMyListings(req, res) {
+    try {
+      const owner_id = req.user.id;
+      const cars = await CarModel.findByOwner(owner_id);
+
+      res.json({
+        cars,
+        total: cars.length
+      });
+    } catch (error) {
+      console.error('Get my listings error:', error);
+      res.status(500).json({ error: 'Failed to get your listings' });
+    }
+  }
+
+  /**
+   * Create a new car listing as owner
+   * Listing starts with approval_status: 'pending'
+   */
+  async createListing(req, res) {
+    try {
+      const owner_id = req.user.id;
+      
+      // Validate required fields
+      if (!req.body.brand || !req.body.model || !req.body.daily_rental_price || !req.body.location) {
+        return res.status(400).json({ 
+          error: 'Missing required fields',
+          required: ['brand', 'model', 'daily_rental_price', 'location']
+        });
+      }
+
+      const carData = {
+        ...req.body,
+        owner_id,
+        approval_status: 'pending' // New listings require admin approval
+      };
+
+      const newCar = await CarModel.create(carData);
+
+      res.status(201).json({
+        message: 'Car listing created successfully. Pending admin approval.',
+        car: newCar,
+        status: 'pending'
+      });
+
+      // TODO: Publish listing.created event to notify admins
+    } catch (error) {
+      console.error('Create listing error:', error);
+      res.status(500).json({ error: 'Failed to create listing' });
+    }
+  }
+
+  /**
+   * Update owner's own car listing
+   * Only allows updating if car belongs to authenticated owner
+   * Resets approval_status to 'pending' after update
+   */
+  async updateMyListing(req, res) {
+    try {
+      const owner_id = req.user.id;
+      const car_id = req.params.id;
+      
+      // Verify ownership
+      const car = await CarModel.findById(car_id);
+      
+      if (!car) {
+        return res.status(404).json({ error: 'Car not found' });
+      }
+
+      if (car.owner_id !== owner_id) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You can only update your own listings'
+        });
+      }
+      
+      // Update and reset approval status
+      const updatedData = {
+        ...req.body,
+        approval_status: 'pending' // Re-require admin approval after edit
+      };
+      
+      await CarModel.update(car_id, updatedData);
+      
+      res.json({ 
+        message: 'Listing updated successfully. Pending re-approval.',
+        car_id,
+        status: 'pending'
+      });
+
+      // TODO: Publish listing.updated event
+    } catch (error) {
+      console.error('Update listing error:', error);
+      res.status(500).json({ error: 'Failed to update listing' });
+    }
+  }
+
+  /**
+   * Delete owner's own car listing
+   * Only allows deletion if car belongs to authenticated owner
+   */
+  async deleteMyListing(req, res) {
+    try {
+      const owner_id = req.user.id;
+      const car_id = req.params.id;
+      
+      // Verify ownership
+      const car = await CarModel.findById(car_id);
+      
+      if (!car) {
+        return res.status(404).json({ error: 'Car not found' });
+      }
+
+      if (car.owner_id !== owner_id) {
+        return res.status(403).json({ 
+          error: 'Access denied',
+          message: 'You can only delete your own listings'
+        });
+      }
+      
+      await CarModel.delete(car_id);
+      
+      res.json({ 
+        message: 'Listing deleted successfully',
+        car_id
+      });
+
+      // TODO: Publish listing.deleted event
+    } catch (error) {
+      console.error('Delete listing error:', error);
+      res.status(500).json({ error: 'Failed to delete listing' });
+    }
+  }
 }
 
 module.exports = new CarController();

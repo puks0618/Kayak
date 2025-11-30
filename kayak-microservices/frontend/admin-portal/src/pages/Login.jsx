@@ -43,8 +43,8 @@ const Login = () => {
       <div className="auth-card">
         <div className="auth-header">
           <h1 className="auth-logo">KAYAK</h1>
-          <h2 className="auth-title">Owner Portal</h2>
-          <p className="auth-subtitle">Sign in to manage your listings</p>
+          <h2 className="auth-title">Admin Portal</h2>
+          <p className="auth-subtitle">Sign in to manage the platform</p>
         </div>
 
         {error && (
@@ -99,11 +99,8 @@ const Login = () => {
         </form>
 
         <div className="auth-footer">
-          <p>
-            Don't have an account?{' '}
-            <Link to="/signup" className="auth-link">
-              Create Owner Account
-            </Link>
+          <p style={{ color: '#666', fontSize: '14px', marginBottom: '12px' }}>
+            Admin accounts are created by system administrators.
           </p>
           <p className="text-sm text-gray-500 mt-4">
             Looking to book travel?{' '}

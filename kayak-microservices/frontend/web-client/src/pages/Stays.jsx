@@ -144,10 +144,18 @@ export default function Stays() {
                 
                 {/* Location Input */}
                 <div className="location-input-container flex-[2] relative w-full md:w-auto">
-                  <div className="bg-white dark:bg-gray-800 rounded-t-lg md:rounded-l-lg md:rounded-tr-none p-3.5 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors">
+                  <div className="bg-white dark:bg-gray-800 rounded-t-lg md:rounded-l-lg md:rounded-tr-none p-3.5 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                    onClick={() => setShowLocationDropdown(true)}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      <label className="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-semibold tracking-wide">
+                        Location
+                      </label>
+                    </div>
                     <input
                       type="text"
-                      placeholder="Williamsburg, Brooklyn, New York"
+                      placeholder="Select a city or neighborhood"
                       value={location}
                       onChange={(e) => {
                         setLocation(e.target.value);
@@ -159,15 +167,15 @@ export default function Stays() {
                   </div>
                   
                   {/* Location Dropdown */}
-                  {showLocationDropdown && location && filteredNeighborhoods.length > 0 && (
+                  {showLocationDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-md shadow-2xl z-30 border border-gray-200 dark:border-gray-700 overflow-hidden">
                       <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Popular neighborhoods
+                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                          {location ? 'Matching locations' : 'Popular neighborhoods'}
                         </p>
                       </div>
                       <div className="max-h-[400px] overflow-y-auto py-1">
-                        {filteredNeighborhoods.map((city, idx) => {
+                        {(location ? filteredNeighborhoods : popularNeighborhoods).map((city, idx) => {
                           const parts = city.split(',').map(p => p.trim());
                           const mainLocation = parts[0];
                           const subLocation = parts.slice(1).join(', ');

@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('admin-token');
       
       if (storedUser && token) {
         const parsedUser = JSON.parse(storedUser);
@@ -28,13 +28,13 @@ export const AuthProvider = ({ children }) => {
         } else {
           // Clear storage if user is not authorized for admin portal
           localStorage.removeItem('user');
-          localStorage.removeItem('token');
+          localStorage.removeItem('admin-token');
         }
       }
     } catch (error) {
       console.error('Error loading user from localStorage:', error);
       localStorage.removeItem('user');
-      localStorage.removeItem('token');
+      localStorage.removeItem('admin-token');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
       
       // Store user and token
       localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('admin-token', data.token);
       setUser(data.user);
       
       return { success: true, user: data.user };
@@ -115,7 +115,7 @@ export const AuthProvider = ({ children }) => {
       
       // Store user and token
       localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('admin-token', data.token);
       setUser(data.user);
       
       return { success: true, user: data.user };
@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    localStorage.removeItem('admin-token');
     setUser(null);
   };
 

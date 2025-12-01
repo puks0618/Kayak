@@ -11,9 +11,11 @@ const Sidebar = ({ isCollapsed, onToggle }) => {
   const menuItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
     { path: '/flights', label: 'Flights', icon: '✈️' },
+    { path: '/cars', label: 'Cars', icon: '🚗' },
     { path: '/bookings', label: 'Bookings', icon: '📅' },
     { path: '/users', label: 'Users', icon: '👥' },
     { path: '/analytics', label: 'Analytics', icon: '📈' },
+    { path: '/billing', label: 'Billing', icon: '💳' },
   ];
 
   return (

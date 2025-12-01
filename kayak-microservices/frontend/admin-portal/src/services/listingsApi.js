@@ -3,7 +3,7 @@
  * Handles all API calls related to listings management
  */
 
-const API_BASE_URL = 'http://localhost:3000/api/listings';
+import api from './api';
 
 export const listingsApi = {
   // Get all listings with filters
@@ -16,28 +16,19 @@ export const listingsApi = {
     if (params.status) queryParams.append('status', params.status);
     if (params.search) queryParams.append('search', params.search);
 
-    const response = await fetch(`${API_BASE_URL}?${queryParams}`);
-    if (!response.ok) throw new Error('Failed to fetch listings');
-    return response.json();
+    const response = await api.get(`/listings?${queryParams}`);
+    return response.data;
   },
 
   // Update listing status (activate/deactivate)
   updateListingStatus: async (type, id, status) => {
-    const response = await fetch(`${API_BASE_URL}/${type}/${id}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    });
-    if (!response.ok) throw new Error('Failed to update listing status');
-    return response.json();
+    const response = await api.put(`/listings/${type}/${id}/status`, { status });
+    return response.data;
   },
 
   // Delete listing (soft delete)
   deleteListing: async (type, id) => {
-    const response = await fetch(`${API_BASE_URL}/${type}/${id}`, {
-      method: 'DELETE'
-    });
-    if (!response.ok) throw new Error('Failed to delete listing');
-    return response.json();
+    const response = await api.delete(`/listings/${type}/${id}`);
+    return response.data;
   }
 };

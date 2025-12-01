@@ -82,7 +82,7 @@ const BookingModel = {
     query += ' LIMIT ? OFFSET ?';
     params.push(limit, (page - 1) * limit);
 
-    const [rows] = await pool.execute(query, params);
+    const [rows] = await pool.query(query, params);
 
     // Get total count
     let countQuery = 'SELECT COUNT(*) as total FROM bookings WHERE 1=1';
@@ -100,7 +100,7 @@ const BookingModel = {
       countParams.push(listing_type);
     }
 
-    const [countResult] = await pool.execute(countQuery, countParams);
+    const [countResult] = await pool.query(countQuery, countParams);
     const total = countResult[0].total;
 
     return {

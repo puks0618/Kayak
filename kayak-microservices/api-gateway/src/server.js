@@ -38,6 +38,7 @@ Object.entries(routes).forEach(([path, config]) => {
     createProxyMiddleware({
       target: config.target,
       changeOrigin: config.changeOrigin,
+      pathRewrite: config.pathRewrite,
       onProxyReq: (proxyReq, req) => {
         // Forward trace ID
         proxyReq.setHeader('X-Trace-ID', req.id);

@@ -28,9 +28,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'booking-service' });
 });
 
-// Initialize controllers
-const bookingController = new BookingController();
-const paymentController = new PaymentController();
+// Initialize controllers (already exported as instances)
+const bookingController = BookingController;
+const paymentController = PaymentController;
 
 // Booking Routes
 app.post('/bookings', (req, res) => bookingController.create(req, res));

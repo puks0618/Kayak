@@ -27,6 +27,7 @@ const routes = {
   '/api/bookings': {
     target: process.env.BOOKING_SERVICE_URL || 'http://booking-service:3005',
     changeOrigin: true,
+    pathRewrite: { '^/api/bookings': '/bookings' },
     description: 'Booking, payment, and billing'
   },
   '/api/analytics': {
@@ -38,6 +39,12 @@ const routes = {
     target: process.env.ADMIN_SERVICE_URL || 'http://admin-service:3007',
     changeOrigin: true,
     description: 'Admin operations with RBAC'
+  },
+  '/api/billing': {
+    target: process.env.BILLING_SERVICE_URL || 'http://billing-service:4000',
+    changeOrigin: true,
+    pathRewrite: { '^/api/billing': '/api/billing' },
+    description: 'User billing portal - invoices, logs, PDF generation'
   },
   '/api/ai': {
     target: process.env.AI_AGENT_URL || 'http://ai-agent:8000',

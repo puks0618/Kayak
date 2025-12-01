@@ -11,7 +11,9 @@ import Dashboard from './pages/Dashboard';
 import FlightsManagement from './pages/FlightsManagement';
 import BookingsManagement from './pages/BookingsManagement';
 import UsersManagement from './pages/UsersManagement';
+import CarsManagement from './pages/CarsManagement';
 import Analytics from './pages/Analytics';
+import BillingManagement from './pages/BillingManagement';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Signout from './pages/Signout';
@@ -33,9 +35,11 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/flights" element={<FlightsManagement />} />
+                  <Route path="/cars" element={<CarsManagement />} />
                   <Route path="/bookings" element={<BookingsManagement />} />
                   <Route path="/users" element={<UsersManagement />} />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/billing" element={<BillingManagement />} />
                 </Routes>
               </Layout>
             </ProtectedRoute>

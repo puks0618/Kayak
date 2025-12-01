@@ -233,9 +233,15 @@ services:
     environment:
       - PORT=3007
       - DB_HOST=mysql
+      - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=Somalwar1!
-      - DB_NAME=kayak_users
+      - DB_NAME=kayak_admin
+      - JWT_SECRET=your-secret-key-change-in-production
+      - USER_SERVICE_URL=http://user-service:3002
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - LISTING_SERVICE_URL=http://listing-service:3003
+      - BOOKING_SERVICE_URL=http://booking-service:3005
       - KAFKA_BROKERS=kafka:29092
     depends_on:
       - mysql
@@ -278,6 +284,42 @@ services:
     ports:
       - "5174:80"
     depends_on:
+      - api-gateway
+    networks:
+      - kayak-network
+
+  # User Billing Service
+  billing-service:
+    build:
+      context: ../../services/billing-service
+      dockerfile: Dockerfile
+    container_name: kayak-billing-service
+    environment:
+      - PORT=4000
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=Somalwar1!
+      - MYSQL_DATABASE=kayak_bookings
+      - MONGODB_URI=mongodb://mongodb:27017/kayak_billing
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mysql
+      - mongodb
+    networks:
+      - kayak-network
+
+  # User Billing Portal
+  billing-portal:
+    build:
+      context: ../../frontend/billing-portal
+      dockerfile: Dockerfile
+    container_name: kayak-billing-portal
+    ports:
+      - "5176:80"
+    depends_on:
+      - billing-service
       - api-gateway
     networks:
       - kayak-network

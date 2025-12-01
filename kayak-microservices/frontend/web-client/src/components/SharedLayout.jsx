@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logoutUser } from '../store/authSlice';
-import { Menu, Heart } from 'lucide-react';
+import { Menu, Heart, Calendar } from 'lucide-react';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { ImUserPlus } from 'react-icons/im';
 import { PiAirplaneTiltFill } from "react-icons/pi";
@@ -104,6 +104,14 @@ export default function SharedLayout({ children }) {
         <div className="flex items-center gap-3 relative">
           <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
             <Heart className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </button>
+          <button 
+            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={() => navigate('/trips')}
+            title="View your trips and booking history"
+          >
+            <Calendar className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden md:inline">My Trips</span>
           </button>
           <DarkModeToggle />
           <button 

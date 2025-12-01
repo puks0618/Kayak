@@ -35,9 +35,9 @@ export default function StaysSearch() {
   
   // Client-side filtering to ensure only searched location properties are shown
   const filteredResults = results.filter(hotel => {
-    // Filter by location - check if the hotel's neighborhood matches any of the searched cities
+    // Filter by location - check if the hotel's city matches any of the searched cities
     if (searchedCities.length > 0) {
-      const hotelLocation = (hotel.neighbourhood_cleansed || hotel.neighborhood || '').toLowerCase();
+      const hotelLocation = (hotel.city || hotel.address || '').toLowerCase();
       const matchesLocation = searchedCities.some(city => 
         hotelLocation.includes(city.toLowerCase()) || city.toLowerCase().includes(hotelLocation)
       );
@@ -45,7 +45,7 @@ export default function StaysSearch() {
     }
     
     // Filter by price range
-    const price = hotel.price_per_night || 0;
+    const price = parseFloat(hotel.price_per_night) || 0;
     if (price < priceRange[0] || price > priceRange[1]) return false;
     
     // Filter by rating
@@ -293,7 +293,7 @@ export default function StaysSearch() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredResults.map((hotel) => (
-                    <HotelCard key={hotel.hotel_id} hotel={hotel} onClick={() => handleHotelClick(hotel.hotel_id)} />
+                    <HotelCard key={hotel.id} hotel={hotel} onClick={() => handleHotelClick(hotel.id)} />
                   ))}
                 </div>
 
@@ -332,6 +332,16 @@ export default function StaysSearch() {
 
 // Hotel Card Component
 function HotelCard({ hotel, onClick }) {
+  // Extract image URL from images array
+  const imageUrl = hotel.images && hotel.images.length > 0 
+    ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images)[0] : hotel.images[0])
+    : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
+  
+  // Parse amenities if string
+  const amenitiesList = hotel.amenities 
+    ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities)
+    : [];
+  
   return (
     <div
       onClick={onClick}
@@ -340,8 +350,8 @@ function HotelCard({ hotel, onClick }) {
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
         <img
-          src={hotel.picture_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
-          alt={hotel.hotel_name}
+          src={imageUrl}
+          alt={hotel.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
@@ -357,12 +367,12 @@ function HotelCard({ hotel, onClick }) {
       {/* Content */}
       <div className="p-4">
         <h3 className="font-bold text-lg mb-2 dark:text-white line-clamp-2">
-          {hotel.hotel_name}
+          {hotel.name}
         </h3>
         
         <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 mb-2">
           <MapPin className="w-4 h-4" />
-          <span className="truncate">{hotel.neighbourhood_cleansed}</span>
+          <span className="truncate">{hotel.city}</span>
         </div>
 
         <div className="flex items-center gap-2 mb-3">
@@ -370,39 +380,67 @@ function HotelCard({ hotel, onClick }) {
             <>
               <div className="flex items-center">
                 <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                <span className="ml-1 font-medium dark:text-white">{parseFloat(hotel.star_rating).toFixed(1)}</span>
+                <span className="ml-1 font-semibold dark:text-white">{parseFloat(hotel.star_rating).toFixed(1)}</span>
               </div>
               <span className="text-gray-400">•</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {hotel.review_count || hotel.number_of_reviews || 0} reviews
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {hotel.review_count || 0} {hotel.review_count === 1 ? 'review' : 'reviews'}
               </span>
             </>
           ) : (
-            <span className="text-sm text-gray-500 dark:text-gray-400">No rating yet</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">No reviews yet</span>
           )}
         </div>
 
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
-          <Users className="w-4 h-4" />
-          <span>{hotel.accommodates} guests • {hotel.bedrooms} beds • {hotel.bathrooms} baths</span>
+          <span className="font-medium">{hotel.room_type}</span>
+          <span className="text-gray-400">•</span>
+          <span>{hotel.num_rooms} {hotel.num_rooms === 1 ? 'room' : 'rooms'}</span>
         </div>
 
-        {/* Recent Reviews Preview */}
-        {hotel.recent_reviews && hotel.recent_reviews.length > 0 && (
+        {/* Amenities Preview */}
+        {amenitiesList && amenitiesList.length > 0 && (
           <div className="mb-3 pb-3 border-b dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic line-clamp-2">
-              "{hotel.recent_reviews[0].comments}"
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            <div className="flex flex-wrap gap-1">
+              {amenitiesList.slice(0, 4).map((amenity, idx) => (
+                <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                  {amenity}
+                </span>
+              ))}
+              {amenitiesList.length > 4 && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                  +{amenitiesList.length - 4} more
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Reviews Preview */}
+        {hotel.recent_reviews && hotel.recent_reviews.length > 0 ? (
+          <div className="mb-3 pb-3 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+            <div className="flex items-start gap-2 mb-1">
+              <Star className="w-3 h-3 text-yellow-500 fill-current flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                "{hotel.recent_reviews[0].comments}"
+              </p>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 ml-5">
               — {hotel.recent_reviews[0].reviewer_name}
             </p>
           </div>
-        )}
+        ) : hotel.review_count > 0 ? (
+          <div className="mb-3 pb-3 border-b dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+              {hotel.review_count} {hotel.review_count === 1 ? 'guest has' : 'guests have'} reviewed this property
+            </p>
+          </div>
+        ) : null}
 
         <div className="flex items-center justify-between pt-3 border-t dark:border-gray-700">
           <div className="flex items-center gap-1">
             <DollarSign className="w-5 h-5 text-[#FF690F]" />
-            <span className="text-2xl font-bold text-[#FF690F]">{hotel.price_per_night}</span>
+            <span className="text-2xl font-bold text-[#FF690F]">{parseFloat(hotel.price_per_night).toFixed(0)}</span>
             <span className="text-sm text-gray-600 dark:text-gray-400">/night</span>
           </div>
         </div>

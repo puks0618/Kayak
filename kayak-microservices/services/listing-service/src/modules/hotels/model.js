@@ -107,9 +107,9 @@ const HotelModel = {
 
     let query = `
       SELECT DISTINCT h.*,
-        (SELECT COUNT(*) FROM hotel_amenities ha WHERE ha.hotel_id = h.hotel_id) as amenity_count
+        (SELECT COUNT(*) FROM hotel_amenities ha WHERE ha.hotel_id = h.id) as amenity_count
       FROM hotels h
-      WHERE h.has_availability = TRUE
+      WHERE h.approval_status = 'approved'
     `;
     const params = [];
 
@@ -128,10 +128,11 @@ const HotelModel = {
       cities.forEach(city => params.push(city));
     }
 
-    // Guest capacity
+    // Guest capacity - using num_rooms as approximation (each room ~2 guests)
     if (guests) {
-      query += ' AND h.accommodates >= ?';
-      params.push(guests);
+      const minRooms = Math.ceil(guests / 2);
+      query += ' AND h.num_rooms >= ?';
+      params.push(minRooms);
     }
 
     // Price range
@@ -150,22 +151,21 @@ const HotelModel = {
       params.push(starRating);
     }
 
-    // Property type
+    // Property type - using room_type as substitute
     if (propertyType) {
-      query += ' AND h.property_type = ?';
+      query += ' AND h.room_type = ?';
       params.push(propertyType);
     }
 
     // Amenities filter (hotel must have ALL specified amenities)
     if (amenities.length > 0) {
       const amenPlaceholders = amenities.map(() => '?').join(',');
-      query += ` AND h.hotel_id IN (
+      query += ` AND h.id IN (
         SELECT ha.hotel_id 
         FROM hotel_amenities ha
-        JOIN amenities a ON ha.amenity_id = a.amenity_id
-        WHERE a.amenity_name IN (${amenPlaceholders})
+        WHERE ha.amenity IN (${amenPlaceholders})
         GROUP BY ha.hotel_id
-        HAVING COUNT(DISTINCT a.amenity_id) = ?
+        HAVING COUNT(DISTINCT ha.amenity) = ?
       )`;
       amenities.forEach(amenity => params.push(amenity));
       params.push(amenities.length);
@@ -180,10 +180,10 @@ const HotelModel = {
         query += ' ORDER BY h.price_per_night DESC';
         break;
       case 'rating_desc':
-        query += ' ORDER BY h.star_rating DESC, h.number_of_reviews DESC';
+        query += ' ORDER BY h.star_rating DESC, h.rating DESC';
         break;
       default:
-        query += ' ORDER BY h.star_rating DESC';
+        query += ' ORDER BY h.star_rating DESC, h.rating DESC';
     }
 
     // Pagination
@@ -194,7 +194,7 @@ const HotelModel = {
     const [rows] = await pool.query(query, params);
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(DISTINCT h.hotel_id) as total FROM hotels h WHERE h.has_availability = TRUE';
+    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE h.approval_status = \'approved\'';
     const countParams = [];
     
     if (cities.length > 0) {
@@ -203,8 +203,9 @@ const HotelModel = {
       cities.forEach(city => countParams.push(city));
     }
     if (guests) {
-      countQuery += ' AND h.accommodates >= ?';
-      countParams.push(guests);
+      const minRooms = Math.ceil(guests / 2);
+      countQuery += ' AND h.num_rooms >= ?';
+      countParams.push(minRooms);
     }
     if (priceMin) {
       countQuery += ' AND h.price_per_night >= ?';
@@ -219,7 +220,7 @@ const HotelModel = {
       countParams.push(starRating);
     }
     if (propertyType) {
-      countQuery += ' AND h.property_type = ?';
+      countQuery += ' AND h.room_type = ?';
       countParams.push(propertyType);
     }
 
@@ -258,7 +259,7 @@ const HotelModel = {
           recent_reviews: recentReviews
         };
       } catch (error) {
-        console.error(`Error enriching hotel ${hotel.hotel_id} with reviews:`, error);
+        console.error(`Error enriching hotel ${hotel.id} with reviews:`, error);
         return { ...hotel, review_count: 0, recent_reviews: [] };
       }
     }));
@@ -275,7 +276,7 @@ const HotelModel = {
   },
 
   async findById(id) {
-    const [rows] = await pool.execute('SELECT * FROM hotels WHERE hotel_id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM hotels WHERE id = ?', [id]);
     return rows[0];
   },
 
@@ -297,13 +298,12 @@ const HotelModel = {
         .toArray();
 
       const images = await imagesCollection
-        .findOne({ hotel_id: hotel.hotel_id });
+        .findOne({ hotel_id: hotel.id });
 
       // Get amenities
       const [amenitiesRows] = await pool.execute(`
-        SELECT a.amenity_name, a.amenity_category, a.icon
+        SELECT ha.amenity
         FROM hotel_amenities ha
-        JOIN amenities a ON ha.amenity_id = a.amenity_id
         WHERE ha.hotel_id = ?
       `, [id]);
 

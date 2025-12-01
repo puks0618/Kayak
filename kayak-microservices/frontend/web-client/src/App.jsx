@@ -14,6 +14,8 @@ import Stays from './pages/Stays';
 import StaysSearch from './pages/StaysSearch';
 import HotelDetail from './pages/HotelDetail';
 import BookingConfirmation from './pages/BookingConfirmation';
+import BookingSuccess from './pages/BookingSuccess';
+import MyTrips from './pages/MyTrips';
 import Cars from './pages/Cars';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
@@ -37,11 +39,11 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
-        {/* Traveller routes - Protected (only travellers can access) */}
+        {/* Traveller routes - Protected (travellers and owners can access) */}
         <Route 
           path="/" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><Home /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -49,7 +51,7 @@ function App() {
         <Route 
           path="/flights/results" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><FlightResults /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -57,7 +59,7 @@ function App() {
         <Route 
           path="/fare-selection" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><FareSelectionPage /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -65,7 +67,7 @@ function App() {
         <Route 
           path="/stays" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><Stays /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -73,7 +75,7 @@ function App() {
         <Route 
           path="/stays/search" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><StaysSearch /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -81,7 +83,7 @@ function App() {
         <Route 
           path="/stays/hotel/:id" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><HotelDetail /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -89,15 +91,39 @@ function App() {
         <Route 
           path="/stays/booking/confirm" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><BookingConfirmation /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/booking/success" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><BookingSuccess /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/trips" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><MyTrips /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/booking/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><BookingSuccess /></SharedLayout>
             </ProtectedRoute>
           } 
         />
         <Route 
           path="/cars" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><Cars /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -105,7 +131,7 @@ function App() {
         <Route 
           path="/packages" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><Packages /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -113,7 +139,7 @@ function App() {
         <Route 
           path="/ai-mode" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><AIMode /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -121,17 +147,17 @@ function App() {
         <Route 
           path="/listings" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><Listings /></SharedLayout>
             </ProtectedRoute>
           } 
         />
         
-        {/* Billing routes - Protected (only travellers) */}
+        {/* Billing routes - Protected (travellers and owners) */}
         <Route 
           path="/billing" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><BillingList /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -139,7 +165,7 @@ function App() {
         <Route 
           path="/billing/dashboard" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><BillingDashboard /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -147,7 +173,7 @@ function App() {
         <Route 
           path="/billing/new" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><CreateBilling /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -155,7 +181,7 @@ function App() {
         <Route 
           path="/billing/:id" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><BillingDetail /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -163,7 +189,7 @@ function App() {
         <Route 
           path="/billing/:id/invoice" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><InvoiceViewerPage /></SharedLayout>
             </ProtectedRoute>
           } 

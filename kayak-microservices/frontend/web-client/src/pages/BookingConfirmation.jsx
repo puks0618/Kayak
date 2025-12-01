@@ -72,16 +72,48 @@ export default function BookingConfirmation() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Here you would typically send the booking to your backend
-      console.log('Booking submitted:', { hotel, formData, checkIn, checkOut, guests, totalPrice });
-      
-      // Show success message and redirect
-      alert('Booking confirmed! You will receive a confirmation email shortly.');
-      navigate('/stays/search');
+      // Create booking object
+      const booking = {
+        id: 'BK' + Date.now(),
+        hotel: hotel,
+        checkIn: checkIn,
+        checkOut: checkOut,
+        guests: guests,
+        nights: nights,
+        totalPrice: totalPrice,
+        paymentType: formData.paymentType,
+        guestInfo: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          zipCode: formData.zipCode
+        },
+        bookingDate: new Date().toISOString(),
+        status: 'confirmed'
+      };
+
+      try {
+        // Save to localStorage for MVP
+        const existingBookings = JSON.parse(localStorage.getItem('userBookings') || '[]');
+        existingBookings.push(booking);
+        localStorage.setItem('userBookings', JSON.stringify(existingBookings));
+
+        // TODO: Send to backend API
+        // await axios.post(`${API_BASE_URL}/bookings`, booking);
+
+        // Redirect to success page with booking details
+        navigate('/booking/success', { state: { booking } });
+      } catch (error) {
+        console.error('Error saving booking:', error);
+        alert('Failed to save booking. Please try again.');
+      }
     }
   };
 

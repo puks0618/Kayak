@@ -42,11 +42,8 @@ const Login = () => {
             if (userRole === 'admin') {
                 // Admins go to admin portal (port 5174)
                 window.location.href = 'http://localhost:5174';
-            } else if (userRole === 'owner') {
-                // Owners go to owner dashboard on web-client
-                navigate('/owner/dashboard');
             } else {
-                // Travellers go to home
+                // Both owners and travellers go to home
                 navigate('/');
             }
         } catch (err) {
@@ -81,9 +78,8 @@ const Login = () => {
             
             if (userRole === 'admin') {
                 window.location.href = 'http://localhost:5174';
-            } else if (userRole === 'owner') {
-                navigate('/owner/dashboard');
             } else {
+                // Both owners and travellers go to home
                 navigate('/');
             }
         } catch (err) {

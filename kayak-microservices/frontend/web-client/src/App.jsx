@@ -13,6 +13,7 @@ import FareSelectionPage from './pages/FareSelectionPage';
 import Stays from './pages/Stays';
 import StaysSearch from './pages/StaysSearch';
 import HotelDetail from './pages/HotelDetail';
+import BookingConfirmation from './pages/BookingConfirmation';
 import Cars from './pages/Cars';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
@@ -82,6 +83,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['traveller']}>
               <SharedLayout><HotelDetail /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/stays/booking/confirm" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><BookingConfirmation /></SharedLayout>
             </ProtectedRoute>
           } 
         />

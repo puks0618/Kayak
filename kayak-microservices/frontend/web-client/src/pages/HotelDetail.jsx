@@ -19,9 +19,44 @@ import {
   Heart,
   Loader2,
   Calendar,
-  CheckCircle
+  CheckCircle,
+  Snowflake,
+  Utensils,
+  ParkingCircle,
+  Dumbbell,
+  Waves,
+  Baby,
+  DoorOpen,
+  Shield,
+  Sparkles,
+  Shirt
 } from 'lucide-react';
 import { getStayDetailsAsync } from '../store/slices/staysSlice';
+
+// Helper function to get appropriate icon for amenity
+function getAmenityIcon(amenityName) {
+  const name = amenityName.toLowerCase();
+  
+  if (name.includes('wifi') || name.includes('internet')) return Wifi;
+  if (name.includes('kitchen')) return Utensils;
+  if (name.includes('air conditioning') || name.includes('ac')) return Snowflake;
+  if (name.includes('heating') || name.includes('heat')) return Wind;
+  if (name.includes('tv') || name.includes('television')) return Tv;
+  if (name.includes('parking')) return ParkingCircle;
+  if (name.includes('pool')) return Waves;
+  if (name.includes('gym') || name.includes('fitness')) return Dumbbell;
+  if (name.includes('washer') || name.includes('dryer') || name.includes('laundry')) return Shirt;
+  if (name.includes('coffee') || name.includes('breakfast')) return Coffee;
+  if (name.includes('shower') || name.includes('bath')) return Droplets;
+  if (name.includes('workspace') || name.includes('desk')) return Home;
+  if (name.includes('smoke') || name.includes('carbon monoxide')) return Shield;
+  if (name.includes('first aid') || name.includes('fire extinguisher')) return Shield;
+  if (name.includes('self check-in') || name.includes('keypad')) return DoorOpen;
+  if (name.includes('crib') || name.includes('baby') || name.includes('child')) return Baby;
+  if (name.includes('cleaning')) return Sparkles;
+  
+  return CheckCircle;
+}
 
 export default function HotelDetail() {
   const { id } = useParams();
@@ -31,6 +66,20 @@ export default function HotelDetail() {
   const { selectedStay, loading, error } = useSelector(state => state.stays);
   const [selectedImage, setSelectedImage] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [guests, setGuests] = useState(1);
+
+  // Calculate number of nights
+  const calculateNights = () => {
+    if (!checkIn || !checkOut) return 1;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const nights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+    return nights;
+  };
+
+  const nights = calculateNights();
 
   useEffect(() => {
     dispatch(getStayDetailsAsync(id));
@@ -221,17 +270,20 @@ export default function HotelDetail() {
             {/* Amenities */}
             {hotel.amenities && hotel.amenities.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold mb-4 dark:text-white">Amenities</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {hotel.amenities.slice(0, 10).map((amenity, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700 dark:text-gray-300">{amenity.amenity_name}</span>
-                    </div>
-                  ))}
+                <h2 className="text-xl font-bold mb-6 dark:text-white">What this place offers</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {hotel.amenities.slice(0, 10).map((amenity, idx) => {
+                    const IconComponent = getAmenityIcon(amenity.amenity_name);
+                    return (
+                      <div key={idx} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <IconComponent className="w-6 h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
+                        <span className="text-gray-700 dark:text-gray-300">{amenity.amenity_name}</span>
+                      </div>
+                    );
+                  })}
                 </div>
                 {hotel.amenities.length > 10 && (
-                  <button className="mt-4 text-[#FF690F] hover:underline font-medium">
+                  <button className="mt-6 w-full py-3 border border-gray-900 dark:border-gray-300 rounded-lg text-gray-900 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     Show all {hotel.amenities.length} amenities
                   </button>
                 )}
@@ -284,6 +336,8 @@ export default function HotelDetail() {
                   <label className="block text-sm font-medium mb-2 dark:text-white">Check-in</label>
                   <input
                     type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
                     className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     min={new Date().toISOString().split('T')[0]}
                   />
@@ -292,13 +346,19 @@ export default function HotelDetail() {
                   <label className="block text-sm font-medium mb-2 dark:text-white">Check-out</label>
                   <input
                     type="date"
+                    value={checkOut}
+                    onChange={(e) => setCheckOut(e.target.value)}
                     className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    min={new Date().toISOString().split('T')[0]}
+                    min={checkIn || new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 dark:text-white">Guests</label>
-                  <select className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <select 
+                    value={guests}
+                    onChange={(e) => setGuests(parseInt(e.target.value))}
+                    className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
                     {[...Array(hotel.accommodates || 4)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>{i + 1} guest{i > 0 ? 's' : ''}</option>
                     ))}
@@ -306,7 +366,25 @@ export default function HotelDetail() {
                 </div>
               </div>
 
-              <button className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-3 rounded-md font-bold text-lg mb-4">
+              <button 
+                onClick={() => {
+                  if (!checkIn || !checkOut) {
+                    alert('Please select check-in and check-out dates');
+                    return;
+                  }
+                  navigate('/stays/booking/confirm', {
+                    state: {
+                      hotel,
+                      checkIn,
+                      checkOut,
+                      guests,
+                      nights,
+                      totalPrice: (hotel.price_per_night * nights * 1.1).toFixed(2)
+                    }
+                  });
+                }}
+                className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-3 rounded-md font-bold text-lg mb-4"
+              >
                 Reserve
               </button>
 
@@ -316,16 +394,18 @@ export default function HotelDetail() {
 
               <div className="border-t dark:border-gray-700 pt-4">
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">${hotel.price_per_night} × 1 night</span>
-                  <span className="dark:text-white">${hotel.price_per_night}</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    ${hotel.price_per_night} × {nights} night{nights !== 1 ? 's' : ''}
+                  </span>
+                  <span className="dark:text-white">${(hotel.price_per_night * nights).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600 dark:text-gray-400">Service fee</span>
-                  <span className="dark:text-white">${(hotel.price_per_night * 0.1).toFixed(2)}</span>
+                  <span className="dark:text-white">${(hotel.price_per_night * nights * 0.1).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-2 mt-2">
                   <span className="dark:text-white">Total</span>
-                  <span className="dark:text-white">${(hotel.price_per_night * 1.1).toFixed(2)}</span>
+                  <span className="dark:text-white">${(hotel.price_per_night * nights * 1.1).toFixed(2)}</span>
                 </div>
               </div>
             </div>

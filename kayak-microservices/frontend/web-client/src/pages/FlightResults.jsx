@@ -745,7 +745,7 @@ export default function FlightResults() {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/airlines/${encodeURIComponent(airline)}/reviews`);
+                                      navigate(`/flights/airlines/${encodeURIComponent(airline)}/reviews`);
                                     }}
                                     className="text-sm text-gray-600 hover:text-blue-600 hover:underline"
                                   >
@@ -782,7 +782,32 @@ export default function FlightResults() {
                                       <span>{formatDuration(returnFlights[index].duration)}</span>
                                     </div>
                                   </div>
-                                  <p className="text-sm text-gray-600 mb-1">{returnFlights[index].airline}</p>
+                                  
+                                  {/* Return airline name with rating */}
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/flights/airlines/${encodeURIComponent(returnFlights[index].airline)}/reviews`);
+                                      }}
+                                      className="text-sm text-gray-600 hover:text-blue-600 hover:underline"
+                                    >
+                                      {returnFlights[index].airline}
+                                    </button>
+                                    
+                                    {returnFlights[index].airline_rating && returnFlights[index].airline_rating > 0 && (
+                                      <div className="flex items-center gap-1">
+                                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                        <span className="text-sm font-medium text-gray-700">
+                                          {parseFloat(returnFlights[index].airline_rating).toFixed(1)}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          ({returnFlights[index].airline_review_count} reviews)
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
                                   <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-800 text-xs rounded">
                                     {returnFlights[index].departure_airport}–{returnFlights[index].arrival_airport}
                                   </span>

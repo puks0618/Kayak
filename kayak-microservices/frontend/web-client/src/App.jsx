@@ -78,7 +78,7 @@ function AppRoutes() {
           } 
         />
         <Route 
-          path="/airlines/:airlineName/reviews" 
+          path="/flights/airlines/:airlineName/reviews" 
           element={
             <ProtectedRoute allowedRoles={['traveller']}>
               <SharedLayout><AirlineReviews /></SharedLayout>

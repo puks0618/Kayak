@@ -247,23 +247,51 @@ const FlightModel = {
   },
 
   /**
-   * Find flight deals (discounted flights)
+   * Find flight deals (cheapest flights)
+   * Returns cheapest unique destinations from a specific origin
+   * Only returns routes with available future flights
    */
   async findDeals(options) {
-    const { maxPrice, limit, cabinClass } = options;
+    const { origin, limit, cabinClass } = options;
     
-    const query = `
+    // Get cheapest flight per unique destination with available future flights
+    let query = `
       SELECT 
-        f.*
+        f.*,
+        (SELECT COUNT(*) 
+         FROM flights 
+         WHERE departure_airport = f.departure_airport 
+           AND arrival_airport = f.arrival_airport 
+           AND departure_time >= NOW()
+           AND cabin_class = ?) as available_flights
       FROM flights f
-      WHERE f.price <= ?
+      INNER JOIN (
+        SELECT 
+          arrival_airport,
+          MIN(price) as min_price,
+          COUNT(*) as route_count
+        FROM flights
+        WHERE cabin_class = ?
+          AND departure_time >= NOW()
+          ${origin ? 'AND departure_airport = ?' : ''}
+        GROUP BY arrival_airport
+        HAVING route_count >= 5
+        ORDER BY min_price ASC
+        LIMIT ?
+      ) AS unique_dest ON f.arrival_airport = unique_dest.arrival_airport 
+        AND f.price = unique_dest.min_price
+      WHERE f.departure_time >= NOW()
         AND f.cabin_class = ?
-        AND f.departure_time >= NOW()
       ORDER BY f.price ASC
       LIMIT ?
     `;
 
-    const [deals] = await pool.query(query, [maxPrice, cabinClass, limit]);
+    // Build parameters array based on whether origin is provided
+    const params = origin 
+      ? [cabinClass, cabinClass, origin, limit, cabinClass, limit]
+      : [cabinClass, cabinClass, limit, cabinClass, limit];
+
+    const [deals] = await pool.query(query, params);
     return deals;
   },
 

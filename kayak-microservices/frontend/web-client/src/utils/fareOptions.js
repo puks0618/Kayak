@@ -55,12 +55,12 @@ export function buildDetailedFareOptions(basePrice) {
       price: basicPrice,
       refundable: false,
       perks: [
-        'Carry-on bag for a fee',
-        'Checked bag for a fee',
-        'Seat selection for a fee',
-        'Extra legroom for a fee',
-        'Ticket changes for a fee',
-        'No refunds'
+        { text: 'Carry-on bag', status: 'fee' },
+        { text: 'Checked bag', status: 'fee' },
+        { text: 'Seat selection', status: 'fee' },
+        { text: 'Extra legroom', status: 'fee' },
+        { text: 'Ticket changes', status: 'fee' },
+        { text: 'No refunds', status: 'unavailable' }
       ]
     },
     {
@@ -69,12 +69,12 @@ export function buildDetailedFareOptions(basePrice) {
       price: economyPrice,
       refundable: true,
       perks: [
-        '1 carry-on bag',
-        '1st checked bag: $146',
-        'Free seat selection',
-        'Legroom info unavailable',
-        'Free ticket changes',
-        'Refundable'
+        { text: '1 carry-on bag', status: 'included' },
+        { text: '1 checked bag', status: 'included' },
+        { text: 'Free seat selection', status: 'included' },
+        { text: 'Standard legroom', status: 'included' },
+        { text: 'Free ticket changes', status: 'included' },
+        { text: 'Refundable', status: 'included' }
       ]
     }
   ];
@@ -97,7 +97,7 @@ export function getFareAmenities(fareCode) {
   // ECONOMY
   return [
     { icon: '💼', included: true, label: 'Carry-on included' },
-    { icon: '🧳', included: false, label: 'Checked bag: $146' },
+    { icon: '🧳', included: true, label: 'Checked bag included' },
     { icon: '🪑', included: true, label: 'Free seat selection' }
   ];
 }

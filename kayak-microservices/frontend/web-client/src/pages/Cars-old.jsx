@@ -105,7 +105,7 @@ export default function Cars() {
     return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${minute} ${h < 12 ? 'AM' : 'PM'}`;
   };
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     const searchParams = new URLSearchParams({
       location: pickupLocation.split('(')[0].trim(),
       pickupDate: pickupDate.toISOString().split('T')[0],
@@ -125,20 +125,8 @@ export default function Cars() {
       driverAge
     });
     
-    // Make API call to search cars
-    try {
-      const response = await fetch(`http://localhost:3003/api/listings/cars/search?${searchParams.toString()}`);
-      const data = await response.json();
-      console.log('Car search results:', data);
-      
-      if (data.success) {
-        // Navigate to results page with data
-        navigate(`/cars/results`, { state: { searchResults: data, searchParams: Object.fromEntries(searchParams) } });
-      }
-    } catch (error) {
-      console.error('Error searching cars:', error);
-      alert('Error searching for cars. Please try again.');
-    }
+    // Navigate to results page (to be created)
+    navigate(`/cars/results?${searchParams.toString()}`);
   };
 
   return (
@@ -171,17 +159,12 @@ export default function Cars() {
                   <input 
                     type="checkbox" 
                     checked={sameLocation}
-                    onChange={(e) => {
-                      setSameLocation(e.target.checked);
-                      if (e.target.checked) {
-                        setDropoffLocation(pickupLocation);
-                      }
-                    }}
+                    onChange={(e) => setSameLocation(e.target.checked)}
                     className="w-4 h-4 cursor-pointer"
                   />
                   <span>Return to same location</span>
                 </label>
-                <div ref={ageRef} className="relative age-dropdown">
+                <div className="relative age-dropdown">
                   <div 
                     className="cursor-pointer flex items-center gap-1 hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded select-none"
                     onClick={() => setShowAgeDropdown(!showAgeDropdown)}
@@ -197,7 +180,7 @@ export default function Cars() {
                           setDriverAge(e.target.value);
                           setShowAgeDropdown(false);
                         }}
-                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white cursor-pointer"
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       >
                         {Array.from({length: 64}, (_, i) => i + 18).map(age => (
                           <option key={age} value={age}>{age}</option>
@@ -212,44 +195,33 @@ export default function Cars() {
               <div className="flex flex-col md:flex-row bg-gray-200 dark:bg-gray-700 p-[2px] md:p-[2px] rounded-xl shadow-sm md:shadow-none gap-[2px]">
                 
                 {/* Pickup Location */}
-                <div 
-                  ref={pickupLocationRef}
-                  className="flex-1 relative bg-white dark:bg-gray-800 rounded-t-lg md:rounded-l-lg md:rounded-tr-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <div 
-                    className="p-3.5 cursor-pointer"
-                    onClick={() => {
-                      setShowPickupDropdown(!showPickupDropdown);
-                      setShowDropoffDropdown(false);
-                      setShowDatePicker(false);
-                    }}
-                  >
+                <div className="flex-1 relative location-dropdown bg-white dark:bg-gray-800 rounded-t-lg md:rounded-l-lg md:rounded-tr-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div className="p-3.5">
                     <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pick-up location</div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="flex-1 font-medium text-gray-900 dark:text-white text-[15px]">
-                        {pickupLocation}
-                      </span>
+                      <input 
+                        type="text"
+                        value={pickupLocation}
+                        onChange={(e) => setPickupLocation(e.target.value)}
+                        onFocus={() => setShowPickupDropdown(true)}
+                        placeholder="City, airport, station, etc."
+                        className="flex-1 bg-transparent outline-none font-medium text-gray-900 dark:text-white text-[15px]"
+                      />
                       {pickupLocation && (
                         <X 
                           className="w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPickupLocation('');
-                          }}
+                          onClick={() => setPickupLocation('')} 
                         />
                       )}
                     </div>
                   </div>
                   {showPickupDropdown && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowPickupDropdown(false)}
-                      />
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 max-h-[300px] overflow-y-auto">
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Popular locations</div>
-                        {popularLocations.map(loc => (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 max-h-[300px] overflow-y-auto">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Popular locations</div>
+                      {popularLocations
+                        .filter(loc => !pickupLocation || loc.toLowerCase().includes(pickupLocation.toLowerCase()))
+                        .map(loc => (
                           <div 
                             key={loc}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm"
@@ -265,8 +237,7 @@ export default function Cars() {
                             </div>
                           </div>
                         ))}
-                      </div>
-                    </>
+                    </div>
                   )}
                   {/* Swap Button */}
                   {!sameLocation && (
@@ -285,44 +256,33 @@ export default function Cars() {
 
                 {/* Drop-off Location (only if different location) */}
                 {!sameLocation && (
-                  <div 
-                    ref={dropoffLocationRef}
-                    className="flex-1 relative bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <div 
-                      className="p-3.5 md:pl-5 cursor-pointer"
-                      onClick={() => {
-                        setShowDropoffDropdown(!showDropoffDropdown);
-                        setShowPickupDropdown(false);
-                        setShowDatePicker(false);
-                      }}
-                    >
+                  <div className="flex-1 relative location-dropdown bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="p-3.5 md:pl-5">
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Drop-off location</div>
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-gray-400" />
-                        <span className="flex-1 font-medium text-gray-900 dark:text-white text-[15px]">
-                          {dropoffLocation}
-                        </span>
+                        <input 
+                          type="text"
+                          value={dropoffLocation}
+                          onChange={(e) => setDropoffLocation(e.target.value)}
+                          onFocus={() => setShowDropoffDropdown(true)}
+                          placeholder="City, airport, station, etc."
+                          className="flex-1 bg-transparent outline-none font-medium text-gray-900 dark:text-white text-[15px]"
+                        />
                         {dropoffLocation && (
                           <X 
                             className="w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDropoffLocation('');
-                            }}
+                            onClick={() => setDropoffLocation('')} 
                           />
                         )}
                       </div>
                     </div>
                     {showDropoffDropdown && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowDropoffDropdown(false)}
-                        />
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 max-h-[300px] overflow-y-auto">
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Popular locations</div>
-                          {popularLocations.map(loc => (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-3 z-50 max-h-[300px] overflow-y-auto">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Popular locations</div>
+                        {popularLocations
+                          .filter(loc => !dropoffLocation || loc.toLowerCase().includes(dropoffLocation.toLowerCase()))
+                          .map(loc => (
                             <div 
                               key={loc}
                               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm"
@@ -337,120 +297,49 @@ export default function Cars() {
                               </div>
                             </div>
                           ))}
-                        </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
 
-                {/* Combined Date Picker */}
-                <div 
-                  ref={dateRef}
-                  className="flex-[1.5] relative bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                  onClick={() => {
-                    setShowDatePicker(!showDatePicker);
-                    setShowPickupDropdown(false);
-                    setShowDropoffDropdown(false);
-                  }}
-                >
+                {/* Pickup Date & Time */}
+                <div className="flex-1 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <div className="p-3.5 md:pl-5">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pick-up & Drop-off</div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400 md:hidden" />
-                      <span className="font-medium text-gray-900 dark:text-white text-[15px]">
-                        {formatDateDisplay(pickupDate)} — {formatDateDisplay(dropoffDate)}
-                      </span>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pick-up</div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="date"
+                        value={pickupDate}
+                        onChange={(e) => setPickupDate(e.target.value)}
+                        className="flex-1 bg-transparent outline-none font-medium text-gray-900 dark:text-white text-[15px] cursor-pointer"
+                      />
+                      <input 
+                        type="time"
+                        value={pickupTime}
+                        onChange={(e) => setPickupTime(e.target.value)}
+                        className="bg-transparent outline-none font-medium text-gray-900 dark:text-white text-[15px] cursor-pointer"
+                      />
                     </div>
                   </div>
-                  
-                  {/* Date Picker Dropdown */}
-                  {showDatePicker && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowDatePicker(false)}
-                      />
-                      <div 
-                        className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-6 z-50 w-max"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <DatePicker
-                          selected={pickupDate}
-                          onChange={(dates) => {
-                            const [start, end] = dates;
-                            setPickupDate(start);
-                            if (end) {
-                              setDropoffDate(end);
-                            }
-                          }}
-                          startDate={pickupDate}
-                          endDate={dropoffDate}
-                          selectsRange
-                          inline
-                          minDate={new Date()}
-                          monthsShown={2}
-                          shouldCloseOnSelect={false}
-                        />
-                      </div>
-                    </>
-                  )}
                 </div>
 
-                {/* Time Selection */}
+                {/* Drop-off Date & Time */}
                 <div className="flex-1 bg-white dark:bg-gray-800 rounded-b-lg md:rounded-none hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <div className="p-3.5 md:pl-5">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Times</div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <div className="flex gap-1 items-center text-[15px] font-medium text-gray-900 dark:text-white">
-                        <div 
-                          className="relative time-picker cursor-pointer hover:text-[#FF690F]"
-                          onClick={() => setShowTimePicker(showTimePicker === 'pickup' ? null : 'pickup')}
-                        >
-                          {formatTimeDisplay(pickupTime)}
-                          {showTimePicker === 'pickup' && (
-                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-2 z-50 max-h-[200px] overflow-y-auto">
-                              {timeOptions.map(({ value, label }) => (
-                                <div
-                                  key={value}
-                                  className="px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPickupTime(value);
-                                    setShowTimePicker(null);
-                                  }}
-                                >
-                                  {label}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-gray-400">—</span>
-                        <div 
-                          className="relative time-picker cursor-pointer hover:text-[#FF690F]"
-                          onClick={() => setShowTimePicker(showTimePicker === 'dropoff' ? null : 'dropoff')}
-                        >
-                          {formatTimeDisplay(dropoffTime)}
-                          {showTimePicker === 'dropoff' && (
-                            <div className="absolute top-full right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg p-2 z-50 max-h-[200px] overflow-y-auto">
-                              {timeOptions.map(({ value, label }) => (
-                                <div
-                                  key={value}
-                                  className="px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDropoffTime(value);
-                                    setShowTimePicker(null);
-                                  }}
-                                >
-                                  {label}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Drop-off</div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="date"
+                        value={dropoffDate}
+                        onChange={(e) => setDropoffDate(e.target.value)}
+                        className="flex-1 bg-transparent outline-none font-medium text-gray-900 dark:text-white text-[15px] cursor-pointer"
+                      />
+                      <input 
+                        type="time"
+                        value={dropoffTime}
+                        onChange={(e) => setDropoffTime(e.target.value)}
+                        className="bg-transparent outline-none font-medium text-gray-900 dark:text-white text-[15px] cursor-pointer"
+                      />
                     </div>
                   </div>
                 </div>

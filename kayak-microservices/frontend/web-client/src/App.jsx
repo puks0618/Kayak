@@ -12,6 +12,8 @@ import FlightResults from './pages/FlightResults';
 import FareSelectionPage from './pages/FareSelectionPage';
 import Stays from './pages/Stays';
 import Cars from './pages/Cars';
+import CarResults from './pages/CarResults';
+import CarDetail from './pages/CarDetail';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
 import Listings from './pages/Listings';
@@ -89,6 +91,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['traveller']}>
               <SharedLayout><Cars /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/cars/results" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><CarResults /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/cars/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><CarDetail /></SharedLayout>
             </ProtectedRoute>
           } 
         />

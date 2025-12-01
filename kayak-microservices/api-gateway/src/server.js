@@ -88,6 +88,9 @@ app.use(
   createProxyMiddleware({
     target: 'http://admin-service:3007',
     changeOrigin: true,
+    pathRewrite: {
+      '^/api/admin': '' // Remove /api/admin prefix when forwarding to admin-service
+    },
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);
       if (req.user) {

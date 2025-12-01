@@ -18,8 +18,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'admin-service' });
 });
 
-// Routes
-app.use('/api/admin', adminRoutes);
+// Routes (no /api/admin prefix - handled by API gateway)
+app.use('/', adminRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

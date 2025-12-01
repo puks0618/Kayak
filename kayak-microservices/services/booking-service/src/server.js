@@ -3,8 +3,6 @@
  */
 
 const express = require('express');
-const BookingController = require('./controllers/booking.controller');
-const PaymentController = require('./controllers/payment.controller');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -29,8 +27,8 @@ app.get('/health', (req, res) => {
 });
 
 // Initialize controllers
-const bookingController = new BookingController();
-const paymentController = new PaymentController();
+const bookingController = require('./controllers/booking.controller');
+const paymentController = require('./controllers/payment.controller');
 
 // Booking Routes
 app.post('/bookings', (req, res) => bookingController.create(req, res));

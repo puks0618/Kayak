@@ -17,14 +17,13 @@ const api = axios.create({
   timeout: 10000, // 10 seconds
 });
 
-// Request interceptor (for adding auth tokens later)
+// Request interceptor (for adding auth tokens)
 api.interceptors.request.use(
   (config) => {
-    // TODO: Add auth token when authentication is implemented
-    // const token = localStorage.getItem('admin-token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {

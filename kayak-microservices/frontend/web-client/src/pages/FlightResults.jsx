@@ -23,7 +23,8 @@ import {
   Briefcase,
   Luggage,
   Armchair,
-  Info
+  Info,
+  Star
 } from 'lucide-react';
 import { FaHeart } from 'react-icons/fa';
 import { buildFareOptions, getFareAmenities } from '../utils/fareOptions';
@@ -738,7 +739,32 @@ export default function FlightResults() {
                                     <span>{formatDuration(duration)}</span>
                                   </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-1">{airline}</p>
+                                
+                                {/* Airline name with rating */}
+                                <div className="flex items-center gap-2 mb-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/airlines/${encodeURIComponent(airline)}/reviews`);
+                                    }}
+                                    className="text-sm text-gray-600 hover:text-blue-600 hover:underline"
+                                  >
+                                    {airline}
+                                  </button>
+                                  
+                                  {flight.airline_rating && flight.airline_rating > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                      <span className="text-sm font-medium text-gray-700">
+                                        {parseFloat(flight.airline_rating).toFixed(1)}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        ({flight.airline_review_count} reviews)
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                
                                 <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-800 text-xs rounded">
                                   {originCode}–{destCode}
                                 </span>

@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import FlightResults from './pages/FlightResults';
 import FareSelectionPage from './pages/FareSelectionPage';
+import AirlineReviews from './pages/AirlineReviews';
 import Stays from './pages/Stays';
 import Cars from './pages/Cars';
 import Packages from './pages/Packages';
@@ -73,6 +74,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['traveller']}>
               <SharedLayout><FareSelectionPage /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/airlines/:airlineName/reviews" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><AirlineReviews /></SharedLayout>
             </ProtectedRoute>
           } 
         />

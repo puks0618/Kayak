@@ -41,19 +41,19 @@ const HotelModel = {
       price_per_night, num_rooms, room_type, amenities
     } = hotelData;
 
-    const id = uuidv4();
+    const listing_id = uuidv4();
     const query = `
       INSERT INTO hotels 
-      (id, name, address, city, state, zip_code, star_rating, price_per_night, num_rooms, room_type, amenities) 
+      (listing_id, hotel_name, address, city, state, zip_code, star_rating, price_per_night, num_rooms, room_type, amenities) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    await pool.execute(query, [
-      id, name, address, city, state, zip_code, star_rating,
+    const [result] = await pool.execute(query, [
+      listing_id, name, address, city, state, zip_code, star_rating,
       price_per_night, num_rooms, room_type, JSON.stringify(amenities)
     ]);
 
-    return { id, ...hotelData };
+    return { hotel_id: result.insertId, listing_id, ...hotelData };
   },
 
   async findAll(filters = {}) {
@@ -107,9 +107,9 @@ const HotelModel = {
 
     let query = `
       SELECT DISTINCT h.*,
-        (SELECT COUNT(*) FROM hotel_amenities ha WHERE ha.hotel_id = h.id) as amenity_count
+        (SELECT COUNT(*) FROM hotel_amenities ha WHERE ha.hotel_id = h.hotel_id) as amenity_count
       FROM hotels h
-      WHERE h.approval_status = 'approved'
+      WHERE 1=1
     `;
     const params = [];
 
@@ -128,10 +128,10 @@ const HotelModel = {
       cities.forEach(city => params.push(city));
     }
 
-    // Guest capacity - using num_rooms as approximation (each room ~2 guests)
+    // Guest capacity - using bedrooms as approximation (each room ~2 guests)
     if (guests) {
       const minRooms = Math.ceil(guests / 2);
-      query += ' AND h.num_rooms >= ?';
+      query += ' AND h.bedrooms >= ?';
       params.push(minRooms);
     }
 
@@ -160,7 +160,7 @@ const HotelModel = {
     // Amenities filter (hotel must have ALL specified amenities)
     if (amenities.length > 0) {
       const amenPlaceholders = amenities.map(() => '?').join(',');
-      query += ` AND h.id IN (
+      query += ` AND h.hotel_id IN (
         SELECT ha.hotel_id 
         FROM hotel_amenities ha
         WHERE ha.amenity IN (${amenPlaceholders})
@@ -194,7 +194,7 @@ const HotelModel = {
     const [rows] = await pool.query(query, params);
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE h.approval_status = \'approved\'';
+    let countQuery = 'SELECT COUNT(DISTINCT h.hotel_id) as total FROM hotels h WHERE 1=1';
     const countParams = [];
     
     if (cities.length > 0) {
@@ -204,7 +204,7 @@ const HotelModel = {
     }
     if (guests) {
       const minRooms = Math.ceil(guests / 2);
-      countQuery += ' AND h.num_rooms >= ?';
+      countQuery += ' AND h.bedrooms >= ?';
       countParams.push(minRooms);
     }
     if (priceMin) {
@@ -259,7 +259,7 @@ const HotelModel = {
           recent_reviews: recentReviews
         };
       } catch (error) {
-        console.error(`Error enriching hotel ${hotel.id} with reviews:`, error);
+        console.error(`Error enriching hotel ${hotel.hotel_id} with reviews:`, error);
         return { ...hotel, review_count: 0, recent_reviews: [] };
       }
     }));
@@ -276,7 +276,7 @@ const HotelModel = {
   },
 
   async findById(id) {
-    const [rows] = await pool.execute('SELECT * FROM hotels WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM hotels WHERE hotel_id = ?', [id]);
     return rows[0];
   },
 
@@ -298,7 +298,7 @@ const HotelModel = {
         .toArray();
 
       const images = await imagesCollection
-        .findOne({ hotel_id: hotel.id });
+        .findOne({ hotel_id: hotel.hotel_id });
 
       // Get amenities
       const [amenitiesRows] = await pool.execute(`
@@ -328,21 +328,21 @@ const HotelModel = {
 
     if (fields.length === 0) return null;
 
-    const query = `UPDATE hotels SET ${fields} WHERE id = ?`;
+    const query = `UPDATE hotels SET ${fields} WHERE hotel_id = ?`;
     await pool.execute(query, values);
 
     return this.findById(id);
   },
 
   async delete(id) {
-    await pool.execute('UPDATE hotels SET deleted_at = NOW() WHERE id = ?', [id]);
+    await pool.execute('UPDATE hotels SET deleted_at = NOW() WHERE hotel_id = ?', [id]);
     return true;
   },
 
   async updateStatus(id, status) {
     const query = status === 'active'
-      ? 'UPDATE hotels SET deleted_at = NULL WHERE id = ?'
-      : 'UPDATE hotels SET deleted_at = NOW() WHERE id = ?';
+      ? 'UPDATE hotels SET deleted_at = NULL WHERE hotel_id = ?'
+      : 'UPDATE hotels SET deleted_at = NOW() WHERE hotel_id = ?';
     
     await pool.execute(query, [id]);
     return this.findById(id);

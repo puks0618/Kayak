@@ -13,16 +13,43 @@ class RedisCache {
   async connect() {
     try {
       this.client = redis.createClient({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD
+        socket: {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT || '6379'),
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              console.log('Redis max retries reached');
+              return new Error('Max retries reached');
+            }
+            return Math.min(retries * 100, 3000);
+          }
+        },
+        password: process.env.REDIS_PASSWORD || undefined
+      });
+
+      // Add error handler BEFORE connecting to prevent crashes
+      this.client.on('error', (err) => {
+        console.error('Redis client error:', err.message);
+        this.isConnected = false;
+      });
+
+      this.client.on('reconnecting', () => {
+        console.log('Redis client reconnecting...');
+        this.isConnected = false;
+      });
+
+      this.client.on('ready', () => {
+        console.log('Redis client ready');
+        this.isConnected = true;
       });
 
       await this.client.connect();
       this.isConnected = true;
       console.log('Redis connected for listing-service');
     } catch (error) {
-      console.error('Redis connection error:', error);
+      console.error('Redis connection error:', error.message);
+      this.isConnected = false;
+      // Don't throw - allow service to run without Redis
     }
   }
 

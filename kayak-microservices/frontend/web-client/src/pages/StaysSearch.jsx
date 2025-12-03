@@ -332,10 +332,12 @@ export default function StaysSearch() {
 
 // Hotel Card Component
 function HotelCard({ hotel, onClick }) {
-  // Extract image URL from images array
-  const imageUrl = hotel.images && hotel.images.length > 0 
-    ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images)[0] : hotel.images[0])
-    : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
+  // Extract image URL - prioritize picture_url, then images array
+  const imageUrl = hotel.picture_url 
+    ? hotel.picture_url
+    : (hotel.images && hotel.images.length > 0 
+      ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images)[0] : hotel.images[0])
+      : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400');
   
   // Parse amenities if string
   const amenitiesList = hotel.amenities 
@@ -351,7 +353,7 @@ function HotelCard({ hotel, onClick }) {
       <div className="relative h-48 overflow-hidden">
         <img
           src={imageUrl}
-          alt={hotel.name}
+          alt={hotel.hotel_name || hotel.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
@@ -367,7 +369,7 @@ function HotelCard({ hotel, onClick }) {
       {/* Content */}
       <div className="p-4">
         <h3 className="font-bold text-lg mb-2 dark:text-white line-clamp-2">
-          {hotel.name}
+          {hotel.hotel_name || hotel.name}
         </h3>
         
         <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -395,7 +397,7 @@ function HotelCard({ hotel, onClick }) {
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
           <span className="font-medium">{hotel.room_type}</span>
           <span className="text-gray-400">•</span>
-          <span>{hotel.num_rooms} {hotel.num_rooms === 1 ? 'room' : 'rooms'}</span>
+          <span>{hotel.bedrooms || hotel.num_rooms || 1} {(hotel.bedrooms || hotel.num_rooms || 1) === 1 ? 'bedroom' : 'bedrooms'}</span>
         </div>
 
         {/* Amenities Preview */}

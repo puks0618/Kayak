@@ -46,6 +46,14 @@ out/
 # Testing
 coverage/
 .nyc_output/
+testing/performance/results/
+testing/performance/*.log
+testing/performance/jmeter_dashboards/
+testing/performance/*_report_*/
+testing/performance/comparison/
+testing/performance/comparison_*/
+testing/performance/html_graphs_*/
+testing/performance/performance_comparison_*/
 
 # Python
 __pycache__/

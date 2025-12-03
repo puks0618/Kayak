@@ -3,13 +3,14 @@
  * User-facing web application
  */
 
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import SharedLayout from './components/SharedLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import FlightResults from './pages/FlightResults';
 import FareSelectionPage from './pages/FareSelectionPage';
+import AirlineReviews from './pages/AirlineReviews';
 import Stays from './pages/Stays';
 import StaysSearch from './pages/StaysSearch';
 import HotelDetail from './pages/HotelDetail';
@@ -31,9 +32,26 @@ import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerCars from './pages/OwnerCars';
 import CarForm from './pages/CarForm';
 
-function App() {
+// Component to remove hash from URL
+function HashRemover() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // If URL has a hash, remove it
+    if (window.location.hash) {
+      const cleanPath = window.location.pathname + window.location.search;
+      window.history.replaceState(null, '', cleanPath);
+    }
+  }, [location]);
+
+  return null;
+}
+
+function AppRoutes() {
   return (
-    <Router>
+    <>
+      <HashRemover />
       <Routes>
         {/* Pages without layout (Login/Signup) */}
         <Route path="/login" element={<Login />} />
@@ -57,10 +75,18 @@ function App() {
           } 
         />
         <Route 
-          path="/fare-selection" 
+          path="/flights/fare-selection" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><FareSelectionPage /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/flights/airlines/:airlineName/reviews" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller']}>
+              <SharedLayout><AirlineReviews /></SharedLayout>
             </ProtectedRoute>
           } 
         />
@@ -229,6 +255,14 @@ function App() {
           } 
         />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppRoutes />
     </Router>
   );
 }

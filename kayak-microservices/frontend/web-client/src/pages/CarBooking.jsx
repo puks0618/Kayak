@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car, Calendar } from 'lucide-react';
+import { bookingService } from '../services/api';
 
 export default function CarBooking() {
   const navigate = useNavigate();
@@ -77,8 +78,11 @@ export default function CarBooking() {
     e.preventDefault();
     
     if (validateForm()) {
+      const bookingId = 'CR' + Date.now();
+      
+      // Create booking object for localStorage
       const booking = {
-        id: 'CR' + Date.now(),
+        id: bookingId,
         type: 'car',
         car: car,
         pickupDate: pickupDate,
@@ -104,13 +108,52 @@ export default function CarBooking() {
       };
 
       try {
-        const existingBookings = JSON.parse(localStorage.getItem('userBookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('userBookings', JSON.stringify(existingBookings));
+        // Send to backend API
+        const backendBooking = {
+          listing_id: car.id || `car-${Date.now()}`,
+          listing_type: 'car',
+          travel_date: pickupDate,
+          total_amount: totalPrice,
+          payment_details: {
+            method: formData.paymentType,
+            cardNumber: formData.cardNumber ? formData.cardNumber.slice(-4) : null
+          },
+          booking_details: {
+            car: {
+              id: car.id,
+              brand: car.brand,
+              model: car.model,
+              year: car.year,
+              type: car.type,
+              company_name: car.company_name,
+              daily_rental_price: car.daily_rental_price
+            },
+            pickupDate: pickupDate,
+            dropoffDate: dropoffDate,
+            pickupTime: pickupTime,
+            dropoffTime: dropoffTime,
+            pickupLocation: pickupLocation,
+            days: days,
+            driverInfo: booking.driverInfo
+          }
+        };
 
-        navigate('/booking/car/success', { state: { booking } });
+        console.log('📤 Sending car booking to backend:', backendBooking);
+        const response = await bookingService.create(backendBooking);
+        console.log('✅ Backend booking response:', response);
+
+        // Update booking ID from backend response
+        booking.id = response.booking_id || bookingId;
+
+        // Save to localStorage for local tracking
+        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+        existingBookings.push(booking);
+        localStorage.setItem('bookings', JSON.stringify(existingBookings));
+
+        // Redirect to success page with booking details
+        navigate('/booking/success', { state: { booking, type: 'car' } });
       } catch (error) {
-        console.error('Error saving booking:', error);
+        console.error('❌ Car booking creation failed:', error);
         alert('Failed to save booking. Please try again.');
       }
     }

@@ -143,13 +143,71 @@ const publishHotelBooking = async (bookingData) => {
 };
 
 /**
+ * Publish car booking event
+ * Topic: car-bookings
+ * Consumer: Owner Service
+ */
+const publishCarBooking = async (bookingData) => {
+  try {
+    await connect();
+    
+    const message = {
+      bookingId: bookingData.bookingId,
+      userId: bookingData.userId,
+      type: 'car',
+      status: bookingData.status,
+      car: {
+        id: bookingData.car?.id,
+        brand: bookingData.car?.brand,
+        model: bookingData.car?.model,
+        year: bookingData.car?.year,
+        type: bookingData.car?.type,
+        company_name: bookingData.car?.company_name,
+        daily_rental_price: bookingData.car?.daily_rental_price
+      },
+      pickupDate: bookingData.pickupDate,
+      dropoffDate: bookingData.dropoffDate,
+      pickupTime: bookingData.pickupTime,
+      dropoffTime: bookingData.dropoffTime,
+      pickupLocation: bookingData.pickupLocation,
+      days: bookingData.days,
+      driverInfo: bookingData.driverInfo,
+      totalPrice: bookingData.totalPrice,
+      bookingDate: bookingData.bookingDate,
+      timestamp: new Date().toISOString()
+    };
+
+    await producer.send({
+      topic: 'car-bookings',
+      messages: [
+        {
+          key: bookingData.bookingId,
+          value: JSON.stringify(message),
+          headers: {
+            'event-type': 'booking-created',
+            'source': 'booking-service',
+            'car-id': String(bookingData.car?.id)
+          }
+        }
+      ]
+    });
+
+    console.log(`✅ Car booking published to Kafka: ${bookingData.bookingId}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to publish car booking:', error.message);
+    return false;
+  }
+};
+
+/**
  * Publish booking status update
  */
 const publishBookingStatusUpdate = async (bookingId, status, type) => {
   try {
     await connect();
     
-    const topic = type === 'flight' ? 'flight-bookings' : 'hotel-bookings';
+    const topic = type === 'flight' ? 'flight-bookings' : (type === 'car' ? 'car-bookings' : 'hotel-bookings');
     const message = {
       bookingId,
       type,
@@ -199,6 +257,7 @@ module.exports = {
   connect,
   publishFlightBooking,
   publishHotelBooking,
+  publishCarBooking,
   publishBookingStatusUpdate,
   disconnect
 };

@@ -69,6 +69,23 @@ class BookingController {
             bookingDate: new Date().toISOString()
           });
           console.log(`✅ Hotel booking published to Kafka: ${booking.id}`);
+        } else if (listing_type === 'car' && booking_details) {
+          await kafkaProducer.publishCarBooking({
+            bookingId: booking.id,
+            userId: user_id,
+            status: 'confirmed',
+            car: booking_details.car,
+            pickupDate: booking_details.pickupDate,
+            dropoffDate: booking_details.dropoffDate,
+            pickupTime: booking_details.pickupTime,
+            dropoffTime: booking_details.dropoffTime,
+            pickupLocation: booking_details.pickupLocation,
+            days: booking_details.days,
+            driverInfo: booking_details.driverInfo,
+            totalPrice: total_amount,
+            bookingDate: new Date().toISOString()
+          });
+          console.log(`✅ Car booking published to Kafka: ${booking.id}`);
         }
       } catch (kafkaError) {
         console.error('⚠️ Failed to publish booking to Kafka:', kafkaError);

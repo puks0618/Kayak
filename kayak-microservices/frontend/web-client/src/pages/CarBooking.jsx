@@ -150,8 +150,8 @@ export default function CarBooking() {
         existingBookings.push(booking);
         localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
-        // Redirect to success page with booking details
-        navigate('/booking/success', { state: { booking, type: 'car' } });
+        // Redirect to car-specific success page with booking details
+        navigate('/booking/car/success', { state: { booking, type: 'car' } });
       } catch (error) {
         console.error('❌ Car booking creation failed:', error);
         alert('Failed to save booking. Please try again.');

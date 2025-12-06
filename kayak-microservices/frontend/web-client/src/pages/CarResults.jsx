@@ -60,7 +60,12 @@ export default function CarResults() {
     }
   };
 
-  const handleBookCar = (car) => {
+  const handleCarClick = (carId) => {
+    navigate(`/cars/${carId}?${searchParams.toString()}`);
+  };
+
+  const handleBookCar = (car, e) => {
+    e.stopPropagation(); // Prevent card click when clicking book button
     // Calculate rental days
     const pickup = new Date(pickupDate);
     const dropoff = new Date(dropoffDate);
@@ -220,7 +225,8 @@ export default function CarResults() {
                 {cars.map((car) => (
                   <div
                     key={car.id}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700"
+                    onClick={() => handleCarClick(car.id)}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 cursor-pointer"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
                       {/* Car Image */}
@@ -292,7 +298,7 @@ export default function CarResults() {
                             <p className="text-sm text-gray-500 dark:text-gray-400">per day</p>
                           </div>
                           <button
-                            onClick={() => handleBookCar({
+                            onClick={(e) => handleBookCar({
                               id: car.id,
                               brand: car.brand,
                               model: car.model,
@@ -305,7 +311,7 @@ export default function CarResults() {
                               price_per_day: parseFloat(car.daily_rental_price),
                               rating: car.rating,
                               image_url: Array.isArray(car.images) ? car.images[0] : (car.images ? JSON.parse(car.images)[0] : null)
-                            })}
+                            }, e)}
                             className="px-6 py-3 bg-gradient-to-r from-[#FF690F] to-[#FF8534] text-white font-semibold rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                           >
                             Book Now

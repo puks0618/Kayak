@@ -18,8 +18,10 @@ import BookingConfirmation from './pages/BookingConfirmation';
 import FlightBookingConfirmation from './pages/FlightBookingConfirmation';
 import BookingSuccess from './pages/BookingSuccess';
 import MyTrips from './pages/MyTrips';
+import Favorites from './pages/Favorites';
 import Cars from './pages/Cars';
 import CarResults from './pages/CarResults';
+import CarDetail from './pages/CarDetail';
 import CarBooking from './pages/CarBooking';
 import CarBookingSuccess from './pages/CarBookingSuccess';
 import Packages from './pages/Packages';
@@ -133,6 +135,14 @@ function AppRoutes() {
           } 
         />
         <Route 
+          path="/favorites" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><Favorites /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/booking/:id" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
@@ -147,6 +157,10 @@ function AppRoutes() {
         <Route 
           path="/cars/search" 
           element={<SharedLayout><CarResults /></SharedLayout>} 
+        />
+        <Route 
+          path="/cars/:id" 
+          element={<SharedLayout><CarDetail /></SharedLayout>} 
         />
         <Route 
           path="/cars/booking" 

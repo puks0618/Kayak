@@ -110,25 +110,19 @@ export default function Cars() {
 
   return (
     <main className="mt-4 md:mt-8">
-      {/* Full-width gray background card */}
+      {/* Hero Section */}
       <div className="w-full bg-[#edf0f3] dark:bg-gray-800 py-6 md:py-8">
-        {/* Constrained content inside */}
         <div className="max-w-[1200px] mx-auto px-2 md:px-3 lg:px-4">
-          {/* Main Layout Grid */}
+          <h1 className="text-3xl md:text-5xl font-extrabold mb-8 leading-tight tracking-tight dark:text-white">
+            Compare rental cars from 100s of sites<span className="text-[#FF690F]">.</span>
+          </h1>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
             {/* Left Column: Search Interface */}
             <div className="lg:col-span-8">
-              <h1 className="text-4xl md:text-6xl font-extrabold mb-4 leading-tight tracking-tight dark:text-white">
-                Compare rental cars from 100s of sites<span className="text-[#FF690F]">.</span>
-              </h1>
-
-              <p className="text-gray-600 dark:text-gray-300 mb-8 text-base">
-                🚗 Find the best car rental deals from top providers at airports and cities nationwide
-              </p>
-
               {/* Navigation Tabs */}
-              <div className="flex flex-wrap gap-5 mb-8">
+              <div className="flex flex-wrap gap-6 mb-6">
                 <NavTab icon={<PiAirplaneTiltFill />} label="Flights" active={location.pathname === '/'} link="/" />
                 <NavTab icon={<IoIosBed />} label="Stays" active={location.pathname === '/stays'} link="/stays" />
                 <NavTab icon={<IoCarSharp />} label="Cars" active={location.pathname === '/cars'} link="/cars" />
@@ -137,31 +131,31 @@ export default function Cars() {
               </div>
 
               {/* Search options */}
-              <div className="flex flex-wrap items-center gap-4 mb-5">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
                   <div className="relative">
                     <input
                       type="checkbox"
                       checked={sameDropOff}
                       onChange={(e) => setSameDropOff(e.target.checked)}
-                      className="w-[18px] h-[18px] text-[#FF690F] bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-[#FF690F] focus:ring-2 cursor-pointer transition-all"
+                      className="w-[16px] h-[16px] text-[#FF690F] bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-[#FF690F] focus:ring-2 cursor-pointer transition-all"
                     />
                   </div>
-                  <span className="text-[15px] font-semibold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+                  <span className="text-[13px] font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
                     Same drop-off
                   </span>
                 </label>
                 
-                <div className="h-5 w-px bg-gray-300 dark:bg-gray-600"></div>
+                <div className="h-4 w-px bg-gray-300 dark:bg-gray-600"></div>
                 
-                <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
                   <input
                     type="checkbox"
                     checked={suvsOnly}
                     onChange={(e) => setSuvsOnly(e.target.checked)}
-                    className="w-[18px] h-[18px] text-[#FF690F] bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-[#FF690F] focus:ring-2 cursor-pointer transition-all"
+                    className="w-[16px] h-[16px] text-[#FF690F] bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-[#FF690F] focus:ring-2 cursor-pointer transition-all"
                   />
-                  <span className="text-[15px] font-semibold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+                  <span className="text-[13px] font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
                     SUVs only
                   </span>
                 </label>

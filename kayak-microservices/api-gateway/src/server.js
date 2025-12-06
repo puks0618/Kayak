@@ -115,17 +115,25 @@ Object.entries(routes).forEach(([path, config]) => {
     return;
   }
 
+  // Create proxy with optional auth middleware
+  const middlewares = [];
+  
   // Apply auth middleware to protected routes
   if (shouldAuthenticate(path)) {
-    app.use(path, authMiddleware);
+    middlewares.push(authMiddleware);
   }
 
   // Create proxy
   app.use(
     path,
+    ...middlewares,
     createProxyMiddleware({
       target: config.target,
       changeOrigin: config.changeOrigin,
+      pathRewrite: config.stripApiPrefix !== false ? (pathStr, req) => {
+        // Strip /api prefix only if stripApiPrefix is not explicitly false
+        return pathStr.replace('/api', '');
+      } : undefined,
       onProxyReq: (proxyReq, req) => {
         // Forward trace ID
         proxyReq.setHeader('X-Trace-ID', req.id);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin } from 'lucide-react';
+import { bookingService } from '../services/api';
 
 export default function BookingConfirmation() {
   const navigate = useNavigate();
@@ -76,9 +77,11 @@ export default function BookingConfirmation() {
     e.preventDefault();
     
     if (validateForm()) {
-      // Create booking object
+      const bookingId = 'BK' + Date.now();
+      
+      // Create booking object for localStorage
       const booking = {
-        id: 'BK' + Date.now(),
+        id: bookingId,
         type: 'hotel',
         hotel: hotel,
         checkIn: checkIn,
@@ -101,18 +104,47 @@ export default function BookingConfirmation() {
       };
 
       try {
-        // Save to localStorage for MVP
+        // Send to backend API
+        const backendBooking = {
+          listing_id: hotel.id || `hotel-${Date.now()}`,
+          listing_type: 'hotel',
+          travel_date: checkIn,
+          total_amount: totalPrice,
+          payment_details: {
+            method: formData.paymentType,
+            cardNumber: formData.cardNumber ? formData.cardNumber.slice(-4) : null
+          },
+          booking_details: {
+            hotel: {
+              id: hotel.id,
+              name: hotel.hotel_name,
+              city: hotel.city,
+              neighbourhood: hotel.neighbourhood_cleansed
+            },
+            checkIn: checkIn,
+            checkOut: checkOut,
+            guests: guests,
+            nights: nights,
+            guestInfo: booking.guestInfo
+          }
+        };
+
+        console.log('📤 Sending hotel booking to backend:', backendBooking);
+        const response = await bookingService.create(backendBooking);
+        console.log('✅ Backend booking response:', response);
+
+        // Update booking ID from backend response
+        booking.id = response.booking_id || bookingId;
+
+        // Save to localStorage for local tracking
         const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
         existingBookings.push(booking);
         localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
-        // TODO: Send to backend API
-        // await axios.post(`${API_BASE_URL}/bookings`, booking);
-
         // Redirect to success page with booking details
-        navigate('/booking/success', { state: { booking } });
+        navigate('/booking/success', { state: { booking, type: 'hotel' } });
       } catch (error) {
-        console.error('Error saving booking:', error);
+        console.error('❌ Booking creation failed:', error);
         alert('Failed to save booking. Please try again.');
       }
     }

@@ -4,11 +4,19 @@
 
 const BookingModel = require('../models/booking.model');
 const BillingModel = require('../models/billing.model');
+const kafkaProducer = require('../kafka/producer');
 
 class BookingController {
   async create(req, res) {
     try {
-      const { user_id, listing_id, listing_type, travel_date, total_amount, payment_details } = req.body;
+      // Get user_id from authenticated user (forwarded by gateway) or request body
+      const user_id = req.headers['x-user-id'] || req.body.user_id;
+      
+      if (!user_id) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+
+      const { listing_id, listing_type, travel_date, total_amount, payment_details, booking_details } = req.body;
 
       // 1. Create Booking (Pending)
       const booking = await BookingModel.create({
@@ -30,6 +38,42 @@ class BookingController {
         status: 'pending',
         invoice_details: { listing_id, listing_type, travel_date }
       });
+
+      // 3. Publish booking event to Kafka
+      try {
+        if (listing_type === 'flight' && booking_details) {
+          await kafkaProducer.publishFlightBooking({
+            bookingId: booking.id,
+            userId: user_id,
+            status: 'confirmed',
+            outboundFlight: booking_details.outboundFlight,
+            returnFlight: booking_details.returnFlight,
+            passengers: booking_details.passengers || 1,
+            passengerInfo: booking_details.passengerInfo,
+            totalPrice: total_amount,
+            bookingDate: new Date().toISOString()
+          });
+          console.log(`✅ Flight booking published to Kafka: ${booking.id}`);
+        } else if (listing_type === 'hotel' && booking_details) {
+          await kafkaProducer.publishHotelBooking({
+            bookingId: booking.id,
+            userId: user_id,
+            status: 'confirmed',
+            hotel: booking_details.hotel,
+            checkIn: booking_details.checkIn,
+            checkOut: booking_details.checkOut,
+            guests: booking_details.guests || 1,
+            nights: booking_details.nights,
+            guestInfo: booking_details.guestInfo,
+            totalPrice: total_amount,
+            bookingDate: new Date().toISOString()
+          });
+          console.log(`✅ Hotel booking published to Kafka: ${booking.id}`);
+        }
+      } catch (kafkaError) {
+        console.error('⚠️ Failed to publish booking to Kafka:', kafkaError);
+        // Don't fail the booking if Kafka fails
+      }
 
       // TODO: Trigger Saga/Workflow for Payment Processing
       // For MVP, we'll simulate payment success here if not using external service

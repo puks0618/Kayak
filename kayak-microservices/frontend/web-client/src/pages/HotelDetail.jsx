@@ -150,62 +150,63 @@ export default function HotelDetail() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Image Gallery */}
-        <div className="mb-6">
-          <div className="grid grid-cols-4 gap-2 h-96">
-            {/* Main Image */}
-            <div
-              className="col-span-2 row-span-2 relative cursor-pointer overflow-hidden rounded-lg"
-              onClick={() => setShowGallery(true)}
-            >
-              <img
-                src={allImages[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'}
-                alt={hotel.hotel_name}
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800';
-                }}
-              />
+        {/* Hotel Info Grid - Moved up to include image */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Image Gallery - Now part of left column */}
+          <div className="lg:col-span-2">
+            <div className="mb-6">
+              <div className="grid grid-cols-4 gap-2 h-[450px]">
+                {/* Main Image - Taller */}
+                <div
+                  className="col-span-2 row-span-2 relative cursor-pointer overflow-hidden rounded-lg"
+                  onClick={() => setShowGallery(true)}
+                >
+                  <img
+                    src={allImages[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'}
+                    alt={hotel.hotel_name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800';
+                    }}
+                  />
+                </div>
+
+                {/* Thumbnail Grid */}
+                {allImages.slice(1, 5).map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="relative cursor-pointer overflow-hidden rounded-lg"
+                    onClick={() => {
+                      setSelectedImage(idx + 1);
+                      setShowGallery(true);
+                    }}
+                  >
+                    <img
+                      src={img}
+                      alt={`${hotel.hotel_name} ${idx + 2}`}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
+                      }}
+                    />
+                  </div>
+                ))}
+
+                {allImages.length > 5 && (
+                  <div
+                    className="relative cursor-pointer overflow-hidden rounded-lg bg-gray-900 flex items-center justify-center"
+                    onClick={() => setShowGallery(true)}
+                  >
+                    <span className="text-white text-lg font-bold">+{allImages.length - 5} more</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Thumbnail Grid */}
-            {allImages.slice(1, 5).map((img, idx) => (
-              <div
-                key={idx}
-                className="relative cursor-pointer overflow-hidden rounded-lg"
-                onClick={() => {
-                  setSelectedImage(idx + 1);
-                  setShowGallery(true);
-                }}
-              >
-                <img
-                  src={img}
-                  alt={`${hotel.hotel_name} ${idx + 2}`}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
-                  }}
-                />
-              </div>
-            ))}
-
-            {allImages.length > 5 && (
-              <div
-                className="relative cursor-pointer overflow-hidden rounded-lg bg-gray-900 flex items-center justify-center"
-                onClick={() => setShowGallery(true)}
-              >
-                <span className="text-white text-lg font-bold">+{allImages.length - 5} more</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Hotel Info Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Main Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Header */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            {/* Main Info */}
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h1 className="text-3xl font-bold mb-2 dark:text-white">{hotel.name}</h1>
@@ -317,6 +318,7 @@ export default function HotelDetail() {
                 )}
               </div>
             )}
+            </div>
           </div>
 
           {/* Right Column - Booking Card */}

@@ -12,6 +12,7 @@ export default function MyTrips() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, upcoming, past
+  const [bookingType, setBookingType] = useState('all'); // all, flight, hotel, car
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export default function MyTrips() {
     try {
       setLoading(true);
       // Get bookings from localStorage for now (MVP)
-      const storedBookings = localStorage.getItem('userBookings');
+      const storedBookings = localStorage.getItem('bookings');
       if (storedBookings) {
         setBookings(JSON.parse(storedBookings));
       }
@@ -50,32 +51,62 @@ export default function MyTrips() {
   };
 
   const getBookingStatus = (booking) => {
-    const checkInDate = new Date(booking.checkIn);
-    const checkOutDate = new Date(booking.checkOut);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (checkOutDate < today) {
-      return { status: 'completed', label: 'Completed', color: 'bg-gray-500' };
-    } else if (checkInDate <= today && checkOutDate >= today) {
-      return { status: 'active', label: 'Active', color: 'bg-green-500' };
+    if (booking.type === 'flight') {
+      // For round-trip, check return flight departure date; for one-way, check outbound
+      const relevantFlight = booking.returnFlight || booking.outboundFlight;
+      const departureDate = new Date(relevantFlight?.departure_time || relevantFlight?.departureTime);
+      departureDate.setHours(0, 0, 0, 0);
+      
+      if (departureDate < today) {
+        return { status: 'completed', label: 'Completed', color: 'bg-gray-500' };
+      } else {
+        return { status: 'upcoming', label: 'Upcoming', color: 'bg-blue-500' };
+      }
     } else {
-      return { status: 'upcoming', label: 'Upcoming', color: 'bg-blue-500' };
+      // Hotel booking
+      const checkInDate = new Date(booking.checkIn);
+      checkInDate.setHours(0, 0, 0, 0);
+      const checkOutDate = new Date(booking.checkOut);
+      checkOutDate.setHours(0, 0, 0, 0);
+
+      if (checkOutDate < today) {
+        return { status: 'completed', label: 'Completed', color: 'bg-gray-500' };
+      } else if (checkInDate <= today && checkOutDate >= today) {
+        return { status: 'active', label: 'Active', color: 'bg-green-500' };
+      } else {
+        return { status: 'upcoming', label: 'Upcoming', color: 'bg-blue-500' };
+      }
     }
   };
 
   const filteredBookings = bookings.filter(booking => {
-    if (!booking || !booking.hotel) return false;
+    if (!booking) return false;
+    
+    // Filter by booking type
+    if (bookingType !== 'all' && booking.type !== bookingType) return false;
     
     const { status } = getBookingStatus(booking);
     const matchesFilter = filter === 'all' || 
                          (filter === 'upcoming' && status === 'upcoming') ||
                          (filter === 'past' && status === 'completed');
     
-    const hotelName = booking.hotel.hotel_name || '';
-    const city = booking.hotel.city || '';
-    const matchesSearch = hotelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         city.toLowerCase().includes(searchQuery.toLowerCase());
+    let matchesSearch = false;
+    if (booking.type === 'flight') {
+      const airline = booking.outboundFlight?.airline || '';
+      const origin = booking.outboundFlight?.departure_airport || booking.outboundFlight?.origin || '';
+      const destination = booking.outboundFlight?.arrival_airport || booking.outboundFlight?.destination || '';
+      matchesSearch = airline.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                     origin.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                     destination.toLowerCase().includes(searchQuery.toLowerCase());
+    } else {
+      const hotelName = booking.hotel?.hotel_name || '';
+      const city = booking.hotel?.city || '';
+      matchesSearch = hotelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                     city.toLowerCase().includes(searchQuery.toLowerCase());
+    }
     
     return matchesFilter && matchesSearch;
   });
@@ -89,6 +120,50 @@ export default function MyTrips() {
           <p className="text-gray-600 dark:text-gray-400">
             View and manage your bookings
           </p>
+        </div>
+
+        {/* Booking Type Tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto">
+          <button
+            onClick={() => setBookingType('all')}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+              bookingType === 'all'
+                ? 'bg-[#FF690F] text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setBookingType('flight')}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+              bookingType === 'flight'
+                ? 'bg-[#FF690F] text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            ✈️ Flights
+          </button>
+          <button
+            onClick={() => setBookingType('hotel')}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+              bookingType === 'hotel'
+                ? 'bg-[#FF690F] text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            🏨 Stays
+          </button>
+          <button
+            onClick={() => setBookingType('car')}
+            className={`px-6 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+              bookingType === 'car'
+                ? 'bg-[#FF690F] text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            🚗 Cars
+          </button>
         </div>
 
         {/* Search and Filter */}
@@ -174,73 +249,137 @@ export default function MyTrips() {
                   onClick={() => navigate(`/booking/${booking.id}`, { state: { booking } })}
                 >
                   <div className="flex flex-col md:flex-row">
-                    {/* Hotel Image */}
-                    <div className="md:w-64 h-48 md:h-auto">
-                      <img
-                        src={booking.hotel.picture_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
-                        alt={booking.hotel.hotel_name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
-                        }}
-                      />
-                    </div>
+                    {booking.type === 'flight' ? (
+                      // Flight Booking Card
+                      <>
+                        {/* Flight Icon Placeholder */}
+                        <div className="md:w-64 h-48 md:h-auto bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+                          <div className="text-white text-center">
+                            <div className="text-6xl mb-2">✈️</div>
+                            <p className="text-sm font-semibold">{booking.outboundFlight?.airline}</p>
+                          </div>
+                        </div>
 
-                    {/* Booking Details */}
-                    <div className="flex-1 p-6">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="text-xl font-bold mb-1 dark:text-white">
-                            {booking.hotel.hotel_name}
-                          </h3>
-                          <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            {booking.hotel.neighbourhood_cleansed}, {booking.hotel.city}
-                          </p>
-                        </div>
-                        <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
-                          {bookingStatus.label}
-                        </span>
-                      </div>
+                        {/* Flight Details */}
+                        <div className="flex-1 p-6">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="text-xl font-bold mb-1 dark:text-white">
+                                {booking.outboundFlight?.departure_airport || booking.outboundFlight?.origin} → {booking.outboundFlight?.arrival_airport || booking.outboundFlight?.destination}
+                              </h3>
+                              <p className="text-gray-600 dark:text-gray-400">
+                                {booking.returnFlight ? 'Round-trip' : 'One-way'} • {booking.passengers} passenger{booking.passengers !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                              {bookingStatus.label}
+                            </span>
+                          </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
-                            <Calendar className="w-4 h-4" />
-                            Check-in
-                          </p>
-                          <p className="font-semibold dark:text-white">{formatDate(booking.checkIn)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
-                            <Calendar className="w-4 h-4" />
-                            Check-out
-                          </p>
-                          <p className="font-semibold dark:text-white">{formatDate(booking.checkOut)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
-                            <Users className="w-4 h-4" />
-                            Guests
-                          </p>
-                          <p className="font-semibold dark:text-white">
-                            {booking.guests} {booking.guests === 1 ? 'Guest' : 'Guests'}
-                          </p>
-                        </div>
-                      </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
+                                <Calendar className="w-4 h-4" />
+                                Departure
+                              </p>
+                              <p className="font-semibold dark:text-white">{formatDate(booking.outboundFlight?.departure_time || booking.outboundFlight?.departureTime)}</p>
+                            </div>
+                            {booking.returnFlight && (
+                              <div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
+                                  <Calendar className="w-4 h-4" />
+                                  Return
+                                </p>
+                                <p className="font-semibold dark:text-white">{formatDate(booking.returnFlight?.departure_time || booking.returnFlight?.departureTime)}</p>
+                              </div>
+                            )}
+                          </div>
 
-                      <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Booking ID</p>
-                          <p className="font-mono text-sm font-semibold dark:text-white">{booking.id}</p>
+                          <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Booking ID</p>
+                              <p className="font-mono text-sm font-semibold dark:text-white">{booking.id}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
+                              <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                            </div>
+                            <ChevronRight className="w-6 h-6 text-gray-400" />
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-                          <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                      </>
+                    ) : (
+                      // Hotel Booking Card
+                      <>
+                        {/* Hotel Image */}
+                        <div className="md:w-64 h-48 md:h-auto">
+                          <img
+                            src={booking.hotel?.picture_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
+                            alt={booking.hotel?.hotel_name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
+                            }}
+                          />
                         </div>
-                        <ChevronRight className="w-6 h-6 text-gray-400" />
-                      </div>
-                    </div>
+
+                        {/* Hotel Details */}
+                        <div className="flex-1 p-6">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="text-xl font-bold mb-1 dark:text-white">
+                                {booking.hotel?.hotel_name}
+                              </h3>
+                              <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {booking.hotel?.neighbourhood_cleansed}, {booking.hotel?.city}
+                              </p>
+                            </div>
+                            <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                              {bookingStatus.label}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
+                                <Calendar className="w-4 h-4" />
+                                Check-in
+                              </p>
+                              <p className="font-semibold dark:text-white">{formatDate(booking.checkIn)}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
+                                <Calendar className="w-4 h-4" />
+                                Check-out
+                              </p>
+                              <p className="font-semibold dark:text-white">{formatDate(booking.checkOut)}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
+                                <Users className="w-4 h-4" />
+                                Guests
+                              </p>
+                              <p className="font-semibold dark:text-white">
+                                {booking.guests} {booking.guests === 1 ? 'Guest' : 'Guests'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Booking ID</p>
+                              <p className="font-mono text-sm font-semibold dark:text-white">{booking.id}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
+                              <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                            </div>
+                            <ChevronRight className="w-6 h-6 text-gray-400" />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );

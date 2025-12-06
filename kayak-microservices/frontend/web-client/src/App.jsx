@@ -15,6 +15,7 @@ import Stays from './pages/Stays';
 import StaysSearch from './pages/StaysSearch';
 import HotelDetail from './pages/HotelDetail';
 import BookingConfirmation from './pages/BookingConfirmation';
+import FlightBookingConfirmation from './pages/FlightBookingConfirmation';
 import BookingSuccess from './pages/BookingSuccess';
 import MyTrips from './pages/MyTrips';
 import Cars from './pages/Cars';
@@ -88,6 +89,14 @@ function AppRoutes() {
         />
         
         {/* Protected routes - Login required */}
+        <Route 
+          path="/flights/booking/confirm" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><FlightBookingConfirmation /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
         <Route 
           path="/stays/booking/confirm" 
           element={

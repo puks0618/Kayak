@@ -859,6 +859,7 @@ export default function FlightResults() {
                                     navigate('/flights/fare-selection', {
                                       state: {
                                         flight,
+                                        returnFlight: returnFlights && returnFlights[index] ? returnFlights[index] : null,
                                         fareCode: fare.code,
                                         farePrice: fare.price,
                                         searchForm

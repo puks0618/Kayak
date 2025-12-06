@@ -16,7 +16,7 @@ export default function FareSelectionPage() {
   const { user } = useSelector(state => state.auth);
   
   // Get flight and fare info from navigation state
-  const { flight, fareCode: initialFareCode, farePrice, searchForm } = location.state || {};
+  const { flight, returnFlight, fareCode: initialFareCode, farePrice, searchForm } = location.state || {};
   
   // State for selected fare
   const [selectedFareCode, setSelectedFareCode] = useState(initialFareCode || 'BASIC');
@@ -82,23 +82,20 @@ export default function FareSelectionPage() {
     }
     
     try {
-      // TODO: Call booking API
-      const bookingData = {
-        userId: user.id,
-        type: 'flight',
-        outboundSegmentId: flight.id,
-        returnSegmentId: flight.id, // TODO: Handle return flight separately
-        fare: selectedFare
-      };
-      
-      console.log('Booking:', bookingData);
-      
-      // Navigate to confirmation page (to be created)
-      alert(`Booking ${selectedFare.label} fare for ${formatPrice(selectedFare.price)}!`);
-      navigate('/');
+      // Navigate to booking confirmation page
+      navigate('/flights/booking/confirm', { 
+        state: { 
+          outboundFlight: flight,
+          returnFlight: returnFlight || null,
+          fare: selectedFare,
+          totalPrice: selectedFare.price,
+          passengers: 1,
+          searchForm
+        } 
+      });
     } catch (error) {
       console.error('Booking error:', error);
-      alert('Booking failed. Please try again.');
+      alert('Failed to proceed to booking. Please try again.');
     }
   };
   
@@ -225,28 +222,28 @@ export default function FareSelectionPage() {
               </div>
               
               {/* Return Flight */}
-              {searchForm?.returnDate && (
+              {returnFlight && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Plane className="w-5 h-5 text-orange-500 dark:text-orange-400 rotate-[225deg]" />
                     <p className="text-base font-bold text-gray-900 dark:text-white">
-                      {destCode} → {originCode}
+                      {returnFlight.departure_airport || returnFlight.origin} → {returnFlight.arrival_airport || returnFlight.destination}
                     </p>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    {formatDate(searchForm.returnDate)}
+                    {formatDate(returnFlight.departure_time || returnFlight.departureTime)}
                   </p>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-base font-semibold text-gray-900 dark:text-white">
-                        9:30 am – 1:17 pm
+                        {formatTime(returnFlight.departure_time || returnFlight.departureTime)} – {formatTime(returnFlight.arrival_time || returnFlight.arrivalTime)}
                       </p>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Nonstop • 6h 47m
+                      {returnFlight.stops === 0 ? 'Nonstop' : `${returnFlight.stops} stop${returnFlight.stops > 1 ? 's' : ''}`} • {formatDuration(returnFlight.duration || returnFlight.durationMinutes)}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-500">
-                      {flight.airline || 'N/A'} Return Flight
+                      {returnFlight.airline || 'N/A'} {returnFlight.flight_number || returnFlight.flightNumber || ''}
                     </p>
                   </div>
                 </div>

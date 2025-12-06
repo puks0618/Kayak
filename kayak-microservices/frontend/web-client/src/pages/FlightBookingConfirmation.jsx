@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin } from 'lucide-react';
+import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin, Plane } from 'lucide-react';
 
-export default function BookingConfirmation() {
+export default function FlightBookingConfirmation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { hotel, checkIn, checkOut, guests, nights, totalPrice } = location.state || {};
+  const { 
+    outboundFlight, 
+    returnFlight, 
+    fare, 
+    totalPrice,
+    passengers = 1,
+    searchForm 
+  } = location.state || {};
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -24,13 +31,13 @@ export default function BookingConfirmation() {
 
   const [errors, setErrors] = useState({});
 
-  if (!hotel) {
+  if (!outboundFlight || !fare) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 dark:text-gray-400 mb-4">No booking information found</p>
           <button
-            onClick={() => navigate('/stays/search')}
+            onClick={() => navigate('/flights/results')}
             className="px-6 py-2 bg-[#FF690F] text-white rounded-md hover:bg-[#d6570c]"
           >
             Back to Search
@@ -40,10 +47,34 @@ export default function BookingConfirmation() {
     );
   }
 
+  // Helper functions
+  const formatTime = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const formatDate = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatDuration = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -76,18 +107,16 @@ export default function BookingConfirmation() {
     e.preventDefault();
     
     if (validateForm()) {
-      // Create booking object
       const booking = {
         id: 'BK' + Date.now(),
-        type: 'hotel',
-        hotel: hotel,
-        checkIn: checkIn,
-        checkOut: checkOut,
-        guests: guests,
-        nights: nights,
-        totalPrice: totalPrice,
+        type: 'flight',
+        outboundFlight,
+        returnFlight,
+        fare,
+        passengers,
+        totalPrice,
         paymentType: formData.paymentType,
-        guestInfo: {
+        passengerInfo: {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
@@ -100,21 +129,15 @@ export default function BookingConfirmation() {
         status: 'confirmed'
       };
 
-      try {
-        // Save to localStorage for MVP
-        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('bookings', JSON.stringify(existingBookings));
+      // Store in localStorage
+      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+      existingBookings.push(booking);
+      localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
-        // TODO: Send to backend API
-        // await axios.post(`${API_BASE_URL}/bookings`, booking);
-
-        // Redirect to success page with booking details
-        navigate('/booking/success', { state: { booking } });
-      } catch (error) {
-        console.error('Error saving booking:', error);
-        alert('Failed to save booking. Please try again.');
-      }
+      // Navigate to success page
+      navigate('/booking/success', { 
+        state: { booking, type: 'flight' } 
+      });
     }
   };
 
@@ -126,39 +149,44 @@ export default function BookingConfirmation() {
       case 'paypal':
         return <DollarSign className="w-5 h-5" />;
       default:
-        return <CreditCard className="w-5 h-5" />;
+        return <Building className="w-5 h-5" />;
     }
   };
 
+  const originCode = outboundFlight.origin?.code || outboundFlight.departure_airport || outboundFlight.origin || 'N/A';
+  const destCode = outboundFlight.destination?.code || outboundFlight.arrival_airport || outboundFlight.destination || 'N/A';
+  const serviceFee = totalPrice * 0.1;
+  const finalTotal = (parseFloat(totalPrice) + serviceFee).toFixed(2);
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-6">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-[#FF690F]"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 mb-4"
           >
             <ChevronLeft className="w-5 h-5" />
-            Back to hotel
+            Back
           </button>
+          <h1 className="text-3xl font-bold dark:text-white">Complete Your Booking</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Fill in your details to confirm your flight booking
+          </p>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 dark:text-white">Confirm and Pay</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2">
             <form onSubmit={handleSubmit}>
-              {/* Traveler Information */}
+              {/* Passenger Information */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
                   <User className="w-5 h-5" />
-                  Traveler Information
+                  Passenger Information
                 </h2>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2 dark:text-white">
@@ -390,7 +418,7 @@ export default function BookingConfirmation() {
                 type="submit"
                 className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-4 rounded-md font-bold text-lg mt-6"
               >
-                Confirm and Pay ${totalPrice}
+                Confirm and Pay ${finalTotal}
               </button>
             </form>
           </div>
@@ -400,51 +428,87 @@ export default function BookingConfirmation() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sticky top-6">
               <h2 className="text-xl font-bold mb-4 dark:text-white">Booking Summary</h2>
               
-              <div className="mb-4">
-                <img
-                  src={hotel.picture_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
-                  alt={hotel.hotel_name}
-                  className="w-full h-48 object-cover rounded-lg mb-3"
-                  onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
-                  }}
-                />
-                <h3 className="font-bold text-lg dark:text-white">{hotel.hotel_name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
-                  <MapPin className="w-4 h-4" />
-                  {hotel.neighbourhood_cleansed}, {hotel.city}
+              {/* Flight Route Header */}
+              <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-3 text-2xl font-bold dark:text-white">
+                    <span>{originCode}</span>
+                    <Plane className="w-6 h-6 text-[#FF690F]" />
+                    <span>{destCode}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {returnFlight ? 'roundtrip' : 'one-way'}, {passengers} traveler{passengers !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* Outbound Flight */}
+              <div className="mb-4 border-l-4 border-[#FF690F] pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Plane className="w-4 h-4 text-[#FF690F]" />
+                  <span className="font-bold dark:text-white">{originCode} → {destCode}</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{formatDate(outboundFlight.departureTime || outboundFlight.departure_time)}</p>
+                <div className="mt-2">
+                  <p className="text-sm dark:text-white">
+                    <span className="font-medium">{formatTime(outboundFlight.departureTime || outboundFlight.departure_time)}</span>
+                    {' – '}
+                    <span className="font-medium">{formatTime(outboundFlight.arrivalTime || outboundFlight.arrival_time)}</span>
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {outboundFlight.stops === 0 ? 'Nonstop' : `${outboundFlight.stops} stop${outboundFlight.stops !== 1 ? 's' : ''}`}
+                    {' • '}
+                    {formatDuration(outboundFlight.durationMinutes || outboundFlight.duration)}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{outboundFlight.airline}</p>
+                </div>
+              </div>
+
+              {/* Return Flight */}
+              {returnFlight && (
+                <div className="mb-4 border-l-4 border-[#FF690F] pl-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Plane className="w-4 h-4 text-[#FF690F] transform rotate-180" />
+                    <span className="font-bold dark:text-white">{destCode} → {originCode}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{formatDate(returnFlight.departureTime || returnFlight.departure_time)}</p>
+                  <div className="mt-2">
+                    <p className="text-sm dark:text-white">
+                      <span className="font-medium">{formatTime(returnFlight.departureTime || returnFlight.departure_time)}</span>
+                      {' – '}
+                      <span className="font-medium">{formatTime(returnFlight.arrivalTime || returnFlight.arrival_time)}</span>
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {returnFlight.stops === 0 ? 'Nonstop' : `${returnFlight.stops} stop${returnFlight.stops !== 1 ? 's' : ''}`}
+                      {' • '}
+                      {formatDuration(returnFlight.durationMinutes || returnFlight.duration)}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">{returnFlight.airline}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Fare Type */}
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="font-bold text-blue-900 dark:text-blue-200">{fare.label}</p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  Includes: {fare.perks?.filter(p => p.status === 'included').map(p => p.text).join(', ') || 'See fare details'}
                 </p>
               </div>
 
-              <div className="border-t dark:border-gray-700 pt-4 space-y-3">
+              {/* Price Breakdown */}
+              <div className="border-t dark:border-gray-700 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Check-in</span>
-                  <span className="font-medium dark:text-white">{checkIn}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Check-out</span>
-                  <span className="font-medium dark:text-white">{checkOut}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Guests</span>
-                  <span className="font-medium dark:text-white">{guests} {guests === 1 ? 'guest' : 'guests'}</span>
-                </div>
-              </div>
-
-              <div className="border-t dark:border-gray-700 pt-4 mt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    ${hotel.price_per_night} × {nights} night{nights !== 1 ? 's' : ''}
-                  </span>
-                  <span className="dark:text-white">${(hotel.price_per_night * nights).toFixed(2)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">{fare.label} fare × {passengers}</span>
+                  <span className="dark:text-white">${totalPrice}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Service fee</span>
-                  <span className="dark:text-white">${(hotel.price_per_night * nights * 0.1).toFixed(2)}</span>
+                  <span className="dark:text-white">${serviceFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-2 mt-2">
                   <span className="dark:text-white">Total</span>
-                  <span className="text-[#FF690F]">${totalPrice}</span>
+                  <span className="text-[#FF690F]">${finalTotal}</span>
                 </div>
               </div>
 

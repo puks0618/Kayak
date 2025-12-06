@@ -34,7 +34,6 @@ export default function Stays() {
   const [checkOut, setCheckOut] = useState('');
   const [rooms, setRooms] = useState(1);
   const [guests, setGuests] = useState(2);
-  const [compareBooking, setCompareBooking] = useState(true);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showGuestsDropdown, setShowGuestsDropdown] = useState(false);
   
@@ -347,20 +346,6 @@ export default function Stays() {
                 <div className="bg-[#FF690F] hover:bg-[#d6570c] md:rounded-r-lg md:rounded-l-none rounded-lg md:w-[70px] flex items-center justify-center transition-colors cursor-pointer p-3 md:p-0 mt-[2px] md:mt-0" onClick={handleSearch}>
                   <Search className="w-6 h-6 text-white" strokeWidth={2.5} />
                 </div>
-              </div>
-
-              {/* Compare vs KAYAK */}
-              <div className="mt-4 flex items-center gap-3 text-sm">
-                <span className="text-gray-700 dark:text-gray-300">Compare vs. KAYAK</span>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={compareBooking}
-                    onChange={(e) => setCompareBooking(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 dark:border-gray-500 text-blue-500 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-900 dark:text-white">Booking.com</span>
-                </label>
               </div>
 
               {/* Recent Searches */}

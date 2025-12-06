@@ -315,9 +315,8 @@ async function insertHotelBatch(connection, hotels, amenitiesMap) {
     } catch (error) {
       // Skip duplicate entries silently
       if (!error.message.includes('Duplicate entry')) {
-        // Log unique error types
-        const errorType = error.message.match(/for column '([^']+)'/)?.[1] || 'unknown';
-        console.error(`\n⚠️  Error: ${errorType} - ${error.message.substring(0, 80)}`);
+        // Log ALL errors for debugging
+        console.error(`\n⚠️  Error inserting hotel: ${error.message}`);
       }
     }
   }
@@ -517,16 +516,16 @@ async function main() {
 
     // Import data
     const hotelsCount = await importListings(mysqlConnection);
-    const reviewsCount = await importReviews(mongoClient);
-    const imagesCount = await createImagesCollection(mongoClient, mysqlConnection);
+    // const reviewsCount = await importReviews(mongoClient);
+    // const imagesCount = await createImagesCollection(mongoClient, mysqlConnection);
 
     // Summary
     console.log('\n' + '='.repeat(60));
     console.log('📊 Import Summary:');
     console.log('='.repeat(60));
     console.log(`\n✅ Hotels imported:        ${hotelsCount.toLocaleString()}`);
-    console.log(`✅ Reviews imported:       ${reviewsCount.toLocaleString()}`);
-    console.log(`✅ Image docs created:     ${imagesCount.toLocaleString()}`);
+    // console.log(`✅ Reviews imported:       ${reviewsCount.toLocaleString()}`);
+    // console.log(`✅ Image docs created:     ${imagesCount.toLocaleString()}`);
     console.log('\n✅ Data import complete!\n');
 
   } catch (error) {

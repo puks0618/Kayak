@@ -293,7 +293,7 @@ export default function StaysSearch() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredResults.map((hotel) => (
-                    <HotelCard key={hotel.id} hotel={hotel} onClick={() => handleHotelClick(hotel.id)} />
+                    <HotelCard key={hotel.hotel_id} hotel={hotel} onClick={() => handleHotelClick(hotel.hotel_id)} />
                   ))}
                 </div>
 

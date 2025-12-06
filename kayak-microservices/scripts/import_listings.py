@@ -116,7 +116,10 @@ conn.commit()
 
 # Read CSV and import data
 print("Reading CSV file...")
-with open('/Users/spartan/Desktop/Projects/KayakMerge/kayak-microservices/scripts/stays-data/listings_reduced.csv', 'r', encoding='utf-8') as f:
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(script_dir, 'stays-data/listings_reduced.csv')
+with open(csv_path, 'r', encoding='utf-8') as f:
     reader = csv.DictReader(f)
     
     batch_size = 500

@@ -2,13 +2,35 @@
  * Car Rental Controller
  */
 
-/**
- * Car Rental Controller
- */
-
 const CarModel = require('./model');
 
 class CarController {
+  async search(req, res) {
+    try {
+      const searchParams = {
+        location: req.query.location,
+        pickupDate: req.query.pickupDate,
+        dropoffDate: req.query.dropoffDate,
+        type: req.query.type,
+        transmission: req.query.transmission,
+        seats: req.query.seats ? parseInt(req.query.seats) : null,
+        company: req.query.company,
+        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice) : null,
+        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice) : null,
+        sortBy: req.query.sortBy || 'price',
+        sortOrder: req.query.sortOrder || 'asc',
+        page: req.query.page ? parseInt(req.query.page) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit) : 20
+      };
+
+      const result = await CarModel.search(searchParams);
+      res.json(result);
+    } catch (error) {
+      console.error('Car search error:', error);
+      res.status(500).json({ error: 'Failed to search cars' });
+    }
+  }
+
   async getAll(req, res) {
     try {
       const { location, type, price_max, available } = req.query;

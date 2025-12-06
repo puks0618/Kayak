@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import LoginPromptModal from '../components/LoginPromptModal';
 import {
   MapPin,
   Star,
@@ -61,11 +62,14 @@ function getAmenityIcon(amenityName) {
 export default function HotelDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
 
   const { selectedStay, loading, error } = useSelector(state => state.stays);
+  const { user } = useSelector(state => state.auth);
   const [selectedImage, setSelectedImage] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState(1);
@@ -204,10 +208,10 @@ export default function HotelDetail() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold mb-2 dark:text-white">{hotel.hotel_name}</h1>
+                  <h1 className="text-3xl font-bold mb-2 dark:text-white">{hotel.name}</h1>
                   <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                     <MapPin className="w-5 h-5" />
-                    <span>{hotel.neighbourhood_cleansed}, {hotel.city}</span>
+                    <span>{hotel.city}, {hotel.state}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -225,28 +229,21 @@ export default function HotelDetail() {
                   <div className="flex items-center gap-1">
                     <Star className="w-5 h-5 text-yellow-500 fill-current" />
                     <span className="font-bold text-lg dark:text-white">{parseFloat(hotel.star_rating).toFixed(1)}</span>
-                    <span className="text-gray-600 dark:text-gray-400">({hotel.number_of_reviews} reviews)</span>
+                    {hotel.reviews && hotel.reviews.length > 0 && (
+                      <span className="text-gray-600 dark:text-gray-400">({hotel.reviews.length} reviews)</span>
+                    )}
                   </div>
-                )}
-                {hotel.instant_bookable === 1 && (
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    Instant Book
-                  </span>
                 )}
               </div>
 
               <div className="flex items-center gap-6 text-gray-700 dark:text-gray-300">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  <span>{hotel.accommodates} guests</span>
+                  <span>{hotel.num_rooms} rooms</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Home className="w-5 h-5" />
-                  <span>{hotel.bedrooms} bedrooms</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Droplets className="w-5 h-5" />
-                  <span>{hotel.bathrooms} bathrooms</span>
+                  <span>{hotel.room_type}</span>
                 </div>
               </div>
             </div>
@@ -273,11 +270,12 @@ export default function HotelDetail() {
                 <h2 className="text-xl font-bold mb-6 dark:text-white">What this place offers</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {hotel.amenities.slice(0, 10).map((amenity, idx) => {
-                    const IconComponent = getAmenityIcon(amenity.amenity_name);
+                    const amenityName = amenity.amenity || amenity.amenity_name || 'Unknown';
+                    const IconComponent = getAmenityIcon(amenityName);
                     return (
                       <div key={idx} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <IconComponent className="w-6 h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-                        <span className="text-gray-700 dark:text-gray-300">{amenity.amenity_name}</span>
+                        <span className="text-gray-700 dark:text-gray-300">{amenityName}</span>
                       </div>
                     );
                   })}
@@ -304,7 +302,7 @@ export default function HotelDetail() {
                         <div>
                           <p className="font-medium dark:text-white">{review.reviewer_name || 'Anonymous'}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {review.review_date ? new Date(review.review_date).toLocaleDateString() : 'No date'}
+                            {review.date ? new Date(review.date).toLocaleDateString() : 'No date'}
                           </p>
                         </div>
                       </div>
@@ -368,10 +366,33 @@ export default function HotelDetail() {
 
               <button 
                 onClick={() => {
+                  console.log('Reserve button clicked!');
+                  console.log('User state:', user);
+                  console.log('Check-in:', checkIn);
+                  console.log('Check-out:', checkOut);
+                  
                   if (!checkIn || !checkOut) {
                     alert('Please select check-in and check-out dates');
                     return;
                   }
+                  
+                  // Check if user is logged in
+                  if (!user) {
+                    // Show alert to login
+                    const shouldLogin = window.confirm(
+                      'Please sign in to book this stay.\n\n' +
+                      'Click OK to go to login page, or Cancel to continue browsing.'
+                    );
+                    
+                    if (shouldLogin) {
+                      navigate('/login', { 
+                        state: { from: { pathname: location.pathname } } 
+                      });
+                    }
+                    return;
+                  }
+                  
+                  console.log('User is logged in, navigating to booking');
                   navigate('/stays/booking/confirm', {
                     state: {
                       hotel,

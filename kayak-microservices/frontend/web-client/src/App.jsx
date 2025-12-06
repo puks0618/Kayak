@@ -57,63 +57,37 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
-        {/* Traveller routes - Protected (travellers and owners can access) */}
+        {/* Public routes - No login required */}
         <Route 
           path="/" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><Home /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><Home /></SharedLayout>} 
         />
         <Route 
           path="/flights/results" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><FlightResults /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><FlightResults /></SharedLayout>} 
         />
         <Route 
           path="/flights/fare-selection" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><FareSelectionPage /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><FareSelectionPage /></SharedLayout>} 
         />
         <Route 
           path="/flights/airlines/:airlineName/reviews" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><AirlineReviews /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><AirlineReviews /></SharedLayout>} 
         />
         <Route 
           path="/stays" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><Stays /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><Stays /></SharedLayout>} 
         />
         <Route 
           path="/stays/search" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><StaysSearch /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><StaysSearch /></SharedLayout>} 
         />
         <Route 
           path="/stays/hotel/:id" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><HotelDetail /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><HotelDetail /></SharedLayout>} 
         />
+        
+        {/* Protected routes - Login required */}
         <Route 
           path="/stays/booking/confirm" 
           element={
@@ -148,27 +122,15 @@ function AppRoutes() {
         />
         <Route 
           path="/cars" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><Cars /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><Cars /></SharedLayout>} 
         />
         <Route 
           path="/packages" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><Packages /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><Packages /></SharedLayout>} 
         />
         <Route 
           path="/ai-mode" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><AIMode /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><AIMode /></SharedLayout>} 
         />
         <Route 
           path="/listings" 

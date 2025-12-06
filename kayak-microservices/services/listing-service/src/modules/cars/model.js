@@ -53,7 +53,7 @@ const CarModel = {
   },
 
   async findAll(filters = {}) {
-    let query = 'SELECT * FROM cars WHERE deleted_at IS NULL';
+    let query = 'SELECT * FROM cars WHERE 1=1';
     const params = [];
 
     // Only show approved listings to public (unless admin view)
@@ -87,7 +87,7 @@ const CarModel = {
 
   async findById(id) {
     const [rows] = await pool.execute(
-      'SELECT * FROM cars WHERE id = ? AND deleted_at IS NULL', 
+      'SELECT * FROM cars WHERE id = ?', 
       [id]
     );
     return rows[0];
@@ -98,7 +98,7 @@ const CarModel = {
    */
   async findByOwner(owner_id) {
     const [rows] = await pool.execute(
-      'SELECT * FROM cars WHERE owner_id = ? AND deleted_at IS NULL ORDER BY created_at DESC',
+      'SELECT * FROM cars WHERE owner_id = ? ORDER BY created_at DESC',
       [owner_id]
     );
     return rows;
@@ -117,17 +117,104 @@ const CarModel = {
   },
 
   async delete(id) {
-    await pool.execute('UPDATE cars SET deleted_at = NOW() WHERE id = ?', [id]);
+    await pool.execute('UPDATE cars SET approval_status = "rejected" WHERE id = ?', [id]);
     return true;
   },
 
   async updateStatus(id, status) {
-    const query = status === 'active'
-      ? 'UPDATE cars SET deleted_at = NULL WHERE id = ?'
-      : 'UPDATE cars SET deleted_at = NOW() WHERE id = ?';
-    
-    await pool.execute(query, [id]);
+    const approval = status === 'active' ? 'approved' : 'rejected';
+    await pool.execute('UPDATE cars SET approval_status = ? WHERE id = ?', [approval, id]);
     return this.findById(id);
+  },
+
+  async search(searchParams) {
+    const {
+      location,
+      pickupDate,
+      dropoffDate,
+      type,
+      transmission,
+      seats,
+      company,
+      minPrice,
+      maxPrice,
+      sortBy = 'price',
+      sortOrder = 'asc',
+      page = 1,
+      limit = 20
+    } = searchParams;
+
+    let query = `
+      SELECT * FROM cars
+      WHERE approval_status = 'approved'
+      AND availability_status = 1
+    `;
+    const params = [];
+
+    // Location filter (required)
+    if (location) {
+      query += ' AND location LIKE ?';
+      params.push(`%${location}%`);
+    }
+
+    // Type filter
+    if (type) {
+      query += ' AND type = ?';
+      params.push(type);
+    }
+
+    // Transmission filter
+    if (transmission) {
+      query += ' AND transmission = ?';
+      params.push(transmission);
+    }
+
+    // Seats filter
+    if (seats) {
+      query += ' AND seats >= ?';
+      params.push(seats);
+    }
+
+    // Company filter
+    if (company) {
+      query += ' AND company_name LIKE ?';
+      params.push(`%${company}%`);
+    }
+
+    // Price range
+    if (minPrice) {
+      query += ' AND daily_rental_price >= ?';
+      params.push(minPrice);
+    }
+    if (maxPrice) {
+      query += ' AND daily_rental_price <= ?';
+      params.push(maxPrice);
+    }
+
+    // Sorting
+    const sortColumn = sortBy === 'price' ? 'daily_rental_price' : 'rating';
+    query += ` ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
+
+    // Count total
+    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
+    const [countResult] = await pool.execute(countQuery, params);
+    const total = countResult[0].total;
+
+    // Pagination - use direct values for LIMIT/OFFSET (not placeholders)
+    const offset = (page - 1) * limit;
+    const limitInt = parseInt(limit);
+    const offsetInt = parseInt(offset);
+    query += ` LIMIT ${limitInt} OFFSET ${offsetInt}`;
+
+    const [cars] = await pool.execute(query, params);
+
+    return {
+      cars,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    };
   }
 };
 

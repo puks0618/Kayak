@@ -6,12 +6,14 @@
 
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Check, X, Plane } from 'lucide-react';
 import { buildDetailedFareOptions } from '../utils/fareOptions';
 
 export default function FareSelectionPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useSelector(state => state.auth);
   
   // Get flight and fare info from navigation state
   const { flight, fareCode: initialFareCode, farePrice, searchForm } = location.state || {};
@@ -64,10 +66,25 @@ export default function FareSelectionPage() {
   
   // Handle booking
   const handleBook = async () => {
+    // Check if user is logged in
+    if (!user) {
+      const shouldLogin = window.confirm(
+        'Please sign in to book this flight.\n\n' +
+        'Click OK to go to login page, or Cancel to continue browsing.'
+      );
+      
+      if (shouldLogin) {
+        navigate('/login', { 
+          state: { from: { pathname: location.pathname } } 
+        });
+      }
+      return;
+    }
+    
     try {
       // TODO: Call booking API
       const bookingData = {
-        userId: 'current-user-id', // Replace with actual user ID from auth
+        userId: user.id,
         type: 'flight',
         outboundSegmentId: flight.id,
         returnSegmentId: flight.id, // TODO: Handle return flight separately

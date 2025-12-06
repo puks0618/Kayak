@@ -114,17 +114,28 @@ export default function SharedLayout({ children }) {
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden md:inline">My Trips</span>
           </button>
           <DarkModeToggle />
-          <button 
-            className="p-1 relative"
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-          >
-            <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-300 font-semibold text-sm">
-              {user ? user.firstName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() : 'G'}
-            </div>
-          </button>
+          
+          {/* Show Sign in button if not logged in, otherwise show user menu */}
+          {!user ? (
+            <button 
+              className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              onClick={() => navigate('/login')}
+            >
+              Sign in
+            </button>
+          ) : (
+            <button 
+              className="p-1 relative"
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            >
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-300 font-semibold text-sm">
+                {user.firstName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+              </div>
+            </button>
+          )}
           
           {/* User Profile Popup */}
-          {isUserMenuOpen && (
+          {user && isUserMenuOpen && (
             <>
               {/* Overlay to close menu */}
               <div 
@@ -137,14 +148,14 @@ export default function SharedLayout({ children }) {
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 font-semibold">
-                      {user ? user.firstName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() : 'G'}
+                      {user.firstName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <div className="font-semibold text-gray-900 dark:text-white">
-                        {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Guest'}
+                        {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
                       </div>
                       <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                        {user ? user.email : 'guest@example.com'}
+                        {user.email}
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       </div>
                     </div>

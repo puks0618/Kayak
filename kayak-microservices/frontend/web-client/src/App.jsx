@@ -19,6 +19,9 @@ import FlightBookingConfirmation from './pages/FlightBookingConfirmation';
 import BookingSuccess from './pages/BookingSuccess';
 import MyTrips from './pages/MyTrips';
 import Cars from './pages/Cars';
+import CarResults from './pages/CarResults';
+import CarBooking from './pages/CarBooking';
+import CarBookingSuccess from './pages/CarBookingSuccess';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
 import Listings from './pages/Listings';
@@ -122,6 +125,14 @@ function AppRoutes() {
           } 
         />
         <Route 
+          path="/my-trips" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><MyTrips /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/booking/:id" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
@@ -132,6 +143,26 @@ function AppRoutes() {
         <Route 
           path="/cars" 
           element={<SharedLayout><Cars /></SharedLayout>} 
+        />
+        <Route 
+          path="/cars/search" 
+          element={<SharedLayout><CarResults /></SharedLayout>} 
+        />
+        <Route 
+          path="/cars/booking" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><CarBooking /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/booking/car/success" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><CarBookingSuccess /></SharedLayout>
+            </ProtectedRoute>
+          } 
         />
         <Route 
           path="/packages" 

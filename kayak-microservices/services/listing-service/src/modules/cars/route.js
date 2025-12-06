@@ -6,7 +6,8 @@ const express = require('express');
 const router = express.Router();
 const carController = require('./controller');
 
-// Search route (must come before /:id)
+// Special routes (must come before /:id)
+router.get('/cities', carController.getCities);
 router.get('/search', carController.search);
 
 router.get('/', carController.getAll);

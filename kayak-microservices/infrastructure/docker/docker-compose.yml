@@ -295,21 +295,6 @@ services:
     networks:
       - kayak-network
 
-  owner-service:
-    build:
-      context: ../../services/owner-service
-      dockerfile: Dockerfile
-    container_name: kayak-owner-service
-    ports:
-      - "3008:3008"
-    environment:
-      - PORT=3008
-      - KAFKA_BROKERS=kafka:29092
-    depends_on:
-      - kafka
-    networks:
-      - kayak-network
-
   # Frontend Applications
   web-client:
     build:
@@ -330,6 +315,18 @@ services:
     container_name: kayak-admin-portal
     ports:
       - "5174:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - kayak-network
+
+  owner-portal:
+    build:
+      context: ../../frontend/owner-portal
+      dockerfile: Dockerfile
+    container_name: kayak-owner-portal
+    ports:
+      - "5180:80"
     depends_on:
       - api-gateway
     networks:

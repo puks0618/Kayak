@@ -256,6 +256,19 @@ class CarController {
       res.status(500).json({ error: 'Failed to delete listing' });
     }
   }
+
+  /**
+   * Get all distinct cities where cars are available
+   */
+  async getCities(req, res) {
+    try {
+      const cities = await CarModel.getCities();
+      res.json({ cities });
+    } catch (error) {
+      console.error('Get car cities error:', error);
+      res.status(500).json({ error: 'Failed to get car cities' });
+    }
+  }
 }
 
 module.exports = new CarController();

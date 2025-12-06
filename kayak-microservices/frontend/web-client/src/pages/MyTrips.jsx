@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Calendar, MapPin, Users, ChevronRight, Search } from 'lucide-react';
+import { Calendar, MapPin, Users, ChevronRight, Search, Car, Hotel } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -65,6 +65,20 @@ export default function MyTrips() {
       } else {
         return { status: 'upcoming', label: 'Upcoming', color: 'bg-blue-500' };
       }
+    } else if (booking.type === 'car') {
+      // Car booking
+      const pickupDate = new Date(booking.pickupDate);
+      pickupDate.setHours(0, 0, 0, 0);
+      const dropoffDate = new Date(booking.dropoffDate);
+      dropoffDate.setHours(0, 0, 0, 0);
+
+      if (dropoffDate < today) {
+        return { status: 'completed', label: 'Completed', color: 'bg-gray-500' };
+      } else if (pickupDate <= today && dropoffDate >= today) {
+        return { status: 'active', label: 'Active', color: 'bg-green-500' };
+      } else {
+        return { status: 'upcoming', label: 'Upcoming', color: 'bg-blue-500' };
+      }
     } else {
       // Hotel booking
       const checkInDate = new Date(booking.checkIn);
@@ -93,6 +107,7 @@ export default function MyTrips() {
                          (filter === 'upcoming' && status === 'upcoming') ||
                          (filter === 'past' && status === 'completed');
     
+    // Search logic for all types (flight, hotel, car)
     let matchesSearch = false;
     if (booking.type === 'flight') {
       const airline = booking.outboundFlight?.airline || '';
@@ -101,7 +116,13 @@ export default function MyTrips() {
       matchesSearch = airline.toLowerCase().includes(searchQuery.toLowerCase()) ||
                      origin.toLowerCase().includes(searchQuery.toLowerCase()) ||
                      destination.toLowerCase().includes(searchQuery.toLowerCase());
+    } else if (booking.type === 'car') {
+      const carName = `${booking.car.brand} ${booking.car.model}`;
+      const location = booking.pickupLocation || '';
+      matchesSearch = carName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                     location.toLowerCase().includes(searchQuery.toLowerCase());
     } else {
+      // Hotel booking
       const hotelName = booking.hotel?.hotel_name || '';
       const city = booking.hotel?.city || '';
       matchesSearch = hotelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -241,6 +262,7 @@ export default function MyTrips() {
           <div className="space-y-4">
             {filteredBookings.map((booking) => {
               const bookingStatus = getBookingStatus(booking);
+              const isCarBooking = booking.type === 'car';
               
               return (
                 <div
@@ -293,6 +315,84 @@ export default function MyTrips() {
                                 <p className="font-semibold dark:text-white">{formatDate(booking.returnFlight?.departure_time || booking.returnFlight?.departureTime)}</p>
                               </div>
                             )}
+                          </div>
+
+                          <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Booking ID</p>
+                              <p className="font-mono text-sm font-semibold dark:text-white">{booking.id}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
+                              <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                            </div>
+                            <ChevronRight className="w-6 h-6 text-gray-400" />
+                          </div>
+                        </div>
+                      </>
+                    ) : booking.type === 'car' ? (
+                      // Car Booking Card
+                      <>
+                        {/* Car Image */}
+                        <div className="md:w-64 h-48 md:h-auto relative">
+                          <img
+                            src={booking.car?.image_url || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'}
+                            alt={`${booking.car?.brand} ${booking.car?.model}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400';
+                            }}
+                          />
+                          <div className="absolute top-2 left-2 bg-white dark:bg-gray-800 p-2 rounded-full">
+                            <Car className="w-5 h-5 text-[#FF690F]" />
+                          </div>
+                        </div>
+
+                        {/* Car Details */}
+                        <div className="flex-1 p-6">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="text-xl font-bold mb-1 dark:text-white">
+                                {booking.car?.brand} {booking.car?.model} {booking.car?.year}
+                              </h3>
+                              <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                <MapPin className="w-4 h-4" />
+                                {booking.pickupLocation}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                                {booking.car?.company_name} • {booking.car?.type} • {booking.car?.transmission}
+                              </p>
+                            </div>
+                            <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                              {bookingStatus.label}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
+                                <Calendar className="w-4 h-4" />
+                                Pick-up
+                              </p>
+                              <p className="font-semibold dark:text-white">{formatDate(booking.pickupDate)}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-500">{booking.pickupTime}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mb-1">
+                                <Calendar className="w-4 h-4" />
+                                Drop-off
+                              </p>
+                              <p className="font-semibold dark:text-white">{formatDate(booking.dropoffDate)}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-500">{booking.dropoffTime}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                Duration
+                              </p>
+                              <p className="font-semibold dark:text-white">
+                                {booking.days} {booking.days === 1 ? 'Day' : 'Days'}
+                              </p>
+                            </div>
                           </div>
 
                           <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">

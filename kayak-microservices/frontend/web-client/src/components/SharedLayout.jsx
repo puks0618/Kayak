@@ -102,7 +102,11 @@ export default function SharedLayout({ children }) {
           </div>
         </div>
         <div className="flex items-center gap-3 relative">
-          <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+          <button 
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+            onClick={() => navigate('/favorites')}
+            title="View your favorites"
+          >
             <Heart className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </button>
           <button 

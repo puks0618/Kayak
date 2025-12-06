@@ -215,6 +215,22 @@ const CarModel = {
       limit: parseInt(limit),
       totalPages: Math.ceil(total / limit)
     };
+  },
+
+  /**
+   * Get all distinct cities where cars are available
+   */
+  async getCities() {
+    const query = `
+      SELECT DISTINCT location as city
+      FROM cars
+      WHERE approval_status = 'approved'
+        AND availability_status = 1
+      ORDER BY location ASC
+    `;
+    
+    const [cities] = await pool.execute(query);
+    return cities.map(row => row.city);
   }
 };
 

@@ -168,7 +168,7 @@ class AdminListingsController {
 
       // Check if hotel exists
       const [hotels] = await pool.execute(
-        'SELECT id, owner_id FROM kayak_listings.hotels WHERE id = ? AND deleted_at IS NULL',
+        'SELECT id, owner_id FROM kayak_listings.hotels WHERE id = ?',
         [hotel_id]
       );
 

@@ -46,8 +46,16 @@ const Login = () => {
             if (userRole === 'admin') {
                 // Admins go to admin portal (port 5174)
                 window.location.href = 'http://localhost:5174';
+            } else if (userRole === 'owner') {
+                // Owners go to owner portal (port 5180)
+                // Pass token and user via URL hash for cross-origin transfer
+                const authData = encodeURIComponent(JSON.stringify({
+                    token: result.token,
+                    user: result.user
+                }));
+                window.location.href = `http://localhost:5180#auth=${authData}`;
             } else {
-                // Return to the page they were trying to access
+                // Travellers return to the page they were trying to access
                 navigate(from, { replace: true });
             }
         } catch (err) {
@@ -82,8 +90,16 @@ const Login = () => {
             
             if (userRole === 'admin') {
                 window.location.href = 'http://localhost:5174';
+            } else if (userRole === 'owner') {
+                // Owners go to owner portal (port 5180)
+                // Pass token and user via URL hash for cross-origin transfer
+                const authData = encodeURIComponent(JSON.stringify({
+                    token: result.token,
+                    user: result.user
+                }));
+                window.location.href = `http://localhost:5180#auth=${authData}`;
             } else {
-                // Return to the page they were trying to access
+                // Travellers return to the page they were trying to access
                 navigate(from, { replace: true });
             }
         } catch (err) {

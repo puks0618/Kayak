@@ -29,9 +29,12 @@ import BillingList from './pages/BillingList';
 import BillingDetail from './pages/BillingDetail';
 import CreateBilling from './pages/CreateBilling';
 import InvoiceViewerPage from './pages/InvoiceViewerPage';
-import OwnerDashboard from './pages/OwnerDashboard';
-import OwnerCars from './pages/OwnerCars';
-import CarForm from './pages/CarForm';
+// Owner pages moved to owner-portal (port 5180)
+// import OwnerDashboard from './pages/OwnerDashboard';
+// import OwnerCars from './pages/OwnerCars';
+// import OwnerHotels from './pages/OwnerHotels';
+// import OwnerBookings from './pages/OwnerBookings';
+// import CarForm from './pages/CarForm';
 
 // Component to remove hash from URL
 function HashRemover() {
@@ -192,39 +195,8 @@ function AppRoutes() {
           } 
         />
         
-        {/* Owner routes - Protected */}
-        <Route 
-          path="/owner/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <SharedLayout><OwnerDashboard /></SharedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/owner/cars" 
-          element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <SharedLayout><OwnerCars /></SharedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/owner/cars/new" 
-          element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <SharedLayout><CarForm /></SharedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/owner/cars/edit/:id" 
-          element={
-            <ProtectedRoute allowedRoles={['owner']}>
-              <SharedLayout><CarForm /></SharedLayout>
-            </ProtectedRoute>
-          } 
-        />
+        {/* Owner routes removed - now on owner-portal (port 5180) */}
+        {/* Owners are redirected to http://localhost:5180 after login */}
       </Routes>
     </>
   );

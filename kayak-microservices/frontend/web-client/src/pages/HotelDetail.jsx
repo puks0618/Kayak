@@ -270,7 +270,7 @@ export default function HotelDetail() {
                 <h2 className="text-xl font-bold mb-6 dark:text-white">What this place offers</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {hotel.amenities.slice(0, 10).map((amenity, idx) => {
-                    const amenityName = amenity.amenity || amenity.amenity_name || 'Unknown';
+                    const amenityName = typeof amenity === 'string' ? amenity : (amenity.amenity || amenity.amenity_name || 'Unknown');
                     const IconComponent = getAmenityIcon(amenityName);
                     return (
                       <div key={idx} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">

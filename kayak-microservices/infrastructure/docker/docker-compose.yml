@@ -295,6 +295,21 @@ services:
     networks:
       - kayak-network
 
+  owner-service:
+    build:
+      context: ../../services/owner-service
+      dockerfile: Dockerfile
+    container_name: kayak-owner-service
+    ports:
+      - "3008:3008"
+    environment:
+      - PORT=3008
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      - kafka
+    networks:
+      - kayak-network
+
   # Frontend Applications
   web-client:
     build:

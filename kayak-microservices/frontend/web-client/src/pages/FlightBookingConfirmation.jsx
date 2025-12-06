@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin, Plane } from 'lucide-react';
+import { bookingService } from '../services/api';
 
 export default function FlightBookingConfirmation() {
   const navigate = useNavigate();
@@ -107,8 +108,9 @@ export default function FlightBookingConfirmation() {
     e.preventDefault();
     
     if (validateForm()) {
+      const bookingId = 'BK' + Date.now();
       const booking = {
-        id: 'BK' + Date.now(),
+        id: bookingId,
         type: 'flight',
         outboundFlight,
         returnFlight,
@@ -129,15 +131,52 @@ export default function FlightBookingConfirmation() {
         status: 'confirmed'
       };
 
-      // Store in localStorage
-      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-      existingBookings.push(booking);
-      localStorage.setItem('bookings', JSON.stringify(existingBookings));
+      try {
+        // Send to backend API (user_id will come from JWT token via gateway)
+        const backendBooking = {
+          listing_id: outboundFlight.id || outboundFlight.flight_id || 'flight-' + Date.now(),
+          listing_type: 'flight',
+          travel_date: outboundFlight.departure_time || outboundFlight.departureTime,
+          total_amount: totalPrice,
+          payment_details: {
+            method: formData.paymentType,
+            cardNumber: formData.cardNumber ? formData.cardNumber.slice(-4) : null
+          },
+          booking_details: {
+            outboundFlight: {
+              airline: outboundFlight.airline,
+              origin: outboundFlight.departure_airport || outboundFlight.origin,
+              destination: outboundFlight.arrival_airport || outboundFlight.destination,
+              departureTime: outboundFlight.departure_time || outboundFlight.departureTime
+            },
+            returnFlight: returnFlight ? {
+              airline: returnFlight.airline,
+              origin: returnFlight.departure_airport || returnFlight.origin,
+              destination: returnFlight.arrival_airport || returnFlight.destination,
+              departureTime: returnFlight.departure_time || returnFlight.departureTime
+            } : null,
+            passengers,
+            passengerInfo: booking.passengerInfo
+          }
+        };
 
-      // Navigate to success page
-      navigate('/booking/success', { 
-        state: { booking, type: 'flight' } 
-      });
+        console.log('📤 Sending flight booking to backend:', backendBooking);
+        const response = await bookingService.create(backendBooking);
+        console.log('✅ Backend booking response:', response);
+
+        // Also store in localStorage for compatibility
+        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+        existingBookings.push(booking);
+        localStorage.setItem('bookings', JSON.stringify(existingBookings));
+
+        // Navigate to success page
+        navigate('/booking/success', { 
+          state: { booking: { ...booking, id: response.booking_id || bookingId }, type: 'flight' } 
+        });
+      } catch (error) {
+        console.error('❌ Booking creation failed:', error);
+        alert('Failed to complete booking. Please try again.');
+      }
     }
   };
 

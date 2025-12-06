@@ -25,6 +25,10 @@ const BookingModel = {
     } = bookingData;
 
     const id = uuidv4();
+    
+    // Convert ISO date to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+    const mysqlDate = travel_date ? new Date(travel_date).toISOString().slice(0, 19).replace('T', ' ') : null;
+    
     const query = `
       INSERT INTO bookings 
       (id, user_id, listing_id, listing_type, status, travel_date, total_amount) 
@@ -33,7 +37,7 @@ const BookingModel = {
 
     await pool.execute(query, [
       id, user_id, listing_id, listing_type, status || 'pending',
-      travel_date, total_amount
+      mysqlDate, total_amount
     ]);
 
     return { id, ...bookingData };

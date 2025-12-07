@@ -107,8 +107,9 @@ const HotelModel = {
     let query = `
       SELECT DISTINCT h.*,
         (SELECT COUNT(*) FROM hotel_amenities ha WHERE ha.hotel_id = h.hotel_id) as amenity_count,
-        (SELECT GROUP_CONCAT(ha.amenity SEPARATOR '|||') 
+        (SELECT GROUP_CONCAT(a.amenity_name SEPARATOR '|||') 
          FROM hotel_amenities ha 
+         JOIN amenities a ON ha.amenity_id = a.amenity_id
          WHERE ha.hotel_id = h.hotel_id) as hotel_amenities_list
       FROM hotels h
       WHERE h.has_availability = 1
@@ -166,12 +167,13 @@ const HotelModel = {
     // Amenities filter (hotel must have ALL specified amenities)
     if (amenities.length > 0) {
       const amenPlaceholders = amenities.map(() => '?').join(',');
-      query += ` AND h.id IN (
+      query += ` AND h.hotel_id IN (
         SELECT ha.hotel_id 
         FROM hotel_amenities ha
-        WHERE ha.amenity IN (${amenPlaceholders})
+        JOIN amenities a ON ha.amenity_id = a.amenity_id
+        WHERE a.amenity_name IN (${amenPlaceholders})
         GROUP BY ha.hotel_id
-        HAVING COUNT(DISTINCT ha.amenity) = ?
+        HAVING COUNT(DISTINCT a.amenity_name) = ?
       )`;
       amenities.forEach(amenity => params.push(amenity));
       params.push(amenities.length);
@@ -353,16 +355,17 @@ const HotelModel = {
 
       // Get amenities directly from hotel_amenities table
       const [amenitiesRows] = await pool.execute(`
-        SELECT DISTINCT amenity
-        FROM hotel_amenities
-        WHERE hotel_id = ?
+        SELECT DISTINCT a.amenity_name
+        FROM hotel_amenities ha
+        JOIN amenities a ON ha.amenity_id = a.amenity_id
+        WHERE ha.hotel_id = ?
       `, [hotel.hotel_id]);
 
       return {
         ...hotel,
         reviews: reviews || [],
         images,
-        amenities: amenitiesRows.map(row => row.amenity) || []
+        amenities: amenitiesRows.map(row => row.amenity_name) || []
       };
     } catch (error) {
       console.error('Error fetching hotel details:', error);

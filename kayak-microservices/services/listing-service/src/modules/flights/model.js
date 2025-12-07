@@ -96,10 +96,6 @@ const FlightModel = {
       params.push(filters.class);
     }
 
-    // Add limit to prevent timeout
-    const limit = parseInt(filters.limit) || 20;
-    query += ` LIMIT ${limit}`;
-
     const [rows] = await pool.execute(query, params);
     return rows;
   },

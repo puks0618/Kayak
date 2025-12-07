@@ -64,10 +64,6 @@ const BookingModel = {
       sortOrder = 'desc'
     } = options;
 
-    // Ensure page and limit are valid integers
-    const validPage = parseInt(page) || 1;
-    const validLimit = parseInt(limit) || 20;
-
     let query = 'SELECT * FROM bookings WHERE 1=1';
     const params = [];
 
@@ -86,12 +82,9 @@ const BookingModel = {
       params.push(listing_type);
     }
 
-    // Convert to explicit integers for LIMIT/OFFSET
-    const limitValue = Number(validLimit);
-    const offsetValue = Number((validPage - 1) * validLimit);
-    
     query += ` ORDER BY ${sortBy} ${sortOrder}`;
-    query += ` LIMIT ${limitValue} OFFSET ${offsetValue}`;
+    query += ' LIMIT ? OFFSET ?';
+    params.push(limit, (page - 1) * limit);
 
     const [rows] = await pool.execute(query, params);
 

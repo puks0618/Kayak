@@ -37,12 +37,12 @@ export default function CarBookingSuccess() {
     dropoffTime,
     pickupLocation,
     days,
-    totalPrice: pricing.totalPrice,
-    paymentType: paymentInfo.method === 'credit' ? 'Credit Card' : paymentInfo.method === 'debit' ? 'Debit Card' : 'PayPal',
+    totalPrice: pricing?.totalPrice || 0,
+    paymentType: paymentInfo?.method === 'credit' ? 'Credit Card' : paymentInfo?.method === 'debit' ? 'Debit Card' : 'PayPal',
     driverInfo,
     bookingDate: new Date().toISOString(),
     status: 'confirmed'
-  }) : locationBooking;
+  } : locationBooking);
 
   if (!booking) {
     return (

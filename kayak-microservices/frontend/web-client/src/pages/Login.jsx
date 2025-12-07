@@ -60,12 +60,17 @@ const Login = () => {
             }
         } catch (err) {
             console.error('Login failed:', err);
-            const baseMessage = err || 'Sign-in failed.';
-            const guidance =
-                baseMessage.includes('incorrect') || baseMessage.includes('Invalid credentials')
-                    ? 'Double-check your email and password, then try again.'
-                    : 'If you think this is a mistake, try again in a minute or contact support.';
-            setLocalError(`${baseMessage} ${guidance}`);
+            const errorMessage = err || 'Sign-in failed.';
+            
+            let guidance = '';
+            if (errorMessage.toLowerCase().includes('not found') || errorMessage.toLowerCase().includes('does not exist')) {
+                guidance = 'User not found. Please sign up to create an account.';
+            } else if (errorMessage.includes('incorrect') || errorMessage.includes('Invalid credentials')) {
+                guidance = 'Double-check your email and password, then try again.';
+            } else {
+                guidance = 'If you think this is a mistake, try again in a minute or contact support.';
+            }
+            setLocalError(`${errorMessage} ${guidance}`);
         }
     };
 

@@ -96,8 +96,8 @@ export default function CarBookingSuccess() {
           
           <div className="flex gap-4 mb-6">
             <img
-              src={booking.car.image_url || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'}
-              alt={`${booking.car.brand} ${booking.car.model}`}
+              src={booking.car?.image_url || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'}
+              alt={`${booking.car?.make} ${booking.car?.model}`}
               className="w-32 h-32 object-cover rounded-lg"
               onError={(e) => {
                 e.target.src = 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400';
@@ -105,24 +105,19 @@ export default function CarBookingSuccess() {
             />
             <div className="flex-1">
               <h3 className="text-xl font-bold mb-2 dark:text-white">
-                {booking.car.brand} {booking.car.model} {booking.car.year}
+                {booking.car?.make} {booking.car?.model} ({booking.car?.year})
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-2">{booking.car.company}</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">{booking.car?.company_name}</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="bg-[#FF690F] text-white px-2 py-1 rounded text-xs font-semibold">
-                  {booking.car.type}
+                  {booking.car?.category}
                 </span>
                 <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs dark:text-white">
-                  {booking.car.transmission}
+                  {booking.car?.transmission}
                 </span>
                 <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs dark:text-white">
-                  {booking.car.seats} seats
+                  {booking.car?.seating_capacity} seats
                 </span>
-                {booking.car.rating && (
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    ⭐ {booking.car.rating}
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -173,25 +168,25 @@ export default function CarBookingSuccess() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Name</p>
               <p className="font-semibold dark:text-white">
-                {booking.driverInfo.firstName} {booking.driverInfo.lastName}
+                {booking.driverInfo?.firstName} {booking.driverInfo?.lastName}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-              <p className="font-semibold dark:text-white">{booking.driverInfo.email}</p>
+              <p className="font-semibold dark:text-white">{booking.driverInfo?.email}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
-              <p className="font-semibold dark:text-white">{booking.driverInfo.phone}</p>
+              <p className="font-semibold dark:text-white">{booking.driverInfo?.phone}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">License Number</p>
-              <p className="font-semibold dark:text-white">{booking.driverInfo.licenseNumber}</p>
+              <p className="font-semibold dark:text-white">{booking.driverInfo?.licenseNumber}</p>
             </div>
             <div className="md:col-span-2">
               <p className="text-sm text-gray-600 dark:text-gray-400">Address</p>
               <p className="font-semibold dark:text-white">
-                {booking.driverInfo.address}, {booking.driverInfo.city} {booking.driverInfo.zipCode}
+                {booking.driverInfo?.address}, {booking.driverInfo?.city} {booking.driverInfo?.zipCode}
               </p>
             </div>
           </div>
@@ -206,16 +201,16 @@ export default function CarBookingSuccess() {
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">
-                ${booking.car.price_per_day} × {booking.days} day{booking.days !== 1 ? 's' : ''}
+                ${booking.car?.daily_rental_price} × {booking.days} day{booking.days !== 1 ? 's' : ''}
               </span>
               <span className="dark:text-white">
-                ${(booking.car.price_per_day * booking.days).toFixed(2)}
+                ${(booking.car?.daily_rental_price * booking.days).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-400">Taxes & Fees</span>
+              <span className="text-gray-600 dark:text-gray-400">Service Fee (10%)</span>
               <span className="dark:text-white">
-                ${(booking.car.price_per_day * booking.days * 0.15).toFixed(2)}
+                ${(booking.car?.daily_rental_price * booking.days * 0.1).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-3 mt-3">
@@ -247,7 +242,7 @@ export default function CarBookingSuccess() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-600 dark:text-blue-400 mt-1">•</span>
-              <span>A confirmation email has been sent to {booking.driverInfo.email}</span>
+              <span>A confirmation email has been sent to {booking.driverInfo?.email}</span>
             </li>
           </ul>
         </div>

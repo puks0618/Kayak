@@ -1,23 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin } from 'lucide-react';
-import { bookingService, billingService } from '../services/api';
+import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car } from 'lucide-react';
+import { bookingService } from '../services/api';
 import { addUserBooking } from '../utils/userStorage';
 
-export default function BookingConfirmation() {
+export default function CarBookingConfirmation() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useSelector(state => state.auth);
-  const {
-    selectedHotel: hotel,
-    checkInDate: checkIn,
-    checkOutDate: checkOut,
-    guests,
-    rooms,
-    pricing,
-    nights
-  } = useSelector(state => state.stayBooking);
-  const totalPrice = pricing?.totalPrice || 0;
+  const { car, pickupDate, dropoffDate, pickupTime, dropoffTime, pickupLocation, days, totalPrice } = location.state || {};
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -27,6 +19,7 @@ export default function BookingConfirmation() {
     address: '',
     city: '',
     zipCode: '',
+    licenseNumber: '',
     paymentType: 'credit',
     cardNumber: '',
     cardName: '',
@@ -36,30 +29,9 @@ export default function BookingConfirmation() {
 
   const [errors, setErrors] = useState({});
 
-  // Validation functions
-  const validStates = {
-    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
-    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
-    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
-    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
-    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
-    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
-    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
-    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming'
-  };
-
   const validateZipCode = (zip) => {
     const zipPattern = /^(\d{2}|\d{5})(-\d{4})?$/;
     return zipPattern.test(zip);
-  };
-
-  const validateState = (state) => {
-    if (!state) return false;
-    const upperState = state.toUpperCase();
-    const lowerState = state.toLowerCase();
-    return upperState in validStates || Object.values(validStates).map(s => s.toLowerCase()).includes(lowerState);
   };
 
   const validatePhone = (phone) => {
@@ -67,13 +39,18 @@ export default function BookingConfirmation() {
     return cleanPhone.length === 10;
   };
 
-  if (!hotel) {
+  const validateLicenseNumber = (license) => {
+    const licensePattern = /^[A-Za-z0-9]{8,15}$/;
+    return licensePattern.test(license);
+  };
+
+  if (!car) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 dark:text-gray-400 mb-4">No booking information found</p>
           <button
-            onClick={() => navigate('/stays/search')}
+            onClick={() => navigate('/cars/search')}
             className="px-6 py-2 bg-[#FF690F] text-white rounded-md hover:bg-[#d6570c]"
           >
             Back to Search
@@ -87,20 +64,15 @@ export default function BookingConfirmation() {
     const { name, value } = e.target;
     let processedValue = value;
 
-    // Auto-format phone: remove non-digits and limit to 10
     if (name === 'phone') {
       processedValue = value.replace(/\D/g, '').slice(0, 10);
     }
 
-    // Auto-format state: uppercase and limit to 2 characters if abbreviation
-    if (name === 'state') {
-      if (value.length <= 2) {
-        processedValue = value.toUpperCase().slice(0, 2);
-      }
+    if (name === 'licenseNumber') {
+      processedValue = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 15);
     }
 
     setFormData(prev => ({ ...prev, [name]: processedValue }));
-    // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -114,7 +86,6 @@ export default function BookingConfirmation() {
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
     
-    // Phone validation
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
     } else if (!validatePhone(formData.phone)) {
@@ -124,11 +95,16 @@ export default function BookingConfirmation() {
     if (!formData.address.trim()) newErrors.address = 'Address is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
     
-    // Zip code validation
     if (!formData.zipCode.trim()) {
       newErrors.zipCode = 'Zip code is required';
     } else if (!validateZipCode(formData.zipCode)) {
-      newErrors.zipCode = 'Enter valid zip code (e.g., 12, 95123, 90086-1929)';
+      newErrors.zipCode = 'Enter valid zip code';
+    }
+    
+    if (!formData.licenseNumber.trim()) {
+      newErrors.licenseNumber = 'Driver license number is required';
+    } else if (!validateLicenseNumber(formData.licenseNumber)) {
+      newErrors.licenseNumber = 'License must be 8-15 alphanumeric characters';
     }
     
     if (formData.paymentType !== 'paypal') {
@@ -146,74 +122,74 @@ export default function BookingConfirmation() {
     e.preventDefault();
     
     if (validateForm()) {
-      const bookingId = 'BK' + Date.now();
+      const bookingId = 'CR' + Date.now();
       
-      // Create booking object
       const booking = {
         id: bookingId,
-        type: 'hotel',
-        hotel: hotel,
-        checkIn: checkIn,
-        checkOut: checkOut,
-        guests: guests,
-        nights: nights,
+        type: 'car',
+        car: car,
+        pickupDate: pickupDate,
+        dropoffDate: dropoffDate,
+        pickupTime: pickupTime,
+        dropoffTime: dropoffTime,
+        pickupLocation: pickupLocation,
+        days: days,
         totalPrice: totalPrice,
         paymentType: formData.paymentType,
-        guestInfo: {
+        driverInfo: {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
           phone: formData.phone,
           address: formData.address,
           city: formData.city,
-          zipCode: formData.zipCode
+          zipCode: formData.zipCode,
+          licenseNumber: formData.licenseNumber
         },
         bookingDate: new Date().toISOString(),
         status: 'confirmed'
       };
 
       try {
-        // Send to backend API
         const backendBooking = {
-          listing_id: hotel.listing_id || hotel.hotel_id || hotel.id || `hotel-${Date.now()}`,
-          listing_type: 'hotel',
-          travel_date: checkIn,
+          listing_id: car.id || `car-${Date.now()}`,
+          listing_type: 'car',
+          travel_date: pickupDate,
           total_amount: totalPrice,
           payment_details: {
             method: formData.paymentType,
             cardNumber: formData.cardNumber ? formData.cardNumber.slice(-4) : null
           },
           booking_details: {
-            hotel: {
-              id: hotel.hotel_id || hotel.id,
-              name: hotel.hotel_name || hotel.name,
-              city: hotel.city,
-              neighbourhood: hotel.neighbourhood_cleansed || hotel.neighbourhood
+            car: {
+              id: car.id,
+              make: car.make,
+              model: car.model,
+              year: car.year,
+              category: car.category,
+              company_name: car.company_name,
+              daily_rental_price: car.daily_rental_price
             },
-            checkIn: checkIn,
-            checkOut: checkOut,
-            guests: guests,
-            nights: nights,
-            guestInfo: booking.guestInfo
+            pickupDate: pickupDate,
+            dropoffDate: dropoffDate,
+            pickupTime: pickupTime,
+            dropoffTime: dropoffTime,
+            pickupLocation: pickupLocation,
+            days: days,
+            driverInfo: booking.driverInfo
           }
         };
 
-        console.log('📤 Sending hotel booking to backend:', backendBooking);
         const response = await bookingService.create(backendBooking);
-        console.log('✅ Backend booking response:', response);
-
-        // Update booking ID from backend response
         booking.id = response.booking_id || bookingId;
 
-        // Save to user-specific localStorage for local tracking
         if (user && user.id) {
           addUserBooking(user.id, booking);
         }
 
-        // Redirect to success page with booking details
-        navigate('/booking/success', { state: { booking, type: 'hotel' } });
+        navigate('/booking/car/success', { state: { booking } });
       } catch (error) {
-        console.error('❌ Booking creation failed:', error);
+        console.error('❌ Car booking creation failed:', error);
         alert('Failed to save booking. Please try again.');
       }
     }
@@ -232,34 +208,25 @@ export default function BookingConfirmation() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-[#FF690F]"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            Back to hotel
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="max-w-6xl mx-auto px-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-[#FF690F] dark:hover:text-[#FF690F] mb-6"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          Back
+        </button>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 dark:text-white">Confirm and Pay</h1>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Form */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
             <form onSubmit={handleSubmit}>
-              {/* Traveler Information */}
+              {/* Driver Information */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
                   <User className="w-5 h-5" />
-                  Traveler Information
+                  Driver Information
                 </h2>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2 dark:text-white">
@@ -314,7 +281,7 @@ export default function BookingConfirmation() {
 
                   <div>
                     <label className="block text-sm font-medium mb-2 dark:text-white">
-                      Phone Number <span className="text-red-500">*</span>
+                      Phone <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
@@ -324,9 +291,26 @@ export default function BookingConfirmation() {
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
                         errors.phone ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
-                      placeholder="+1 (555) 123-4567"
+                      placeholder="1234567890"
                     />
                     {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2 dark:text-white">
+                      Driver License Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="licenseNumber"
+                      value={formData.licenseNumber}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
+                        errors.licenseNumber ? 'border-red-500' : 'dark:border-gray-600'
+                      }`}
+                      placeholder="D1234567890"
+                    />
+                    {errors.licenseNumber && <p className="text-red-500 text-sm mt-1">{errors.licenseNumber}</p>}
                   </div>
 
                   <div className="md:col-span-2">
@@ -383,7 +367,7 @@ export default function BookingConfirmation() {
               </div>
 
               {/* Payment Information */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
                   {getPaymentIcon()}
                   Payment Information
@@ -405,7 +389,7 @@ export default function BookingConfirmation() {
                   </select>
                 </div>
 
-                {formData.paymentType !== 'paypal' ? (
+                {formData.paymentType !== 'paypal' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium mb-2 dark:text-white">
@@ -478,81 +462,70 @@ export default function BookingConfirmation() {
                       {errors.cvv && <p className="text-red-500 text-sm mt-1">{errors.cvv}</p>}
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      You will be redirected to PayPal to complete your payment securely.
-                    </p>
-                  </div>
                 )}
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-4 rounded-md font-bold text-lg mt-6"
+                className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-3 rounded-md font-semibold"
               >
-                Confirm and Pay ${totalPrice}
+                Confirm Booking
               </button>
             </form>
           </div>
 
-          {/* Right Column - Booking Summary */}
+          {/* Booking Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sticky top-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 sticky top-4">
               <h2 className="text-xl font-bold mb-4 dark:text-white">Booking Summary</h2>
               
               <div className="mb-4">
                 <img
-                  src={hotel.picture_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
-                  alt={hotel.hotel_name}
+                  src={car.image_url || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'}
+                  alt={`${car.make} ${car.model}`}
                   className="w-full h-48 object-cover rounded-lg mb-3"
-                  onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
-                  }}
                 />
-                <h3 className="font-bold text-lg dark:text-white">{hotel.hotel_name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
-                  <MapPin className="w-4 h-4" />
-                  {hotel.neighbourhood_cleansed}, {hotel.city}
-                </p>
+                <h3 className="font-bold text-lg dark:text-white">
+                  {car.make} {car.model} ({car.year})
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">{car.company_name}</p>
               </div>
 
-              <div className="border-t dark:border-gray-700 pt-4 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Check-in</span>
-                  <span className="font-medium dark:text-white">{checkIn}</span>
+              <div className="space-y-3 mb-4 pb-4 border-b dark:border-gray-700">
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-gray-500 mt-1" />
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Pick-up</p>
+                    <p className="font-semibold text-sm dark:text-white">{pickupLocation}</p>
+                    <p className="text-sm dark:text-gray-400">{pickupDate} at {pickupTime}</p>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Check-out</span>
-                  <span className="font-medium dark:text-white">{checkOut}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Guests</span>
-                  <span className="font-medium dark:text-white">{guests} {guests === 1 ? 'guest' : 'guests'}</span>
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-gray-500 mt-1" />
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Drop-off</p>
+                    <p className="font-semibold text-sm dark:text-white">{pickupLocation}</p>
+                    <p className="text-sm dark:text-gray-400">{dropoffDate} at {dropoffTime}</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="border-t dark:border-gray-700 pt-4 mt-4 space-y-2">
+              <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    ${hotel.price_per_night} × {nights} night{nights !== 1 ? 's' : ''}
+                    ${car.daily_rental_price} × {days} day{days !== 1 ? 's' : ''}
                   </span>
-                  <span className="dark:text-white">${(hotel.price_per_night * nights).toFixed(2)}</span>
+                  <span className="dark:text-white">${(car.daily_rental_price * days).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Service fee</span>
-                  <span className="dark:text-white">${(hotel.price_per_night * nights * 0.1).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-2 mt-2">
-                  <span className="dark:text-white">Total</span>
-                  <span className="text-[#FF690F]">${totalPrice}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Service fee (10%)</span>
+                  <span className="dark:text-white">${(car.daily_rental_price * days * 0.1).toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Your booking is protected by Kayak's secure payment system. You will receive a confirmation email after payment.
-                </p>
+              <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-3">
+                <span className="dark:text-white">Total</span>
+                <span className="text-[#FF690F]">${totalPrice}</span>
               </div>
             </div>
           </div>

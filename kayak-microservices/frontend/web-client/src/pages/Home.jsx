@@ -436,7 +436,6 @@ export default function Home() {
                 {/* Search Filters Row */}
                 <div className="flex flex-wrap gap-4 mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
                   <TripTypeDropdown value={tripType} onChange={setTripType} />
-                  <BagsDropdown value={bags} onChange={setBags} />
                 </div>
 
                 {/* Main Search Bar */}
@@ -810,191 +809,49 @@ export default function Home() {
                     
                     {showTravelersPicker && (
                       <div 
-                        className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 w-[360px] max-h-[85vh] overflow-y-auto"
+                        className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 w-[320px]"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="p-3">
-                          <h3 className="text-base font-bold mb-2 dark:text-white">Travelers</h3>
+                        <div className="p-4">
+                          <h3 className="text-base font-bold mb-3 dark:text-white">Travelers</h3>
                           
-                          {/* Adults */}
-                          <div className="flex items-center justify-between py-1.5">
-                            <div>
-                              <div className="font-bold text-xs dark:text-white">Adults</div>
-                              <div className="text-[10px] text-gray-600 dark:text-gray-400">18-64</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
+                          {/* Simple traveler buttons 1-6 */}
+                          <div className="grid grid-cols-3 gap-2 mb-4">
+                            {[1, 2, 3, 4, 5, 6].map(num => (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setAdults(Math.max(1, adults - 1));
+                                key={num}
+                                onClick={() => {
+                                  setAdults(num);
+                                  setStudents(0);
+                                  setSeniors(0);
+                                  setYouths(0);
+                                  setChildren(0);
+                                  setToddlers(0);
+                                  setInfants(0);
                                 }}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
+                                className={`px-4 py-3 rounded-lg border-2 font-medium text-sm transition-colors ${
+                                  adults === num && students === 0 && seniors === 0 && youths === 0 && children === 0 && toddlers === 0 && infants === 0
+                                    ? 'border-[#FF690F] bg-orange-50 text-[#FF690F]' 
+                                    : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500 dark:text-white'
+                                }`}
                               >
-                                −
+                                {num} {num === 1 ? 'traveler' : 'travelers'}
                               </button>
-                              <span className="w-5 text-center font-bold text-xs dark:text-white">{adults}</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setAdults(adults + 1);
-                                }}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Students */}
-                          <div className="flex items-center justify-between py-1.5 border-t border-gray-200 dark:border-gray-700">
-                            <div>
-                              <div className="font-bold text-xs dark:text-white">Students</div>
-                              <div className="text-[10px] text-gray-600 dark:text-gray-400">over 18</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => setStudents(Math.max(0, students - 1))}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                −
-                              </button>
-                              <span className="w-5 text-center font-bold text-xs dark:text-white">{students}</span>
-                              <button
-                                onClick={() => setStudents(students + 1)}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Seniors */}
-                          <div className="flex items-center justify-between py-1.5 border-t border-gray-200 dark:border-gray-700">
-                            <div>
-                              <div className="font-bold text-xs dark:text-white">Seniors</div>
-                              <div className="text-[10px] text-gray-600 dark:text-gray-400">over 65</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => setSeniors(Math.max(0, seniors - 1))}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                −
-                              </button>
-                              <span className="w-5 text-center font-bold text-xs dark:text-white">{seniors}</span>
-                              <button
-                                onClick={() => setSeniors(seniors + 1)}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Youths */}
-                          <div className="flex items-center justify-between py-1.5 border-t border-gray-200 dark:border-gray-700">
-                            <div>
-                              <div className="font-bold text-xs dark:text-white">Youths</div>
-                              <div className="text-[10px] text-gray-600 dark:text-gray-400">12-17</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => setYouths(Math.max(0, youths - 1))}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                −
-                              </button>
-                              <span className="w-5 text-center font-bold text-xs dark:text-white">{youths}</span>
-                              <button
-                                onClick={() => setYouths(youths + 1)}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Children */}
-                          <div className="flex items-center justify-between py-1.5 border-t border-gray-200 dark:border-gray-700">
-                            <div>
-                              <div className="font-bold text-xs dark:text-white">Children</div>
-                              <div className="text-[10px] text-gray-600 dark:text-gray-400">2-11</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => setChildren(Math.max(0, children - 1))}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                −
-                              </button>
-                              <span className="w-5 text-center font-bold text-xs dark:text-white">{children}</span>
-                              <button
-                                onClick={() => setChildren(children + 1)}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Toddlers */}
-                          <div className="flex items-center justify-between py-1.5 border-t border-gray-200 dark:border-gray-700">
-                            <div>
-                              <div className="font-bold text-xs dark:text-white">Toddlers in own seat</div>
-                              <div className="text-[10px] text-gray-600 dark:text-gray-400">under 2</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => setToddlers(Math.max(0, toddlers - 1))}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                −
-                              </button>
-                              <span className="w-5 text-center font-bold text-xs dark:text-white">{toddlers}</span>
-                              <button
-                                onClick={() => setToddlers(toddlers + 1)}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Infants */}
-                          <div className="flex items-center justify-between py-1.5 border-t border-gray-200 dark:border-gray-700">
-                            <div>
-                              <div className="font-bold text-xs dark:text-white">Infants on lap</div>
-                              <div className="text-[10px] text-gray-600 dark:text-gray-400">under 2</div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => setInfants(Math.max(0, infants - 1))}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                −
-                              </button>
-                              <span className="w-5 text-center font-bold text-xs dark:text-white">{infants}</span>
-                              <button
-                                onClick={() => setInfants(infants + 1)}
-                                className="w-7 h-7 rounded-md border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm"
-                              >
-                                +
-                              </button>
-                            </div>
+                            ))}
                           </div>
                           
                           {/* Cabin Class */}
-                          <div className="pt-2 border-t border-gray-200 mt-1">
-                            <h3 className="text-base font-bold mb-2">Cabin Class</h3>
-                            <div className="grid grid-cols-2 gap-1.5">
+                          <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <h3 className="text-base font-bold mb-3 dark:text-white">Cabin Class</h3>
+                            <div className="grid grid-cols-2 gap-2">
                               {['Economy', 'Premium Economy', 'Business', 'First'].map(cls => (
                                 <button
                                   key={cls}
                                   onClick={() => setCabinClass(cls)}
-                                  className={`px-2 py-1.5 rounded-lg border-2 font-medium text-[10px] transition-colors ${
+                                  className={`px-3 py-2 rounded-lg border-2 font-medium text-sm transition-colors ${
                                     cabinClass === cls 
-                                      ? 'border-gray-900 bg-gray-100' 
-                                      : 'border-gray-300 hover:border-gray-400'
+                                      ? 'border-[#FF690F] bg-orange-50 text-[#FF690F]' 
+                                      : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500 dark:text-white'
                                   }`}
                                 >
                                   {cls}
@@ -1065,25 +922,36 @@ export default function Home() {
         <div className="bg-[#f7f9fa] dark:bg-gray-900 py-12">
           <div className="max-w-[1200px] mx-auto px-4">
             <h2 className="text-2xl font-bold mb-6 dark:text-white">Your recent searches</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {recentSearches && recentSearches.length > 0 ? (
                 recentSearches.slice(0, 2).map((search, index) => (
                   <div 
                     key={index} 
                     className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow cursor-pointer"
-                    onClick={() => {
-                      // Populate search form with saved search
-                      setOrigin(search.origin);
-                      setDestination(search.destination);
-                      setDepartureDate(new Date(search.departureDate));
-                      if (search.returnDate) {
-                        setReturnDate(new Date(search.returnDate));
-                        setTripType('Round-trip');
-                      } else {
-                        setTripType('One-way');
-                      }
-                      setAdults(search.adults || 1);
-                      setCabinClass(search.cabinClass || 'Economy');
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      // Navigate directly with search parameters
+                      const formatLocalDate = (date) => {
+                        const d = new Date(date);
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                      };
+
+                      const searchParams = {
+                        tripType: search.returnDate ? 'roundtrip' : 'oneway',
+                        origin: search.origin,
+                        destination: search.destination,
+                        departureDate: formatLocalDate(search.departureDate),
+                        returnDate: search.returnDate ? formatLocalDate(search.returnDate) : null,
+                        adults: search.adults || 1,
+                        cabinClass: (search.cabinClass || 'Economy').toLowerCase()
+                      };
+                      
+                      dispatch(updateSearchForm(searchParams));
+                      await dispatch(searchFlights(searchParams));
+                      navigate('/flights/results');
                     }}
                   >
                     <div className="flex items-start justify-between mb-4">
@@ -1102,7 +970,7 @@ export default function Home() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Populate and search immediately
+                          // Same action - trigger immediate search
                           setOrigin(search.origin);
                           setDestination(search.destination);
                           setDepartureDate(new Date(search.departureDate));
@@ -1126,10 +994,6 @@ export default function Home() {
                   No recent searches yet. Start searching for flights to see your history here!
                 </div>
               )}
-              <div className="bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 p-6 flex flex-col items-center justify-center text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors cursor-pointer min-h-[180px]">
-                <div className="text-5xl text-gray-400 dark:text-gray-500 mb-3">+</div>
-                <div className="font-bold text-gray-700 dark:text-gray-300">Start a new search</div>
-              </div>
             </div>
           </div>
         </div>

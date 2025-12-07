@@ -14,6 +14,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import LoginPromptModal from '../components/LoginPromptModal';
+import { getUserFavorites, removeFromUserFavorites } from '../utils/userStorage';
 
 export default function Favorites() {
   const { user } = useSelector(state => state.auth);
@@ -35,17 +36,17 @@ export default function Favorites() {
   }, [user]);
 
   const loadFavorites = () => {
-    const stored = localStorage.getItem('favorites');
-    if (stored) {
-      setFavorites(JSON.parse(stored));
+    if (user && user.id) {
+      const userFavorites = getUserFavorites(user.id);
+      setFavorites(userFavorites);
     }
   };
 
   const removeFavorite = (type, itemId) => {
-    const updated = { ...favorites };
-    updated[type] = updated[type].filter(item => item.id !== itemId);
-    setFavorites(updated);
-    localStorage.setItem('favorites', JSON.stringify(updated));
+    if (user && user.id) {
+      const updatedFavorites = removeFromUserFavorites(user.id, type, itemId);
+      setFavorites(updatedFavorites);
+    }
   };
 
   const handleFlightClick = (flight) => {
@@ -53,7 +54,7 @@ export default function Favorites() {
   };
 
   const handleHotelClick = (hotel) => {
-    navigate(`/stays/hotel/${hotel.id}`);
+    navigate(`/stays/hotel/${hotel.hotel_id || hotel.id}`);
   };
 
   const handleCarClick = (car) => {
@@ -224,7 +225,7 @@ export default function Favorites() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filtered.hotels.map((hotel) => (
                     <div
-                      key={hotel.id}
+                      key={hotel.hotel_id || hotel.id}
                       className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all cursor-pointer border border-gray-200 dark:border-gray-700"
                       onClick={() => handleHotelClick(hotel)}
                     >
@@ -246,7 +247,7 @@ export default function Favorites() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              removeFavorite('hotels', hotel.id);
+                              removeFavorite('hotels', hotel.hotel_id || hotel.id);
                             }}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                           >

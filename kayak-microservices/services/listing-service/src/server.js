@@ -13,6 +13,7 @@ const ownerRoutes = require('./routes/owner.routes');
 const adminListingsRoutes = require('./routes/admin.routes');
 const airlineReviewsRoutes = require('./routes/airline-reviews.routes');
 const cacheStatsRoutes = require('./routes/cache-stats.routes');
+const reviewsRoutes = require('./routes/reviews.routes');
 const redisCache = require('./cache/redis');
 const redisFlightCache = require('./cache/redisFlights');
 const redisHotelCache = require('./cache/redisHotels');
@@ -85,7 +86,11 @@ app.use('/api/listings/cars', carRoutes);
 // Airline reviews routes (public access)
 app.use('/api/listings/reviews', airlineReviewsRoutes);
 
-app.use('/api/listings', listingsRoutes); // Admin unified listings route
+// Admin unified listings route
+app.use('/api/listings', listingsRoutes);
+
+// Unified reviews routes (public read, authenticated write/delete)
+app.use('/api/reviews', reviewsRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

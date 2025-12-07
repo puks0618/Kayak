@@ -22,6 +22,12 @@ const routes = {
     stripApiPrefix: false, // Listing service expects /api/listings
     description: 'Flights, hotels, and cars listings'
   },
+  '/api/reviews': {
+    target: process.env.LISTING_SERVICE_URL || 'http://listing-service:3003',
+    changeOrigin: true,
+    stripApiPrefix: false, // Listing service expects /api/reviews
+    description: 'Reviews for flights, hotels, and cars'
+  },
   '/api/search': {
     target: process.env.SEARCH_SERVICE_URL || 'http://search-service:3004',
     changeOrigin: true,

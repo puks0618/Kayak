@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ownerAPI } from '../api/authClient';
 import '../styles/OwnerListings.css';
 
@@ -16,7 +16,7 @@ const OwnerCars = () => {
   const fetchMyCars = async () => {
     try {
       const response = await ownerAPI.getCars();
-      setCars(response.data);
+      setCars(response.data.cars || []);
     } catch (err) {
       console.error('Error fetching cars:', err);
       setError('Failed to load your car listings');
@@ -42,7 +42,7 @@ const OwnerCars = () => {
 
   const filteredCars = filter === 'all' 
     ? cars 
-    : cars.filter(car => car.status === filter);
+    : cars.filter(car => car.approval_status === filter);
 
   if (loading) {
     return (
@@ -83,22 +83,22 @@ const OwnerCars = () => {
           All Cars ({cars.length})
         </button>
         <button
-          className={filter === 'available' ? 'active' : ''}
-          onClick={() => setFilter('available')}
+          className={filter === 'approved' ? 'active' : ''}
+          onClick={() => setFilter('approved')}
         >
-          Available
+          Approved
         </button>
         <button
-          className={filter === 'booked' ? 'active' : ''}
-          onClick={() => setFilter('booked')}
+          className={filter === 'pending' ? 'active' : ''}
+          onClick={() => setFilter('pending')}
         >
-          Booked
+          Pending
         </button>
         <button
-          className={filter === 'maintenance' ? 'active' : ''}
-          onClick={() => setFilter('maintenance')}
+          className={filter === 'rejected' ? 'active' : ''}
+          onClick={() => setFilter('rejected')}
         >
-          Maintenance
+          Rejected
         </button>
       </div>
 
@@ -114,24 +114,24 @@ const OwnerCars = () => {
           {filteredCars.map((car) => (
             <div key={car.id} className="listing-card">
               <div className="car-image">
-                {car.image ? (
-                  <img src={car.image} alt={car.name} />
+                {car.images && car.images.length > 0 ? (
+                  <img src={car.images[0]} alt={`${car.brand} ${car.model}`} />
                 ) : (
                   <div className="placeholder-image">🚗</div>
                 )}
-                <span className={`status-badge ${car.status}`}>
-                  {car.status}
+                <span className={`status-badge ${car.approval_status}`}>
+                  {car.approval_status}
                 </span>
               </div>
               
               <div className="car-details">
-                <h3>{car.name}</h3>
-                <p className="car-type">{car.type}</p>
+                <h3>{car.brand} {car.model}</h3>
+                <p className="car-type">{car.type} • {car.year}</p>
                 
                 <div className="car-specs">
                   <span>👥 {car.seats} seats</span>
                   <span>⚙️ {car.transmission}</span>
-                  <span>⛽ {car.fuelType}</span>
+                  <span>⛽ {car.fuel_type}</span>
                 </div>
                 
                 <div className="car-location">
@@ -139,9 +139,9 @@ const OwnerCars = () => {
                 </div>
                 
                 <div className="car-price">
-                  <span className="price">${car.pricePerDay}/day</span>
-                  {car.rating && (
-                    <span className="rating">⭐ {car.rating}</span>
+                  <span className="price">${parseFloat(car.daily_rental_price).toFixed(2)}/day</span>
+                  {car.rating && parseFloat(car.rating) > 0 && (
+                    <span className="rating">⭐ {parseFloat(car.rating).toFixed(1)}</span>
                   )}
                 </div>
                 

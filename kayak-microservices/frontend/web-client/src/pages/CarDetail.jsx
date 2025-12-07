@@ -17,6 +17,8 @@ import {
   Shield
 } from 'lucide-react';
 import LoginPromptModal from '../components/LoginPromptModal';
+import ReviewSection from '../components/ReviewSection';
+import { getUserFavorites, addToUserFavorites, removeFromUserFavorites, isUserFavorite } from '../utils/userStorage';
 import {
   setSelectedCar,
   setRentalDetails,
@@ -80,33 +82,28 @@ export default function CarDetail() {
   };
 
   const checkIfLiked = () => {
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"cars": []}');
-    setIsLiked(favorites.cars?.some(c => c.id === id) || false);
+    if (user && user.id) {
+      setIsLiked(isUserFavorite(user.id, 'cars', id));
+    } else {
+      setIsLiked(false);
+    }
   };
 
   const toggleLike = () => {
-    if (!user) {
+    if (!user || !user.id) {
       setShowLoginPrompt(true);
       return;
     }
 
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"flights": [], "hotels": [], "cars": []}');
-    
     if (isLiked) {
       // Remove from favorites
-      favorites.cars = favorites.cars.filter(c => c.id !== id);
+      removeFromUserFavorites(user.id, 'cars', id);
       setIsLiked(false);
     } else {
       // Add to favorites
-      if (!favorites.cars) favorites.cars = [];
-      favorites.cars.push({
-        ...car,
-        savedAt: new Date().toISOString()
-      });
+      addToUserFavorites(user.id, 'cars', car);
       setIsLiked(true);
     }
-    
-    localStorage.setItem('favorites', JSON.stringify(favorites));
   };
 
   const handleBooking = () => {
@@ -381,6 +378,13 @@ export default function CarDetail() {
               </p>
             </div>
           </div>
+
+          {/* Reviews Section */}
+          <ReviewSection 
+            type="cars" 
+            listingId={car.id} 
+            listingName={`${car.make} ${car.model}`}
+          />
         </div>
       </div>
 

@@ -16,13 +16,14 @@ import StaysSearch from './pages/StaysSearch';
 import HotelDetail from './pages/HotelDetail';
 import BookingConfirmation from './pages/BookingConfirmation';
 import FlightBookingConfirmation from './pages/FlightBookingConfirmation';
-import BookingSuccess from './pages/BookingSuccess';
 import MyTrips from './pages/MyTrips';
 import Favorites from './pages/Favorites';
+import UserProfile from './pages/UserProfile';
+import UserReviews from './pages/UserReviews';
 import Cars from './pages/Cars';
 import CarResults from './pages/CarResults';
 import CarDetail from './pages/CarDetail';
-import CarBooking from './pages/CarBooking';
+import CarBookingConfirmation from './pages/CarBookingConfirmation';
 import CarBookingSuccess from './pages/CarBookingSuccess';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
@@ -114,14 +115,6 @@ function AppRoutes() {
           } 
         />
         <Route 
-          path="/booking/success" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><BookingSuccess /></SharedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
           path="/trips" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
@@ -138,18 +131,26 @@ function AppRoutes() {
           } 
         />
         <Route 
-          path="/favorites" 
+          path="/profile" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><Favorites /></SharedLayout>
+              <SharedLayout><UserProfile /></SharedLayout>
             </ProtectedRoute>
           } 
         />
         <Route 
-          path="/booking/:id" 
+          path="/reviews" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><BookingSuccess /></SharedLayout>
+              <SharedLayout><UserReviews /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/favorites" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><Favorites /></SharedLayout>
             </ProtectedRoute>
           } 
         />
@@ -166,10 +167,10 @@ function AppRoutes() {
           element={<SharedLayout><CarDetail /></SharedLayout>} 
         />
         <Route 
-          path="/cars/booking" 
+          path="/cars/booking/confirm" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><CarBooking /></SharedLayout>
+              <SharedLayout><CarBookingConfirmation /></SharedLayout>
             </ProtectedRoute>
           } 
         />

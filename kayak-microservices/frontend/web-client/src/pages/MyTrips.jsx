@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Calendar, MapPin, Users, ChevronRight, Search, Car, Hotel } from 'lucide-react';
+import { getUserBookings } from '../utils/userStorage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -17,15 +18,17 @@ export default function MyTrips() {
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [user]);
 
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      // Get bookings from localStorage for now (MVP)
-      const storedBookings = localStorage.getItem('bookings');
-      if (storedBookings) {
-        setBookings(JSON.parse(storedBookings));
+      // Get user-specific bookings from localStorage
+      if (user && user.id) {
+        const userBookings = getUserBookings(user.id);
+        setBookings(userBookings);
+      } else {
+        setBookings([]);
       }
       
       // TODO: Fetch from backend when API is ready

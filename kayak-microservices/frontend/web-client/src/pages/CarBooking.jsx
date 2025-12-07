@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car, Calendar } from 'lucide-react';
 import { bookingService, billingService } from '../services/api';
+import { addUserBooking } from '../utils/userStorage';
 import {
   setSelectedCar,
   setRentalDetails,
@@ -66,6 +67,43 @@ export default function CarBooking() {
   const pickupLocation = reduxPickupLocation;
   const totalPrice = pricing.totalPrice;
 
+  // Validation functions
+  const validStates = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming'
+  };
+
+  const validateZipCode = (zip) => {
+    const zipPattern = /^(\d{2}|\d{5})(-\d{4})?$/;
+    return zipPattern.test(zip);
+  };
+
+  const validateState = (state) => {
+    if (!state) return false;
+    const upperState = state.toUpperCase();
+    const lowerState = state.toLowerCase();
+    return upperState in validStates || Object.values(validStates).map(s => s.toLowerCase()).includes(lowerState);
+  };
+
+  const validatePhone = (phone) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length === 10;
+  };
+
+  const validateLicenseNumber = (license) => {
+    // US Driver License: 8-15 alphanumeric characters
+    const licensePattern = /^[A-Za-z0-9]{8,15}$/;
+    return licensePattern.test(license);
+  };
+
   if (!car) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -82,10 +120,30 @@ export default function CarBooking() {
     );
   }
 
-  const handleDriverInfoChange = (field, value) => {
-    dispatch(updateDriverInfo({ [field]: value }));
-    if (validationErrors[field]) {
-      dispatch(clearFieldError(field));
+  const handleDriverInfoChange = (e) => {
+    const { name, value } = e.target;
+    let processedValue = value;
+
+    // Auto-format phone: remove non-digits and limit to 10
+    if (name === 'phone') {
+      processedValue = value.replace(/\D/g, '').slice(0, 10);
+    }
+
+    // Auto-format license: uppercase alphanumeric only, max 15 chars
+    if (name === 'licenseNumber') {
+      processedValue = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 15);
+    }
+
+    // Auto-format state: uppercase and limit to 2 characters if abbreviation
+    if (name === 'state') {
+      if (value.length <= 2) {
+        processedValue = value.toUpperCase().slice(0, 2);
+      }
+    }
+
+    dispatch(updateDriverInfo({ [name]: processedValue }));
+    if (validationErrors[name]) {
+      dispatch(clearFieldError(name));
     }
   };
 
@@ -99,15 +157,38 @@ export default function CarBooking() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!driverInfo.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!driverInfo.lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!driverInfo.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(driverInfo.email)) newErrors.email = 'Email is invalid';
-    if (!driverInfo.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!driverInfo.address.trim()) newErrors.address = 'Address is required';
-    if (!driverInfo.city.trim()) newErrors.city = 'City is required';
-    if (!driverInfo.zipCode.trim()) newErrors.zipCode = 'Zip code is required';
-    if (!driverInfo.licenseNumber.trim()) newErrors.licenseNumber = 'Driver license number is required';
+    // Driver Info Validation with enhanced checks
+    if (!driverInfo.firstName?.trim()) newErrors.firstName = 'First name is required';
+    if (!driverInfo.lastName?.trim()) newErrors.lastName = 'Last name is required';
+    if (!driverInfo.email?.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(driverInfo.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    
+    // Phone validation
+    if (!driverInfo.phone?.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!validatePhone(driverInfo.phone)) {
+      newErrors.phone = 'Phone must be 10 digits';
+    }
+    
+    if (!driverInfo.address?.trim()) newErrors.address = 'Address is required';
+    if (!driverInfo.city?.trim()) newErrors.city = 'City is required';
+    
+    // Zip code validation
+    if (!driverInfo.zipCode?.trim()) {
+      newErrors.zipCode = 'Zip code is required';
+    } else if (!validateZipCode(driverInfo.zipCode)) {
+      newErrors.zipCode = 'Enter valid zip code (e.g., 12, 95123, 90086-1929)';
+    }
+    
+    // License number validation
+    if (!driverInfo.licenseNumber?.trim()) {
+      newErrors.licenseNumber = 'Driver license number is required';
+    } else if (!validateLicenseNumber(driverInfo.licenseNumber)) {
+      newErrors.licenseNumber = 'License must be 8-15 alphanumeric characters';
+    }
     
     if (paymentInfo.method !== 'paypal') {
       if (!paymentInfo.cardNumber.trim()) newErrors.payment_cardNumber = 'Card number is required';
@@ -118,6 +199,20 @@ export default function CarBooking() {
 
     dispatch(setValidationErrors(newErrors));
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Validation helper functions
+  const validatePhone = (phone) => {
+    const cleaned = phone.replace(/\D/g, '');
+    return cleaned.length === 10;
+  };
+
+  const validateZipCode = (zip) => {
+    return /^\d{5}(-\d{4})?$/.test(zip);
+  };
+
+  const validateLicenseNumber = (license) => {
+    return /^[a-zA-Z0-9]{8,15}$/.test(license);
   };
 
   const handleSubmit = async (e) => {
@@ -190,6 +285,11 @@ export default function CarBooking() {
       const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
       existingBookings.push(booking);
       localStorage.setItem('bookings', JSON.stringify(existingBookings));
+
+      // Save to user-specific localStorage
+      if (user && user.id) {
+        addUserBooking(user.id, booking);
+      }
 
       // Create billing record
       const billingData = {

@@ -5,6 +5,16 @@
 const BookingModel = require('../models/booking.model');
 const BillingModel = require('../models/billing.model');
 const kafkaProducer = require('../kafka/producer');
+const mysql = require('mysql2/promise');
+
+// MySQL connection for flights seat updates
+const dbConfig = {
+  host: process.env.DB_HOST || 'kayak-mysql',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || 'Somalwar1!',
+  database: 'kayak_listings'
+};
 
 class BookingController {
   async create(req, res) {
@@ -18,10 +28,73 @@ class BookingController {
 
       const { listing_id, listing_type, travel_date, total_amount, payment_details, booking_details } = req.body;
 
+      // For flights, check and reduce available seats
+      if (listing_type === 'flight' && booking_details) {
+        const passengers = booking_details.passengers || 1;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+          // Start transaction
+          await connection.beginTransaction();
+          
+          // Check outbound flight seats
+          if (booking_details.outboundFlight?.id) {
+            const [outboundRows] = await connection.query(
+              'SELECT seats_left FROM flights WHERE id = ? FOR UPDATE',
+              [booking_details.outboundFlight.id]
+            );
+            
+            if (outboundRows.length === 0) {
+              throw new Error('Outbound flight not found');
+            }
+            
+            if (outboundRows[0].seats_left < passengers) {
+              throw new Error(`Insufficient seats on outbound flight. Only ${outboundRows[0].seats_left} seats available.`);
+            }
+            
+            // Reduce outbound flight seats
+            await connection.query(
+              'UPDATE flights SET seats_left = seats_left - ? WHERE id = ?',
+              [passengers, booking_details.outboundFlight.id]
+            );
+          }
+          
+          // Check return flight seats if exists
+          if (booking_details.returnFlight?.id) {
+            const [returnRows] = await connection.query(
+              'SELECT seats_left FROM flights WHERE id = ? FOR UPDATE',
+              [booking_details.returnFlight.id]
+            );
+            
+            if (returnRows.length === 0) {
+              throw new Error('Return flight not found');
+            }
+            
+            if (returnRows[0].seats_left < passengers) {
+              throw new Error(`Insufficient seats on return flight. Only ${returnRows[0].seats_left} seats available.`);
+            }
+            
+            // Reduce return flight seats
+            await connection.query(
+              'UPDATE flights SET seats_left = seats_left - ? WHERE id = ?',
+              [passengers, booking_details.returnFlight.id]
+            );
+          }
+          
+          await connection.commit();
+          console.log(`✅ Reduced ${passengers} seats for flight booking`);
+        } catch (error) {
+          await connection.rollback();
+          throw error;
+        } finally {
+          await connection.end();
+        }
+      }
+
       // 1. Create Booking (Pending)
       const booking = await BookingModel.create({
         user_id, listing_id, listing_type,
-        travel_date, total_amount, status: 'pending'
+        travel_date, total_amount, status: 'pending', booking_details
       });
 
       // 2. Create Billing Record (Pending)

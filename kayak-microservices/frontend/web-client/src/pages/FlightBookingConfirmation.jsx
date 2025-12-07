@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin, Plane } from 'lucide-react';
 import { bookingService, billingService } from '../services/api';
+import { addUserBooking } from '../utils/userStorage';
 import {
   setSelectedOutboundFlight,
   setSelectedReturnFlight,
@@ -29,6 +30,7 @@ export default function FlightBookingConfirmation() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const { user } = useSelector(state => state.auth);
   
   // Get Redux state
   const {
@@ -196,12 +198,14 @@ export default function FlightBookingConfirmation() {
         },
         booking_details: {
           outboundFlight: {
+            id: selectedOutboundFlight.id,
             airline: selectedOutboundFlight.airline,
             origin: selectedOutboundFlight.departure_airport || selectedOutboundFlight.origin,
             destination: selectedOutboundFlight.arrival_airport || selectedOutboundFlight.destination,
             departureTime: selectedOutboundFlight.departure_time || selectedOutboundFlight.departureTime
           },
           returnFlight: selectedReturnFlight ? {
+            id: selectedReturnFlight.id,
             airline: selectedReturnFlight.airline,
             origin: selectedReturnFlight.departure_airport || selectedReturnFlight.origin,
             destination: selectedReturnFlight.arrival_airport || selectedReturnFlight.destination,
@@ -228,7 +232,7 @@ export default function FlightBookingConfirmation() {
 
       const finalBookingId = response.booking_id || response.id;
 
-      // Also store in localStorage for compatibility
+      // Prepare local booking for localStorage
       const localBooking = {
         id: finalBookingId,
         type: 'flight',
@@ -242,10 +246,11 @@ export default function FlightBookingConfirmation() {
         bookingDate: new Date().toISOString(),
         status: 'confirmed'
       };
-      
-      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-      existingBookings.push(localBooking);
-      localStorage.setItem('bookings', JSON.stringify(existingBookings));
+
+      // Store in user-specific localStorage for compatibility
+      if (user && user.id) {
+        addUserBooking(user.id, localBooking);
+      }
 
       // Create billing record
       const originCode = selectedOutboundFlight.origin?.code || selectedOutboundFlight.departure_airport || selectedOutboundFlight.origin || 'N/A';
@@ -292,7 +297,7 @@ export default function FlightBookingConfirmation() {
       // Dispatch action to save confirmed booking in Redux
       dispatch(createFlightBooking.fulfilled(confirmedBookingData));
 
-      // Navigate to success page (data will be retrieved from Redux)
+      // Navigate to success page (Redux is source of truth)
       navigate('/booking/success');
       
     } catch (error) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   MapPin,
   Star,
@@ -17,12 +17,18 @@ import {
   Shield
 } from 'lucide-react';
 import LoginPromptModal from '../components/LoginPromptModal';
+import {
+  setSelectedCar,
+  setRentalDetails,
+  calculatePricing
+} from '../store/slices/carBookingSlice';
 
 export default function CarDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   
   const [car, setCar] = useState(null);
@@ -114,27 +120,29 @@ export default function CarDetail() {
       return;
     }
 
-    const totalPrice = ((car.daily_rental_price * days) * 1.15).toFixed(2);
-
     // Ensure car images are passed correctly
     const carImages = Array.isArray(car.images) ? car.images : (typeof car.images === 'string' ? JSON.parse(car.images) : []);
     
-    navigate('/cars/booking', {
-      state: {
-        car: {
-          ...car,
-          price_per_day: car.daily_rental_price,
-          image_url: carImages[0] || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'
-        },
-        pickupDate,
-        dropoffDate,
-        pickupTime,
-        dropoffTime,
-        pickupLocation: pickupLocation || car.location,
-        days,
-        totalPrice
-      }
-    });
+    // Prepare car object with correct field names
+    const carForBooking = {
+      ...car,
+      price_per_day: car.daily_rental_price,
+      image_url: carImages[0] || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'
+    };
+    
+    // Dispatch Redux actions to set up booking state
+    dispatch(setSelectedCar(carForBooking));
+    dispatch(setRentalDetails({
+      pickupDate,
+      dropoffDate,
+      pickupTime: pickupTime || '10:00',
+      dropoffTime: dropoffTime || '10:00',
+      pickupLocation: pickupLocation || car.location
+    }));
+    dispatch(calculatePricing());
+    
+    // Navigate to booking page (Redux state is already set)
+    navigate('/cars/booking');
   };
 
   if (loading) {

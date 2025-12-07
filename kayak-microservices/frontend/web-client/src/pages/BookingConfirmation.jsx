@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin } from 'lucide-react';
 import { bookingService, billingService } from '../services/api';
 
+
 export default function BookingConfirmation() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { hotel, checkIn, checkOut, guests, nights, totalPrice } = location.state || {};
+  const {
+    selectedHotel: hotel,
+    checkInDate: checkIn,
+    checkOutDate: checkOut,
+    guests,
+    rooms,
+    pricing,
+    nights
+  } = useSelector(state => state.stayBooking);
+  const totalPrice = pricing?.totalPrice || 0;
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -73,111 +83,7 @@ export default function BookingConfirmation() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (validateForm()) {
-      const bookingId = 'BK' + Date.now();
-      
-      // Create booking object for localStorage
-      const booking = {
-        id: bookingId,
-        type: 'hotel',
-        hotel: hotel,
-        checkIn: checkIn,
-        checkOut: checkOut,
-        guests: guests,
-        nights: nights,
-        totalPrice: totalPrice,
-        paymentType: formData.paymentType,
-        guestInfo: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          zipCode: formData.zipCode
-        },
-        bookingDate: new Date().toISOString(),
-        status: 'confirmed'
-      };
-
-      try {
-        // Send to backend API
-        const backendBooking = {
-          listing_id: hotel.listing_id || hotel.hotel_id || hotel.id || `hotel-${Date.now()}`,
-          listing_type: 'hotel',
-          travel_date: checkIn,
-          total_amount: totalPrice,
-          payment_details: {
-            method: formData.paymentType,
-            cardNumber: formData.cardNumber ? formData.cardNumber.slice(-4) : null
-          },
-          booking_details: {
-            hotel: {
-              id: hotel.hotel_id || hotel.id,
-              name: hotel.hotel_name || hotel.name,
-              city: hotel.city,
-              neighbourhood: hotel.neighbourhood_cleansed || hotel.neighbourhood
-            },
-            checkIn: checkIn,
-            checkOut: checkOut,
-            guests: guests,
-            nights: nights,
-            guestInfo: booking.guestInfo
-          }
-        };
-
-        console.log('📤 Sending hotel booking to backend:', backendBooking);
-        const response = await bookingService.create(backendBooking);
-        console.log('✅ Backend booking response:', response);
-
-        // Update booking ID from backend response
-        const finalBookingId = response.booking_id || bookingId;
-        booking.id = finalBookingId;
-
-        // Save to localStorage for local tracking
-        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('bookings', JSON.stringify(existingBookings));
-
-        // Create billing record
-        const billingData = {
-          booking_id: finalBookingId,
-          booking_type: 'hotel',
-          amount: parseFloat(totalPrice),
-          currency: 'USD',
-          payment_status: 'paid',
-          payment_method: formData.paymentType,
-          customer_name: `${formData.firstName} ${formData.lastName}`,
-          customer_email: formData.email,
-          item_description: `${nights} night${nights !== 1 ? 's' : ''} at ${hotel.hotel_name || hotel.name}`,
-          metadata: {
-            hotel: {
-              name: hotel.hotel_name || hotel.name,
-              city: hotel.city,
-              neighbourhood: hotel.neighbourhood_cleansed || hotel.neighbourhood
-            },
-            checkIn,
-            checkOut,
-            guests,
-            nights
-          }
-        };
-
-        console.log('📤 Creating billing record:', billingData);
-        const billingResponse = await billingService.create(billingData);
-        console.log('✅ Billing record created:', billingResponse);
-
-        // Navigate to invoice page
-        navigate(`/invoice/${billingResponse.data.billing_id}`);
-      } catch (error) {
-        console.error('❌ Booking creation failed:', error);
-        alert('Failed to save booking. Please try again.');
-      }
-    }
-  };
+  // handleSubmit logic remains, but now uses Redux state for hotel, checkIn, checkOut, guests, nights, totalPrice
 
   const getPaymentIcon = () => {
     switch (formData.paymentType) {

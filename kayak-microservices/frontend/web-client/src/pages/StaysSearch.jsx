@@ -14,7 +14,9 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+
 import { searchStaysAsync, updateSearchForm, setPage } from '../store/slices/staysSlice';
+import { setSelectedHotel, setStayDetails, calculatePricing } from '../store/slices/stayBookingSlice';
 
 export default function StaysSearch() {
   const navigate = useNavigate();
@@ -146,12 +148,28 @@ export default function StaysSearch() {
   };
 
   // Navigate to hotel detail
+
   const handleHotelClick = (hotelId) => {
     console.log('Navigating to hotel:', hotelId, typeof hotelId);
     if (!hotelId) {
       console.error('ERROR: hotelId is undefined!');
       return;
     }
+    // Find the hotel object from filteredResults
+    const hotel = filteredResults.find(h => h.hotel_id === hotelId || h.id === hotelId);
+    if (!hotel) {
+      console.error('Hotel not found in filteredResults:', hotelId);
+      return;
+    }
+    // Dispatch Redux actions to set selected hotel and stay details
+    dispatch(setSelectedHotel(hotel));
+    dispatch(setStayDetails({
+      checkInDate: searchForm.checkIn,
+      checkOutDate: searchForm.checkOut,
+      guests: searchForm.guests,
+      rooms: searchForm.rooms
+    }));
+    dispatch(calculatePricing());
     navigate(`/stays/hotel/${hotelId}`);
   };
 

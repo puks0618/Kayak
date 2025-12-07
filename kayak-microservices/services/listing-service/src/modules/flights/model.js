@@ -60,16 +60,22 @@ const FlightModel = {
     
     // Convert duration to minutes
     const durationMinutes = this.parseDuration(duration, departure_time, arrival_time);
+    
+    // Map frontend fields to database columns
+    const seats_total = parseInt(total_seats) || 0;
+    const seats_left = seats_total; // Initially all seats are available
+    const cabin_class = flightClass || 'economy';
+    const base_price = parseFloat(price);
 
     const query = `
       INSERT INTO flights 
-      (id, flight_code, airline, departure_airport, arrival_airport, departure_time, arrival_time, duration, price, total_seats, class) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, flight_code, airline, departure_airport, arrival_airport, departure_time, arrival_time, duration, price, base_price, seats_total, seats_left, cabin_class, stops) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await pool.execute(query, [
       id, flight_code, airline, departure_airport, arrival_airport,
-      departure_time, arrival_time, durationMinutes, price, total_seats, flightClass
+      departure_time, arrival_time, durationMinutes, price, base_price, seats_total, seats_left, cabin_class, 0
     ]);
 
     return { id, ...flightData, duration: durationMinutes };
@@ -106,17 +112,38 @@ const FlightModel = {
   },
 
   async update(id, updates) {
-    // Convert duration if present
-    if (updates.duration !== undefined) {
-      updates.duration = this.parseDuration(
-        updates.duration, 
-        updates.departure_time, 
-        updates.arrival_time
-      );
+    // Map frontend fields to database columns
+    const fieldMapping = {
+      'total_seats': 'seats_total',
+      'class': 'cabin_class'
+    };
+
+    // Create mapped updates object
+    const mappedUpdates = {};
+    for (const [key, value] of Object.entries(updates)) {
+      const dbColumn = fieldMapping[key] || key;
+      
+      // Convert duration if present
+      if (key === 'duration') {
+        mappedUpdates[dbColumn] = this.parseDuration(
+          value,
+          updates.departure_time,
+          updates.arrival_time
+        );
+      } else if (key === 'total_seats') {
+        // Update both seats_total and seats_left
+        mappedUpdates['seats_total'] = parseInt(value);
+        mappedUpdates['seats_left'] = parseInt(value); // Reset available seats
+      } else if (key === 'price') {
+        mappedUpdates[dbColumn] = parseFloat(value);
+        mappedUpdates['base_price'] = parseFloat(value); // Keep base_price in sync
+      } else {
+        mappedUpdates[dbColumn] = value;
+      }
     }
 
-    const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = [...Object.values(updates), id];
+    const fields = Object.keys(mappedUpdates).map(key => `${key} = ?`).join(', ');
+    const values = [...Object.values(mappedUpdates), id];
 
     if (fields.length === 0) return null;
 

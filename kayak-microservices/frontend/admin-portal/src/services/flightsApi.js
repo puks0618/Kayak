@@ -14,6 +14,7 @@ export const getFlights = async (params = {}) => {
       page = 1,
       limit = 20,
       airline,
+      flightNumber,
       origin,
       destination,
       sortBy = 'departure_time',
@@ -28,6 +29,7 @@ export const getFlights = async (params = {}) => {
     });
 
     if (airline) queryParams.append('airline', airline);
+    if (flightNumber) queryParams.append('flightNumber', flightNumber);
     if (origin) queryParams.append('origin', origin);
     if (destination) queryParams.append('destination', destination);
 
@@ -96,11 +98,9 @@ export const deleteFlight = async (id) => {
  */
 export const getAirlines = async () => {
   try {
-    // Get all flights and extract unique airlines
-    const response = await api.get('/listings/flights?limit=1000');
-    const flights = response.data.flights || [];
-    const airlines = [...new Set(flights.map(f => f.airline))].sort();
-    return airlines;
+    // Use dedicated airlines endpoint for efficiency
+    const response = await api.get('/listings/flights/airlines');
+    return response.data.airlines || [];
   } catch (error) {
     console.error('Error fetching airlines:', error);
     return [];

@@ -52,7 +52,7 @@ const authMiddleware = async (req, res, next) => {
 const protectedRoutes = [
   '/api/users',
   '/api/bookings',
-  // '/api/admin'  // Temporarily disabled for Phase 2 testing
+  // '/api/admin'  // Admin service doesn't have auth middleware yet
 ];
 
 const shouldAuthenticate = (path) => {

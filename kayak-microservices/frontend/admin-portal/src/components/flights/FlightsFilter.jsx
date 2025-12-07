@@ -32,6 +32,14 @@ const FlightsFilter = ({ filters, onFilterChange, onSearch, onReset, airlines = 
         />
 
         <Input
+          name="flightNumber"
+          label="Flight Number"
+          value={filters.flightNumber || ''}
+          onChange={handleChange}
+          placeholder="e.g., SO926"
+        />
+
+        <Input
           name="origin"
           label="Origin"
           value={filters.origin || ''}

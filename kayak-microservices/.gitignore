@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables - NEVER COMMIT THESE
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Credentials and secrets
+*.pem
+*.key
+*credentials*
+!scripts/get-db-credentials.sh
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.auto.tfvars
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Testing
+coverage/
+.nyc_output/
+testing/performance/results/
+testing/performance/*.log
+testing/performance/jmeter_dashboards/
+testing/performance/*_report_*/
+testing/performance/comparison/
+testing/performance/comparison_*/
+testing/performance/html_graphs_*/
+testing/performance/performance_comparison_*/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+*.egg-info/
+
+# Temporary files
+*.tmp
+*.bak
+.cache/

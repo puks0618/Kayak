@@ -1,0 +1,17 @@
+{
+    "name": "kayak-scripts",
+    "version": "1.0.0",
+    "description": "Database initialization scripts",
+    "main": "create_databases.js",
+    "scripts": {
+        "init-db": "node create_databases.js"
+    },
+    "dependencies": {
+        "csv-parser": "^3.2.0",
+        "dotenv": "^16.6.1",
+        "kafkajs": "^2.2.4",
+        "mongodb": "^6.0.0",
+        "mysql2": "^3.15.3",
+        "uuid": "^13.0.0"
+    }
+}

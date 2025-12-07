@@ -1,0 +1,28 @@
+{
+  "name": "kayak-admin-portal",
+  "version": "1.0.0",
+  "description": "Kayak admin portal",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext js,jsx",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^2.10.3",
+    "axios": "^1.6.2",
+    "@tanstack/react-table": "^8.10.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "vite": "^5.0.0",
+    "eslint": "^8.54.0",
+    "vitest": "^1.0.0"
+  }
+}
+

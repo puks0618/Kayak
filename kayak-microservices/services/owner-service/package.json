@@ -1,0 +1,17 @@
+{
+  "name": "owner-service",
+  "version": "1.0.0",
+  "description": "Hotel Owner Service - Manages owner dashboards and hotel bookings",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

@@ -10,15 +10,27 @@ import authReducer from './authSlice';
 import flightsReducer from './slices/flightsSlice';
 import staysReducer from './slices/staysSlice';
 import carsReducer from './slices/carsSlice';
+import bookingReducer from './slices/bookingSlice';
+import flightBookingReducer from './slices/flightBookingSlice';
+import carBookingReducer from './slices/carBookingSlice';
+import stayBookingReducer from './slices/stayBookingSlice';
 
-// Persist configuration
-const persistConfig = {
+// Persist configuration for auth
+const authPersistConfig = {
   key: 'kayak-auth',
   storage,
   whitelist: ['user', 'token', 'isAuthenticated'], // Only persist these fields
 };
 
-const persistedAuthReducer = persistReducer(persistConfig, authReducer);
+// Persist configuration for flight booking (draft persistence)
+const flightBookingPersistConfig = {
+  key: 'kayak-flight-booking',
+  storage,
+  whitelist: ['selectedOutboundFlight', 'selectedReturnFlight', 'selectedFare', 'passengers', 'passengerDetails', 'contactInfo', 'additionalServices', 'pricing'],
+};
+
+const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
+const persistedFlightBookingReducer = persistReducer(flightBookingPersistConfig, flightBookingReducer);
 
 export const store = configureStore({
   reducer: {
@@ -26,6 +38,10 @@ export const store = configureStore({
     flights: flightsReducer,
     stays: staysReducer,
     cars: carsReducer,
+    booking: bookingReducer,
+    flightBooking: persistedFlightBookingReducer,
+    carBooking: carBookingReducer,
+    stayBooking: stayBookingReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

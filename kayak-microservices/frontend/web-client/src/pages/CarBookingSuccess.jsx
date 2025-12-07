@@ -1,11 +1,48 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { CheckCircle, Calendar, MapPin, Car, CreditCard, Download, Share2, User } from 'lucide-react';
 
 export default function CarBookingSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { booking } = location.state || {};
+  
+  // Get Redux state
+  const {
+    selectedCar,
+    pickupDate,
+    dropoffDate,
+    pickupTime,
+    dropoffTime,
+    pickupLocation,
+    days,
+    driverInfo,
+    paymentInfo,
+    pricing,
+    confirmedBooking,
+    bookingId
+  } = useSelector(state => state.carBooking);
+
+  // Fallback to location.state for backward compatibility
+  const { booking: locationBooking } = location.state || {};
+  
+  // Build booking object from Redux state or location.state
+  const booking = confirmedBooking || (selectedCar ? {
+    id: bookingId,
+    type: 'car',
+    car: selectedCar,
+    pickupDate,
+    dropoffDate,
+    pickupTime,
+    dropoffTime,
+    pickupLocation,
+    days,
+    totalPrice: pricing.totalPrice,
+    paymentType: paymentInfo.method === 'credit' ? 'Credit Card' : paymentInfo.method === 'debit' ? 'Debit Card' : 'PayPal',
+    driverInfo,
+    bookingDate: new Date().toISOString(),
+    status: 'confirmed'
+  }) : locationBooking;
 
   if (!booking) {
     return (

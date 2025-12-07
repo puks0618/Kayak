@@ -240,6 +240,14 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/invoice/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><InvoiceViewerPage /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
         
         {/* Owner routes removed - now on owner-portal (port 5180) */}
         {/* Owners are redirected to http://localhost:5180 after login */}

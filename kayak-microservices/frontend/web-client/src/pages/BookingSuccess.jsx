@@ -1,11 +1,74 @@
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2 } from 'lucide-react';
 
 export default function BookingSuccess() {
+
   const navigate = useNavigate();
-  const location = useLocation();
-  const { booking } = location.state || {};
+  // Get Redux state for both flight and stay bookings
+  const flightState = useSelector(state => state.flightBooking);
+  const stayState = useSelector(state => state.stayBooking);
+
+  // Prefer flight booking if present, else stay booking
+  let booking = null;
+  if (flightState.confirmedBooking) {
+    booking = flightState.confirmedBooking;
+  } else if (flightState.selectedOutboundFlight) {
+    booking = {
+      id: flightState.bookingId,
+      type: 'flight',
+      outboundFlight: flightState.selectedOutboundFlight,
+      returnFlight: flightState.selectedReturnFlight,
+      fare: {
+        label: flightState.selectedFare === 'flexible' ? 'Flexible' : flightState.selectedFare === 'standard' ? 'Standard' : 'Basic',
+        price: flightState.pricing.totalPrice
+      },
+      passengers: flightState.passengers.adults + flightState.passengers.children + flightState.passengers.infants,
+      totalPrice: flightState.pricing.totalPrice,
+      paymentType: flightState.paymentInfo.method === 'credit' ? 'Credit Card' : flightState.paymentInfo.method === 'debit' ? 'Debit Card' : 'PayPal',
+      passengerInfo: {
+        firstName: flightState.passengerDetails[0]?.firstName,
+        lastName: flightState.passengerDetails[0]?.lastName,
+        email: flightState.contactInfo.email,
+        phone: flightState.contactInfo.phone,
+        address: flightState.contactInfo.address,
+        city: flightState.contactInfo.city,
+        zipCode: flightState.contactInfo.zipCode
+      },
+      bookingDate: new Date().toISOString(),
+      status: 'confirmed'
+    };
+  } else if (stayState.confirmedBooking) {
+    booking = {
+      ...stayState.confirmedBooking,
+      type: 'hotel',
+    };
+  } else if (stayState.selectedHotel) {
+    booking = {
+      id: stayState.bookingId,
+      type: 'hotel',
+      hotel: stayState.selectedHotel,
+      checkIn: stayState.checkInDate,
+      checkOut: stayState.checkOutDate,
+      guests: stayState.guests,
+      rooms: stayState.rooms,
+      nights: stayState.nights,
+      totalPrice: stayState.pricing.totalPrice,
+      paymentType: stayState.paymentInfo.method === 'credit' ? 'Credit Card' : stayState.paymentInfo.method === 'debit' ? 'Debit Card' : 'PayPal',
+      guestInfo: {
+        firstName: stayState.contactInfo.firstName,
+        lastName: stayState.contactInfo.lastName,
+        email: stayState.contactInfo.email,
+        phone: stayState.contactInfo.phone,
+        address: stayState.contactInfo.address,
+        city: stayState.contactInfo.city,
+        zipCode: stayState.contactInfo.zipCode
+      },
+      bookingDate: new Date().toISOString(),
+      status: 'confirmed'
+    };
+  }
 
   if (!booking) {
     return (

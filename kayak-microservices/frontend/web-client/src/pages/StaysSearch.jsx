@@ -14,23 +14,17 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+
 import { searchStaysAsync, updateSearchForm, setPage } from '../store/slices/staysSlice';
+import { setSelectedHotel, setStayDetails, calculatePricing } from '../store/slices/stayBookingSlice';
 
 export default function StaysSearch() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   
   const { results, loading, error, pagination, searchForm, cached } = useSelector(state => state.stays);
   const [showFilters, setShowFilters] = useState(false);
-  
-  // Edit search panel state
-  const [showEditPanel, setShowEditPanel] = useState(false);
-  const [editCities, setEditCities] = useState(searchParams.get('cities') || '');
-  const [editCheckIn, setEditCheckIn] = useState(searchParams.get('checkIn') || '');
-  const [editCheckOut, setEditCheckOut] = useState(searchParams.get('checkOut') || '');
-  const [editRooms, setEditRooms] = useState(searchParams.get('rooms') || '1');
-  const [editGuests, setEditGuests] = useState(searchParams.get('guests') || '2');
   
   // Local filter state
   const [priceRange, setPriceRange] = useState([0, 1000]);
@@ -42,10 +36,10 @@ export default function StaysSearch() {
   const searchedCities = searchParams.get('cities')?.split(',').filter(Boolean) || [];
   
   // Client-side filtering to ensure only searched location properties are shown
-  const filteredResults = (results || []).filter(hotel => {
-    // Skip if hotel data is invalid - hotel_id is the correct field name
-    if (!hotel || !hotel.hotel_id) {
-      return false;
+  const filteredResults = results.filter(hotel => {
+    // Debug logging
+    if (!hotel.hotel_id) {
+      console.error('Hotel missing hotel_id:', hotel);
     }
     
     // Filter by location - check if the hotel's city matches any of the searched cities
@@ -154,57 +148,29 @@ export default function StaysSearch() {
   };
 
   // Navigate to hotel detail
+
   const handleHotelClick = (hotelId) => {
     console.log('Navigating to hotel:', hotelId, typeof hotelId);
     if (!hotelId) {
       console.error('ERROR: hotelId is undefined!');
       return;
     }
-    
-    // Pass search params to hotel detail page for calendar auto-population
-    const params = new URLSearchParams({
-      checkIn: searchForm.checkIn,
-      checkOut: searchForm.checkOut,
+    // Find the hotel object from filteredResults
+    const hotel = filteredResults.find(h => h.hotel_id === hotelId || h.id === hotelId);
+    if (!hotel) {
+      console.error('Hotel not found in filteredResults:', hotelId);
+      return;
+    }
+    // Dispatch Redux actions to set selected hotel and stay details
+    dispatch(setSelectedHotel(hotel));
+    dispatch(setStayDetails({
+      checkInDate: searchForm.checkIn,
+      checkOutDate: searchForm.checkOut,
       guests: searchForm.guests,
       rooms: searchForm.rooms
-    });
-    
-    navigate(`/stays/hotel/${hotelId}?${params.toString()}`);
-  };
-
-  // Handle edit search update
-  const handleUpdateSearch = () => {
-    const newParams = new URLSearchParams({
-      cities: editCities,
-      checkIn: editCheckIn,
-      checkOut: editCheckOut,
-      rooms: editRooms,
-      guests: editGuests
-    });
-
-    // Update URL and trigger new search
-    setSearchParams(newParams);
-    setShowEditPanel(false);
-    
-    // Update Redux state and fetch new results
-    dispatch(updateSearchForm({
-      cities: editCities.split(',').map(c => c.trim()).filter(Boolean),
-      checkIn: editCheckIn,
-      checkOut: editCheckOut,
-      rooms: parseInt(editRooms),
-      guests: parseInt(editGuests)
     }));
-
-    dispatch(searchStaysAsync({
-      cities: editCities.split(',').map(c => c.trim()).filter(Boolean),
-      checkIn: editCheckIn,
-      checkOut: editCheckOut,
-      rooms: parseInt(editRooms),
-      guests: parseInt(editGuests),
-      sortBy,
-      page: 1,
-      limit: 20
-    }));
+    dispatch(calculatePricing());
+    navigate(`/stays/hotel/${hotelId}`);
   };
 
   if (loading && results.length === 0) {
@@ -224,6 +190,7 @@ export default function StaysSearch() {
             <div>
               <h1 className="text-2xl font-bold dark:text-white">
                 {filteredResults.length} hotel{filteredResults.length !== 1 ? 's' : ''} found
+                {cached && <span className="text-sm text-gray-500 ml-2">(cached)</span>}
               </h1>
               <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
                 {searchForm.cities?.join(', ')} • {searchForm.checkIn} - {searchForm.checkOut}
@@ -231,14 +198,6 @@ export default function StaysSearch() {
             </div>
             
             <div className="flex items-center gap-4">
-              {/* Edit Search Button */}
-              <button
-                onClick={() => setShowEditPanel(!showEditPanel)}
-                className="px-4 py-2 bg-[#FF690F] text-white rounded-md hover:bg-orange-600 transition-colors font-medium"
-              >
-                {showEditPanel ? 'Close' : 'Edit Search'}
-              </button>
-
               {/* Sort Dropdown */}
               <div className="relative">
                 <select
@@ -263,103 +222,6 @@ export default function StaysSearch() {
               </button>
             </div>
           </div>
-
-          {/* Edit Search Panel */}
-          {showEditPanel && (
-            <div className="mt-4 bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Your Search</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                {/* Cities */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Destination
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={editCities}
-                      onChange={(e) => setEditCities(e.target.value)}
-                      placeholder="Cities (comma separated)"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-800 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Check-in Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Check-in
-                  </label>
-                  <input
-                    type="date"
-                    value={editCheckIn}
-                    onChange={(e) => setEditCheckIn(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-
-                {/* Check-out Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Check-out
-                  </label>
-                  <input
-                    type="date"
-                    value={editCheckOut}
-                    onChange={(e) => setEditCheckOut(e.target.value)}
-                    min={editCheckIn || new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-
-                {/* Rooms */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Rooms
-                  </label>
-                  <input
-                    type="number"
-                    value={editRooms}
-                    onChange={(e) => setEditRooms(e.target.value)}
-                    min="1"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-
-                {/* Guests */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Guests
-                  </label>
-                  <input
-                    type="number"
-                    value={editGuests}
-                    onChange={(e) => setEditGuests(e.target.value)}
-                    min="1"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-800 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              {/* Update Search Button */}
-              <div className="mt-4 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowEditPanel(false)}
-                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdateSearch}
-                  className="px-6 py-2 bg-[#FF690F] text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
-                >
-                  Update Search
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -469,12 +331,8 @@ export default function StaysSearch() {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredResults.map((hotel, index) => (
-                    <HotelCard 
-                      key={hotel.hotel_id} 
-                      hotel={hotel} 
-                      onClick={() => handleHotelClick(hotel.hotel_id)} 
-                    />
+                  {filteredResults.map((hotel) => (
+                    <HotelCard key={hotel.hotel_id} hotel={hotel} onClick={() => handleHotelClick(hotel.hotel_id)} />
                   ))}
                 </div>
 
@@ -513,6 +371,14 @@ export default function StaysSearch() {
 
 // Hotel Card Component
 function HotelCard({ hotel, onClick }) {
+  // Debug: Log hotel data
+  console.log('HotelCard received:', {
+    hotel_id: hotel.hotel_id,
+    id: hotel.id,
+    name: hotel.hotel_name,
+    hasHotelId: !!hotel.hotel_id
+  });
+  
   // Extract image URL from images array or use picture_url
   const imageUrl = hotel.images && hotel.images.length > 0 
     ? hotel.images[0]
@@ -532,7 +398,7 @@ function HotelCard({ hotel, onClick }) {
       <div className="relative h-48 overflow-hidden">
         <img
           src={imageUrl}
-          alt={hotel.hotel_name}
+          alt={hotel.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
@@ -548,7 +414,7 @@ function HotelCard({ hotel, onClick }) {
       {/* Content */}
       <div className="p-4">
         <h3 className="font-bold text-lg mb-2 dark:text-white line-clamp-2">
-          {hotel.hotel_name}
+          {hotel.name}
         </h3>
         
         <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 mb-2">

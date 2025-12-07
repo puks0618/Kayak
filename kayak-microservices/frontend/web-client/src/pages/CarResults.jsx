@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { Car, MapPin, Users, Settings, Star, ArrowLeft, Filter } from 'lucide-react';
+import {
+  setSelectedCar,
+  setRentalDetails,
+  calculatePricing
+} from '../store/slices/carBookingSlice';
 
 export default function CarResults() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,24 +85,20 @@ export default function CarResults() {
 
   const handleBookCar = (car, e) => {
     e.stopPropagation(); // Prevent card click when clicking book button
-    // Calculate rental days
-    const pickup = new Date(pickupDate);
-    const dropoff = new Date(dropoffDate);
-    const days = Math.ceil((dropoff - pickup) / (1000 * 60 * 60 * 24));
-    const totalPrice = ((car.price_per_day * days) * 1.15).toFixed(2); // 15% tax included
-
-    navigate('/cars/booking', {
-      state: {
-        car,
-        pickupDate,
-        dropoffDate,
-        pickupTime,
-        dropoffTime,
-        pickupLocation: location,
-        days,
-        totalPrice
-      }
-    });
+    
+    // Dispatch Redux actions to set up booking state
+    dispatch(setSelectedCar(car));
+    dispatch(setRentalDetails({
+      pickupDate,
+      dropoffDate,
+      pickupTime: pickupTime || '10:00',
+      dropoffTime: dropoffTime || '10:00',
+      pickupLocation: location
+    }));
+    dispatch(calculatePricing());
+    
+    // Navigate to booking page (Redux state is already set)
+    navigate('/cars/booking');
   };
 
   const handleUpdateSearch = () => {

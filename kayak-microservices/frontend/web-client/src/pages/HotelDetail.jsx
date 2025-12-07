@@ -34,7 +34,9 @@ import {
   Sparkles,
   Shirt
 } from 'lucide-react';
+
 import { getStayDetailsAsync } from '../store/slices/staysSlice';
+import { setSelectedHotel, setStayDetails, calculatePricing } from '../store/slices/stayBookingSlice';
 
 // Helper function to get appropriate icon for amenity
 function getAmenityIcon(amenityName) {
@@ -394,18 +396,18 @@ export default function HotelDetail() {
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={() => {
                   console.log('Reserve button clicked!');
                   console.log('User state:', user);
                   console.log('Check-in:', checkIn);
                   console.log('Check-out:', checkOut);
-                  
+
                   if (!checkIn || !checkOut) {
                     alert('Please select check-in and check-out dates');
                     return;
                   }
-                  
+
                   // Check if user is logged in
                   if (!user) {
                     // Show alert to login
@@ -413,26 +415,26 @@ export default function HotelDetail() {
                       'Please sign in to book this stay.\n\n' +
                       'Click OK to go to login page, or Cancel to continue browsing.'
                     );
-                    
                     if (shouldLogin) {
-                      navigate('/login', { 
-                        state: { from: { pathname: location.pathname } } 
+                      navigate('/login', {
+                        state: { from: { pathname: location.pathname } }
                       });
                     }
                     return;
                   }
-                  
-                  console.log('User is logged in, navigating to booking');
-                  navigate('/stays/booking/confirm', {
-                    state: {
-                      hotel,
-                      checkIn,
-                      checkOut,
-                      guests,
-                      nights,
-                      totalPrice: (hotel.price_per_night * nights * 1.1).toFixed(2)
-                    }
-                  });
+
+                  // Use Redux for booking data
+                  dispatch(setSelectedHotel(hotel));
+                  dispatch(setStayDetails({
+                    checkInDate: checkIn,
+                    checkOutDate: checkOut,
+                    guests,
+                    rooms: 1 // Default to 1 room, or add room selection if available
+                  }));
+                  dispatch(calculatePricing());
+
+                  console.log('User is logged in, navigating to booking confirmation');
+                  navigate('/stays/booking/confirm');
                 }}
                 className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-3 rounded-md font-bold text-lg mb-4"
               >

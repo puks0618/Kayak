@@ -192,27 +192,38 @@ export default function CarBooking() {
       localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
       // Create billing record
+      // Map payment method to billing service format
+      const paymentMethodMap = {
+        'credit': 'CREDIT_CARD',
+        'debit': 'DEBIT_CARD',
+        'paypal': 'PAYPAL',
+        'other': 'OTHER'
+      };
+      
       const billingData = {
-        booking_id: finalBookingId,
-        booking_type: 'car',
-        amount: parseFloat(totalPrice),
-        currency: 'USD',
-        payment_status: 'paid',
-        payment_method: paymentInfo.method,
-        customer_name: `${driverInfo.firstName} ${driverInfo.lastName}`,
-        customer_email: driverInfo.email,
-        item_description: `${days} day${days !== 1 ? 's' : ''} rental: ${car.brand} ${car.model}`,
-        metadata: {
-          car: {
-            brand: car.brand,
-            model: car.model,
-            year: car.year,
-            type: car.type
-          },
-          pickupDate,
-          dropoffDate,
-          pickupLocation,
-          days
+        userId: user?.id || user?.user_id || 'guest',
+        bookingType: 'CAR',
+        bookingId: finalBookingId,
+        totalAmount: parseFloat(totalPrice),
+        paymentMethod: paymentMethodMap[paymentInfo.method] || 'CREDIT_CARD',
+        transactionStatus: 'PAID',
+        invoiceDetails: {
+          customer_name: `${driverInfo.firstName} ${driverInfo.lastName}`,
+          customer_email: driverInfo.email,
+          item_description: `${days} day${days !== 1 ? 's' : ''} rental: ${car.brand} ${car.model}`,
+          currency: 'USD',
+          metadata: {
+            car: {
+              brand: car.brand,
+              model: car.model,
+              year: car.year,
+              type: car.type
+            },
+            pickupDate,
+            dropoffDate,
+            pickupLocation,
+            days
+          }
         }
       };
 

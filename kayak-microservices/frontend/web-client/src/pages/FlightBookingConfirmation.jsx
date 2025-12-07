@@ -46,6 +46,9 @@ export default function FlightBookingConfirmation() {
     confirmedBooking,
     bookingId
   } = useSelector(state => state.flightBooking);
+  
+  // Get user from auth state
+  const { user } = useSelector(state => state.auth);
 
   // Initialize from location state if coming from flight selection
   useEffect(() => {
@@ -251,27 +254,38 @@ export default function FlightBookingConfirmation() {
       const originCode = selectedOutboundFlight.origin?.code || selectedOutboundFlight.departure_airport || selectedOutboundFlight.origin || 'N/A';
       const destCode = selectedOutboundFlight.destination?.code || selectedOutboundFlight.arrival_airport || selectedOutboundFlight.destination || 'N/A';
       
+      // Map payment method to billing service format
+      const paymentMethodMap = {
+        'credit': 'CREDIT_CARD',
+        'debit': 'DEBIT_CARD',
+        'paypal': 'PAYPAL',
+        'other': 'OTHER'
+      };
+      
       const billingData = {
-        booking_id: finalBookingId,
-        booking_type: 'flight',
-        amount: parseFloat(pricing.totalPrice),
-        currency: 'USD',
-        payment_status: 'paid',
-        payment_method: paymentInfo.method,
-        customer_name: `${currentPassenger.firstName} ${currentPassenger.lastName}`,
-        customer_email: contactInfo.email,
-        item_description: `Flight from ${originCode} to ${destCode}`,
-        metadata: {
-          outboundFlight: {
-            airline: selectedOutboundFlight.airline,
-            route: `${originCode} → ${destCode}`,
-            departureTime: selectedOutboundFlight.departure_time || selectedOutboundFlight.departureTime
-          },
-          returnFlight: selectedReturnFlight ? {
-            airline: selectedReturnFlight.airline,
-            departureTime: selectedReturnFlight.departure_time || selectedReturnFlight.departureTime
-          } : null,
-          passengers: passengers.adults + passengers.children + passengers.infants
+        userId: user?.id || user?.user_id || 'guest',
+        bookingType: 'FLIGHT',
+        bookingId: finalBookingId,
+        totalAmount: parseFloat(pricing.totalPrice),
+        paymentMethod: paymentMethodMap[paymentInfo.method] || 'CREDIT_CARD',
+        transactionStatus: 'PAID',
+        invoiceDetails: {
+          customer_name: `${currentPassenger.firstName} ${currentPassenger.lastName}`,
+          customer_email: contactInfo.email,
+          item_description: `Flight from ${originCode} to ${destCode}`,
+          currency: 'USD',
+          metadata: {
+            outboundFlight: {
+              airline: selectedOutboundFlight.airline,
+              route: `${originCode} → ${destCode}`,
+              departureTime: selectedOutboundFlight.departure_time || selectedOutboundFlight.departureTime
+            },
+            returnFlight: selectedReturnFlight ? {
+              airline: selectedReturnFlight.airline,
+              departureTime: selectedReturnFlight.departure_time || selectedReturnFlight.departureTime
+            } : null,
+            passengers: passengers.adults + passengers.children + passengers.infants
+          }
         }
       };
 

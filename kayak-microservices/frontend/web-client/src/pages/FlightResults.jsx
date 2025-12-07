@@ -94,11 +94,53 @@ export default function FlightResults() {
   const [sortBy, setSortBy] = useState('best');
   const [expandedFlight, setExpandedFlight] = useState(null);
   const [showAmenitiesPopup, setShowAmenitiesPopup] = useState(null);
+  const [likedFlights, setLikedFlights] = useState({});
+  const { user } = useSelector(state => state.auth);
   
   // Calculate min/max prices from results - using BASE/BASIC fare prices
   const prices = results.map(f => f.price || 0).filter(p => p > 0);
   const minPrice = prices.length > 0 ? Math.floor(Math.min(...prices)) : 0;
   const maxPrice = prices.length > 0 ? Math.ceil(Math.max(...prices)) : 10000;
+
+  // Load liked flights from localStorage
+  useEffect(() => {
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"flights": []}');
+    const liked = {};
+    favorites.flights?.forEach(f => {
+      liked[f.id] = true;
+    });
+    setLikedFlights(liked);
+  }, []);
+
+  const toggleLikeFlight = (flight) => {
+    if (!user) {
+      alert('Please log in to save favorites');
+      return;
+    }
+
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"flights": [], "hotels": [], "cars": []}');
+    const isLiked = likedFlights[flight.id];
+
+    if (isLiked) {
+      // Remove from favorites
+      favorites.flights = favorites.flights.filter(f => f.id !== flight.id);
+      setLikedFlights(prev => {
+        const newLiked = { ...prev };
+        delete newLiked[flight.id];
+        return newLiked;
+      });
+    } else {
+      // Add to favorites
+      if (!favorites.flights) favorites.flights = [];
+      favorites.flights.push({
+        ...flight,
+        savedAt: new Date().toISOString()
+      });
+      setLikedFlights(prev => ({ ...prev, [flight.id]: true }));
+    }
+
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+  };
 
   // Check if this is a deal click (has maxDealPrice parameter)
   useEffect(() => {
@@ -703,9 +745,16 @@ export default function FlightResults() {
                   >
                     {/* Save Button */}
                     <div className="px-5 pt-3 flex gap-2">
-                      <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
-                        <FaHeart className="w-3 h-3" />
-                        Save
+                      <button 
+                        onClick={() => toggleLikeFlight(flight)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-xs font-medium transition-colors ${
+                          likedFlights[flight.id]
+                            ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
+                            : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        <FaHeart className={`w-3 h-3 ${likedFlights[flight.id] ? 'text-red-600' : ''}`} />
+                        {likedFlights[flight.id] ? 'Saved' : 'Save'}
                       </button>
                     </div>
 

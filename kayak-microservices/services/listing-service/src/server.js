@@ -18,9 +18,24 @@ const mongoAtlas = require('./database/mongodb-atlas');
 const app = express();
 const PORT = process.env.PORT || 3003;
 
-// Middleware
-app.use(cors());
+// Middleware - CORS configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5175',  // Web client
+    'http://localhost:5180',  // Owner portal
+    'http://localhost:5176',  // Admin portal
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Trace-ID', 'X-User-ID', 'X-User-Email', 'X-User-Role']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 // Middleware to attach user from JWT (populated by API Gateway)
 // API Gateway forwards user info in req headers after JWT verification

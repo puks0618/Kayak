@@ -63,16 +63,24 @@ export default function Stays() {
   // Format date for display
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
+    // Parse as local date to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${days[date.getDay()]} ${date.getMonth() + 1}/${date.getDate()}`;
   };
 
   // Handle date selection from calendar
   const handleDateSelection = (checkInDate, checkOutDate) => {
-    setCheckIn(checkInDate.toISOString().split('T')[0]);
-    setCheckOut(checkOutDate.toISOString().split('T')[0]);
+    // Format dates in local timezone to avoid timezone shift
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    setCheckIn(formatLocalDate(checkInDate));
+    setCheckOut(formatLocalDate(checkOutDate));
   };
 
   // Handle search submission
@@ -123,11 +131,6 @@ export default function Stays() {
               <h1 className="text-3xl md:text-5xl font-extrabold mb-8 leading-tight tracking-tight dark:text-white">
                 Compare hotel deals from 100s of sites<span className="text-[#FF690F]">.</span>
               </h1>
-              
-              {/* Info message about available locations */}
-              <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">
-                🏙️ Search available neighborhoods: Williamsburg, Harlem, Upper West Side, East Village, Brooklyn Heights, SoHo, Chelsea, and more in New York
-              </p>
 
               {/* Navigation Tabs */}
               <div className="flex flex-wrap gap-6 mb-6">

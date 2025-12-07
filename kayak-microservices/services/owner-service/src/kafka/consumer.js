@@ -15,27 +15,28 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ 
-  groupId: 'owner-hotel-bookings-group',
+  groupId: 'owner-bookings-group',
   sessionTimeout: 30000,
   heartbeatInterval: 3000
 });
 
 let isConnected = false;
 const hotelBookings = []; // In-memory store (replace with database in production)
+const carBookings = []; // In-memory store for car bookings
 
 /**
- * Connect and subscribe to hotel-bookings topic
+ * Connect and subscribe to booking topics
  */
 const connect = async () => {
   if (!isConnected) {
     try {
       await consumer.connect();
       await consumer.subscribe({ 
-        topic: 'hotel-bookings', 
+        topics: ['hotel-bookings', 'car-bookings'], 
         fromBeginning: false 
       });
       isConnected = true;
-      console.log('✅ Owner Kafka Consumer connected to hotel-bookings topic');
+      console.log('✅ Owner Kafka Consumer connected to hotel-bookings and car-bookings topics');
     } catch (error) {
       console.error('❌ Owner Kafka Consumer connection failed:', error.message);
       throw error;
@@ -44,7 +45,7 @@ const connect = async () => {
 };
 
 /**
- * Start consuming hotel booking messages
+ * Start consuming booking messages
  */
 const startConsuming = async () => {
   try {
@@ -55,36 +56,49 @@ const startConsuming = async () => {
         try {
           const bookingData = JSON.parse(message.value.toString());
           const eventType = message.headers['event-type']?.toString();
-          const hotelId = message.headers['hotel-id']?.toString();
+          const resourceId = message.headers['hotel-id']?.toString() || message.headers['car-id']?.toString();
           
-          console.log(`📨 Owner received hotel booking event:`, {
+          console.log(`📨 Owner received ${topic} event:`, {
             bookingId: bookingData.bookingId,
-            hotelId,
+            resourceId,
             eventType,
             timestamp: bookingData.timestamp
           });
 
-          // Handle different event types
-          switch (eventType) {
-            case 'booking-created':
-              handleNewHotelBooking(bookingData);
-              break;
-            case 'booking-status-updated':
-              handleHotelBookingStatusUpdate(bookingData);
-              break;
-            default:
-              console.log('Unknown event type:', eventType);
+          // Route to appropriate handler based on topic
+          if (topic === 'hotel-bookings') {
+            switch (eventType) {
+              case 'booking-created':
+                handleNewHotelBooking(bookingData);
+                break;
+              case 'booking-status-updated':
+                handleHotelBookingStatusUpdate(bookingData);
+                break;
+              default:
+                console.log('Unknown hotel event type:', eventType);
+            }
+          } else if (topic === 'car-bookings') {
+            switch (eventType) {
+              case 'booking-created':
+                handleNewCarBooking(bookingData);
+                break;
+              case 'booking-status-updated':
+                handleCarBookingStatusUpdate(bookingData);
+                break;
+              default:
+                console.log('Unknown car event type:', eventType);
+            }
           }
 
         } catch (error) {
-          console.error('❌ Error processing hotel booking message:', error.message);
+          console.error('❌ Error processing booking message:', error.message);
         }
       }
     });
 
-    console.log('🎧 Owner service listening for hotel bookings...');
+    console.log('🎧 Owner service listening for hotel and car bookings...');
   } catch (error) {
-    console.error('❌ Failed to start consuming hotel bookings:', error.message);
+    console.error('❌ Failed to start consuming bookings:', error.message);
     throw error;
   }
 };
@@ -129,6 +143,44 @@ const handleHotelBookingStatusUpdate = (bookingData) => {
 };
 
 /**
+ * Handle new car booking
+ */
+const handleNewCarBooking = (bookingData) => {
+  // Store booking for owner dashboard
+  carBookings.push({
+    ...bookingData,
+    receivedAt: new Date().toISOString()
+  });
+
+  console.log(`✅ Owner processed car booking: ${bookingData.bookingId}`);
+  console.log(`   - Car: ${bookingData.car.brand} ${bookingData.car.model}`);
+  console.log(`   - Company: ${bookingData.car.company_name}`);
+  console.log(`   - Location: ${bookingData.pickupLocation}`);
+  console.log(`   - Duration: ${bookingData.days} days`);
+  console.log(`   - Total Price: $${bookingData.totalPrice}`);
+  console.log(`   - Total car bookings tracked: ${carBookings.length}`);
+  
+  // Here you can:
+  // - Store in database
+  // - Notify car rental company
+  // - Update availability
+  // - Send confirmation email
+  // - Update analytics
+};
+
+/**
+ * Handle car booking status update
+ */
+const handleCarBookingStatusUpdate = (bookingData) => {
+  const booking = carBookings.find(b => b.bookingId === bookingData.bookingId);
+  if (booking) {
+    booking.status = bookingData.status;
+    booking.updatedAt = bookingData.timestamp;
+    console.log(`✅ Owner updated car booking status: ${bookingData.bookingId} -> ${bookingData.status}`);
+  }
+};
+
+/**
  * Get all tracked hotel bookings
  */
 const getHotelBookings = (hotelId = null) => {
@@ -136,6 +188,16 @@ const getHotelBookings = (hotelId = null) => {
     return hotelBookings.filter(b => String(b.hotel.id) === String(hotelId));
   }
   return hotelBookings;
+};
+
+/**
+ * Get all tracked car bookings
+ */
+const getCarBookings = (carId = null) => {
+  if (carId) {
+    return carBookings.filter(b => String(b.car.id) === String(carId));
+  }
+  return carBookings;
 };
 
 /**
@@ -196,6 +258,7 @@ module.exports = {
   connect,
   startConsuming,
   getHotelBookings,
+  getCarBookings,
   getHotelBookingStats,
   getBookingsByHotel,
   disconnect

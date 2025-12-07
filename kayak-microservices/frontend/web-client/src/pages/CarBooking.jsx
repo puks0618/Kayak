@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car, Calendar } from 'lucide-react';
-import { bookingService } from '../services/api';
+import { bookingService, billingService } from '../services/api';
 
 export default function CarBooking() {
   const navigate = useNavigate();
@@ -143,15 +143,45 @@ export default function CarBooking() {
         console.log('✅ Backend booking response:', response);
 
         // Update booking ID from backend response
-        booking.id = response.booking_id || bookingId;
+        const finalBookingId = response.booking_id || bookingId;
+        booking.id = finalBookingId;
 
         // Save to localStorage for local tracking
         const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
         existingBookings.push(booking);
         localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
-        // Redirect to car-specific success page with booking details
-        navigate('/booking/car/success', { state: { booking, type: 'car' } });
+        // Create billing record
+        const billingData = {
+          booking_id: finalBookingId,
+          booking_type: 'car',
+          amount: parseFloat(totalPrice),
+          currency: 'USD',
+          payment_status: 'paid',
+          payment_method: formData.paymentType,
+          customer_name: `${formData.firstName} ${formData.lastName}`,
+          customer_email: formData.email,
+          item_description: `${days} day${days !== 1 ? 's' : ''} rental: ${car.brand} ${car.model}`,
+          metadata: {
+            car: {
+              brand: car.brand,
+              model: car.model,
+              year: car.year,
+              type: car.type
+            },
+            pickupDate,
+            dropoffDate,
+            pickupLocation,
+            days
+          }
+        };
+
+        console.log('📤 Creating billing record:', billingData);
+        const billingResponse = await billingService.create(billingData);
+        console.log('✅ Billing record created:', billingResponse);
+
+        // Navigate to invoice page
+        navigate(`/invoice/${billingResponse.data.billing_id}`);
       } catch (error) {
         console.error('❌ Car booking creation failed:', error);
         alert('Failed to save booking. Please try again.');

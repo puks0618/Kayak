@@ -3,6 +3,9 @@
  */
 
 const FlightModel = require('./model');
+const flightCache = require('../../cache/redisFlights');
+const cacheMetrics = require('../../cache/metrics');
+const crypto = require('crypto');
 
 class FlightController {
   /**
@@ -47,7 +50,28 @@ class FlightController {
         offset: parseInt(offset)
       };
 
+      // Generate unified cache key for both outbound and return flights
+      const cacheKey = `flight_search:${crypto
+        .createHash('md5')
+        .update(JSON.stringify(filters))
+        .digest('hex')}`;
+
+      // Check cache first
+      const startTime = Date.now();
+      const cachedResult = await flightCache.get(cacheKey);
+      if (cachedResult) {
+        const responseTime = Date.now() - startTime;
+        cacheMetrics.recordHit('flights', responseTime);
+        return res.json({
+          ...cachedResult,
+          cached: true
+        });
+      }
+
+      // Perform search (includes both outbound and return if round-trip)
       const result = await FlightModel.search(filters);
+      const responseTime = Date.now() - startTime;
+      cacheMetrics.recordMiss('flights', responseTime);
 
       console.log('Search result:', {
         outboundCount: result.flights?.length,
@@ -81,7 +105,13 @@ class FlightController {
         response.isRoundTrip = true;
       }
 
-      res.json(response);
+      // Cache the complete response (including both outbound and return flights)
+      await flightCache.set(cacheKey, response, 600);
+
+      res.json({
+        ...response,
+        cached: false
+      });
     } catch (error) {
       console.error('Search flights error:', error);
       res.status(500).json({ error: 'Failed to search flights', message: error.message });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin, Plane } from 'lucide-react';
-import { bookingService } from '../services/api';
+import { bookingService, billingService } from '../services/api';
 
 export default function FlightBookingConfirmation() {
   const navigate = useNavigate();
@@ -164,15 +164,46 @@ export default function FlightBookingConfirmation() {
         const response = await bookingService.create(backendBooking);
         console.log('✅ Backend booking response:', response);
 
+        // Update booking ID from backend
+        const finalBookingId = response.booking_id || bookingId;
+        booking.id = finalBookingId;
+
         // Also store in localStorage for compatibility
         const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
         existingBookings.push(booking);
         localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
-        // Navigate to success page
-        navigate('/booking/success', { 
-          state: { booking: { ...booking, id: response.booking_id || bookingId }, type: 'flight' } 
-        });
+        // Create billing record
+        const billingData = {
+          booking_id: finalBookingId,
+          booking_type: 'flight',
+          amount: parseFloat(totalPrice),
+          currency: 'USD',
+          payment_status: 'paid',
+          payment_method: formData.paymentType,
+          customer_name: `${formData.firstName} ${formData.lastName}`,
+          customer_email: formData.email,
+          item_description: `Flight from ${originCode} to ${destCode}`,
+          metadata: {
+            outboundFlight: {
+              airline: outboundFlight.airline,
+              route: `${originCode} → ${destCode}`,
+              departureTime: outboundFlight.departure_time || outboundFlight.departureTime
+            },
+            returnFlight: returnFlight ? {
+              airline: returnFlight.airline,
+              departureTime: returnFlight.departure_time || returnFlight.departureTime
+            } : null,
+            passengers
+          }
+        };
+
+        console.log('📤 Creating billing record:', billingData);
+        const billingResponse = await billingService.create(billingData);
+        console.log('✅ Billing record created:', billingResponse);
+
+        // Navigate to invoice page
+        navigate(`/invoice/${billingResponse.data.billing_id}`);
       } catch (error) {
         console.error('❌ Booking creation failed:', error);
         alert('Failed to complete booking. Please try again.');

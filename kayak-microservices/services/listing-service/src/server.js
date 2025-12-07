@@ -12,7 +12,10 @@ const listingsRoutes = require('./routes/listings.routes');
 const ownerRoutes = require('./routes/owner.routes');
 const adminListingsRoutes = require('./routes/admin.routes');
 const airlineReviewsRoutes = require('./routes/airline-reviews.routes');
+const cacheStatsRoutes = require('./routes/cache-stats.routes');
 const redisCache = require('./cache/redis');
+const redisFlightCache = require('./cache/redisFlights');
+const redisHotelCache = require('./cache/redisHotels');
 const mongoAtlas = require('./database/mongodb-atlas');
 
 const app = express();
@@ -56,7 +59,11 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     service: 'listing-service',
-    redis: redisCache.isConnected,
+    redis: {
+      db0_cars: redisCache.isConnected,
+      db1_flights: redisFlightCache.isConnected,
+      db4_hotels: redisHotelCache.isConnected
+    },
     mongodb: mongoAtlas.isConnected
   });
 });
@@ -67,14 +74,18 @@ app.use('/api/owner', ownerRoutes);
 // Admin routes for listings (protected by isAdmin middleware at API Gateway)
 app.use('/api/admin/listings', adminListingsRoutes);
 
+// Cache statistics routes (admin access) - MUST come before /api/listings
+app.use('/api/listings/admin/cache', cacheStatsRoutes);
+
 // Public routes (for searching approved listings)
 app.use('/api/listings/flights', flightRoutes);
 app.use('/api/listings/hotels', hotelRoutes);
 app.use('/api/listings/cars', carRoutes);
-app.use('/api/listings', listingsRoutes); // Admin unified listings route
 
 // Airline reviews routes (public access)
 app.use('/api/listings/reviews', airlineReviewsRoutes);
+
+app.use('/api/listings', listingsRoutes); // Admin unified listings route
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -85,7 +96,9 @@ app.use((err, req, res, next) => {
 // Initialize connections
 async function initialize() {
   try {
-    await redisCache.connect();
+    await redisCache.connect(); // DB 0 for cars only
+    await redisFlightCache.connect(); // DB 1 for flights
+    await redisHotelCache.connect(); // DB 4 for hotels
     await mongoAtlas.connect();
     // TODO: Initialize MySQL connection
     // TODO: Initialize Kafka producers/consumers

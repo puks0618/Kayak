@@ -5,7 +5,7 @@
 
 const routes = {
   '/api/auth': {
-    target: process.env.AUTH_SERVICE_URL || 'http://auth-service:3001',
+    target: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
     changeOrigin: true,
     stripApiPrefix: true, // Auth service expects /auth, not /api/auth
     description: 'Authentication service - JWT issue/verify'
@@ -17,7 +17,7 @@ const routes = {
     description: 'User management and profiles'
   },
   '/api/listings': {
-    target: process.env.LISTING_SERVICE_URL || 'http://listing-service:3003',
+    target: process.env.LISTING_SERVICE_URL || 'http://localhost:3003',
     changeOrigin: true,
     stripApiPrefix: false, // Listing service expects /api/listings
     description: 'Flights, hotels, and cars listings'

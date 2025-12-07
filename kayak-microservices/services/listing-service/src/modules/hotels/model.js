@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const dbConfig = {
   host: process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || process.env.MYSQL_PORT || '3306'),
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : (process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : 3307),
   user: process.env.DB_USER || process.env.MYSQL_USER || 'root',
   password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || 'Somalwar1!',
   database: process.env.DB_NAME || 'kayak_listings',
@@ -20,6 +20,14 @@ const dbConfig = {
 const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/kayak_listings';
 let mongoClient = null;
 let mongoDb = null;
+
+// Log database configuration for debugging
+console.log('Hotels Model - MySQL Config:', {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  database: dbConfig.database
+});
 
 const pool = mysql.createPool(dbConfig);
 
@@ -105,6 +113,11 @@ const HotelModel = {
       limit = 20
     } = searchParams;
 
+    // Ensure cities is an array
+    const citiesArray = Array.isArray(cities) ? cities : (cities ? [cities] : []);
+    // Ensure amenities is an array
+    const amenitiesArray = Array.isArray(amenities) ? amenities : (amenities ? [amenities] : []);
+
     let query = `
       SELECT DISTINCT h.*,
         (SELECT COUNT(*) FROM hotel_amenities ha WHERE ha.hotel_id = h.id) as amenity_count,
@@ -125,12 +138,12 @@ const HotelModel = {
     }
 
     // Multiple cities search (search in city and address)
-    if (cities.length > 0) {
-      const conditions = cities.map(() => 
+    if (citiesArray.length > 0) {
+      const conditions = citiesArray.map(() => 
         '(h.city LIKE ? OR h.address LIKE ?)'
       ).join(' OR ');
       query += ` AND (${conditions})`;
-      cities.forEach(city => {
+      citiesArray.forEach(city => {
         const searchPattern = `%${city}%`;
         params.push(searchPattern, searchPattern);
       });
@@ -166,8 +179,8 @@ const HotelModel = {
     }
 
     // Amenities filter (hotel must have ALL specified amenities)
-    if (amenities.length > 0) {
-      const amenPlaceholders = amenities.map(() => '?').join(',');
+    if (amenitiesArray.length > 0) {
+      const amenPlaceholders = amenitiesArray.map(() => '?').join(',');
       query += ` AND h.id IN (
         SELECT ha.hotel_id 
         FROM hotel_amenities ha
@@ -175,8 +188,8 @@ const HotelModel = {
         GROUP BY ha.hotel_id
         HAVING COUNT(DISTINCT ha.amenity) = ?
       )`;
-      amenities.forEach(amenity => params.push(amenity));
-      params.push(amenities.length);
+      amenitiesArray.forEach(amenity => params.push(amenity));
+      params.push(amenitiesArray.length);
     }
 
     // Sorting

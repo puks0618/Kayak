@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { FaHeart } from 'react-icons/fa';
 import { buildFareOptions, getFareAmenities } from '../utils/fareOptions';
-import { updateSearchForm, searchFlights } from '../store/slices/flightsSlice';
+import { updateSearchForm, searchFlightsAsync, setPage } from '../store/slices/flightsSlice';
 import { AIRPORTS } from '../constants/airports';
 
 // Airline color mapping
@@ -67,7 +67,7 @@ export default function FlightResults() {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const { results, returnFlights, isRoundTrip, isSearching, searchError, totalResults, searchForm } = useSelector(
+  const { results, returnFlights, isRoundTrip, loading, error, pagination, searchForm, cached } = useSelector(
     state => state.flights
   );
 
@@ -196,7 +196,7 @@ export default function FlightResults() {
     };
 
     dispatch(updateSearchForm(params));
-    dispatch(searchFlights(params));
+    dispatch(searchFlightsAsync(params));
 
     // Update URL with search parameters
     const urlParams = new URLSearchParams({
@@ -245,9 +245,9 @@ export default function FlightResults() {
       setEditCabinClass(cabinClass || 'economy');
       
       // Always trigger search when URL params are present
-      dispatch(searchFlights(params));
+      dispatch(searchFlightsAsync(params));
     }
-  }, []); // Run only on mount
+  }, [searchParams, dispatch]); // Re-trigger when URL params change
 
   // Click outside handler for dropdowns
   useEffect(() => {
@@ -695,7 +695,7 @@ export default function FlightResults() {
           </div>
 
           {/* Loading State */}
-          {isSearching && (
+          {loading && (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF690F]"></div>
@@ -705,14 +705,14 @@ export default function FlightResults() {
           )}
 
           {/* Error State */}
-          {searchError && !isSearching && (
+          {error && !loading && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <p className="text-red-800">Error: {searchError}</p>
+              <p className="text-red-800">Error: {error}</p>
             </div>
           )}
 
           {/* No Results */}
-          {!isSearching && sortedFlights.length === 0 && !searchError && (
+          {!loading && sortedFlights.length === 0 && !error && (
             <div className="text-center py-20 bg-white rounded-lg border border-gray-200">
               <Plane className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 mb-2">No flights found</h2>
@@ -721,7 +721,7 @@ export default function FlightResults() {
           )}
 
           {/* Flight Results */}
-          {!isSearching && sortedFlights.length > 0 && (
+          {!loading && sortedFlights.length > 0 && (
             <div className="space-y-0">
               {sortedFlights.map((flight, index) => {
                 const originCode = flight.origin?.code || flight.departure_airport || flight.origin || 'N/A';

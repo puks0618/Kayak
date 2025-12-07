@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { searchFlights, updateSearchForm, addRecentSearch } from '../store/slices/flightsSlice';
+import { searchFlightsAsync, updateSearchForm, addRecentSearch } from '../store/slices/flightsSlice';
 import { getFlightDeals } from '../services/flightsApi';
 import { logoutUser } from '../store/authSlice';
 import DatePicker from 'react-datepicker';
@@ -391,7 +391,7 @@ export default function Home() {
     };
     
     dispatch(updateSearchForm(searchParams));
-    await dispatch(searchFlights(searchParams));
+    await dispatch(searchFlightsAsync(searchParams));
     dispatch(addRecentSearch(searchParams));
     
     // Navigate with URL parameters

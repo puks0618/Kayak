@@ -36,6 +36,20 @@ class HotelController {
       } else {
         // Use body for POST requests
         searchParams = req.body;
+        
+        // Ensure cities is an array
+        if (searchParams.cities && !Array.isArray(searchParams.cities)) {
+          searchParams.cities = typeof searchParams.cities === 'string' 
+            ? searchParams.cities.split(',').map(c => c.trim()).filter(Boolean)
+            : [searchParams.cities];
+        }
+        
+        // Ensure amenities is an array
+        if (searchParams.amenities && !Array.isArray(searchParams.amenities)) {
+          searchParams.amenities = typeof searchParams.amenities === 'string'
+            ? searchParams.amenities.split(',').map(a => a.trim()).filter(Boolean)
+            : [searchParams.amenities];
+        }
       }
       
       // Generate cache key from search parameters

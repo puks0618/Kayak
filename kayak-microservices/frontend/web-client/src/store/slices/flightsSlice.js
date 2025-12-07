@@ -4,108 +4,30 @@
  */
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import { searchFlights, getFlightById } from '../../services/flightsApi';
 
-// Mock flight data for development
-const MOCK_FLIGHTS = [
-  {
-    id: 'flt_1',
-    airline: 'Delta',
-    flightNumber: 'DL123',
-    origin: { code: 'SFO', city: 'San Francisco', name: 'San Francisco International' },
-    destination: { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles International' },
-    departureTime: '2025-12-14T09:30:00Z',
-    arrivalTime: '2025-12-14T11:00:00Z',
-    durationMinutes: 90,
-    stops: 0,
-    cabinClass: 'economy',
-    price: 177.00,
-    currency: 'USD',
-    seatsLeft: 5,
-    refundable: false
-  },
-  {
-    id: 'flt_2',
-    airline: 'United',
-    flightNumber: 'UA456',
-    origin: { code: 'SFO', city: 'San Francisco', name: 'San Francisco International' },
-    destination: { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles International' },
-    departureTime: '2025-12-14T14:15:00Z',
-    arrivalTime: '2025-12-14T15:45:00Z',
-    durationMinutes: 90,
-    stops: 0,
-    cabinClass: 'economy',
-    price: 156.00,
-    currency: 'USD',
-    seatsLeft: 3,
-    refundable: true
-  },
-  {
-    id: 'flt_3',
-    airline: 'American',
-    flightNumber: 'AA789',
-    origin: { code: 'SFO', city: 'San Francisco', name: 'San Francisco International' },
-    destination: { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles International' },
-    departureTime: '2025-12-14T18:00:00Z',
-    arrivalTime: '2025-12-14T19:30:00Z',
-    durationMinutes: 90,
-    stops: 0,
-    cabinClass: 'economy',
-    price: 203.00,
-    currency: 'USD',
-    seatsLeft: 8,
-    refundable: false
-  }
-];
-
-// Async thunk to search flights
-export const searchFlights = createAsyncThunk(
-  'flights/search',
+// Async thunk for searching flights
+export const searchFlightsAsync = createAsyncThunk(
+  'flights/searchFlights',
   async (searchParams, { rejectWithValue }) => {
     try {
-      console.log('=== Searching flights with params ===', searchParams);
-      // Try real API first
-      const response = await axios.get('http://localhost:3000/api/listings/flights/search', {
-        params: searchParams
-      });
-      
-      console.log('=== API Response ===', response.data);
-      console.log('Flights:', response.data.flights?.length);
-      console.log('Return flights:', response.data.returnFlights?.length);
-      console.log('Is round trip:', response.data.isRoundTrip);
-      
-      return {
-        flights: response.data.flights || response.data,
-        returnFlights: response.data.returnFlights || [],
-        isRoundTrip: response.data.isRoundTrip || false,
-        total: response.data.total || response.data.length
-      };
+      const response = await searchFlights(searchParams);
+      return response;
     } catch (error) {
-      console.warn('Backend not available, using mock data:', error.message);
-      
-      // Fallback to mock data
-      // Filter mock data based on search params
-      let filteredFlights = [...MOCK_FLIGHTS];
-      
-      if (searchParams.origin) {
-        filteredFlights = filteredFlights.filter(f => 
-          f.origin.code === searchParams.origin.toUpperCase()
-        );
-      }
-      
-      if (searchParams.destination) {
-        filteredFlights = filteredFlights.filter(f => 
-          f.destination.code === searchParams.destination.toUpperCase()
-        );
-      }
-      
-      // Sort by price
-      filteredFlights.sort((a, b) => a.price - b.price);
-      
-      return {
-        flights: filteredFlights,
-        total: filteredFlights.length
-      };
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk for fetching flight details
+export const getFlightDetailsAsync = createAsyncThunk(
+  'flights/getFlightDetails',
+  async (flightId, { rejectWithValue }) => {
+    try {
+      const response = await getFlightById(flightId);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
     }
   }
 );
@@ -149,10 +71,16 @@ const initialState = {
   results: [],
   returnFlights: [],
   isRoundTrip: false,
-  totalResults: 0,
-  isSearching: false,
-  searchError: null,
-  hasSearched: false,
+  selectedFlight: null,
+  pagination: {
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0
+  },
+  loading: false,
+  error: null,
+  cached: false,
   
   // Recent searches
   recentSearches: loadRecentSearches(),
@@ -218,34 +146,67 @@ const flightsSlice = createSlice({
     // Clear search results
     clearResults: (state) => {
       state.results = [];
-      state.totalResults = 0;
-      state.hasSearched = false;
-      state.searchError = null;
+      state.returnFlights = [];
+      state.pagination = initialState.pagination;
+      state.error = null;
+      state.cached = false;
+    },
+    
+    // Set page for pagination
+    setPage: (state, action) => {
+      state.pagination.page = action.payload;
     }
   },
   
   extraReducers: (builder) => {
     builder
-      // Search flights pending
-      .addCase(searchFlights.pending, (state) => {
-        state.isSearching = true;
-        state.searchError = null;
+      // Search flights
+      .addCase(searchFlightsAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.cached = false;
       })
-      // Search flights fulfilled
-      .addCase(searchFlights.fulfilled, (state, action) => {
-        state.isSearching = false;
-        state.results = action.payload.flights;
+      .addCase(searchFlightsAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        const flights = action.payload.flights || action.payload || [];
+        state.results = flights;
         state.returnFlights = action.payload.returnFlights || [];
         state.isRoundTrip = action.payload.isRoundTrip || false;
-        state.totalResults = action.payload.total;
-        state.hasSearched = true;
-        state.searchError = null;
+        
+        // Handle pagination - API might return pagination object or we calculate it
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        } else {
+          const total = action.payload.total || flights.length;
+          state.pagination = {
+            ...state.pagination,
+            total: total,
+            totalPages: action.payload.totalPages || Math.ceil(total / state.pagination.limit)
+          };
+        }
+        state.cached = action.payload.cached || false;
+        state.error = null;
       })
-      // Search flights rejected
-      .addCase(searchFlights.rejected, (state, action) => {
-        state.isSearching = false;
-        state.searchError = action.error.message;
-        state.hasSearched = true;
+      .addCase(searchFlightsAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to search flights';
+        state.results = [];
+        state.returnFlights = [];
+      })
+      // Get flight details
+      .addCase(getFlightDetailsAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getFlightDetailsAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.selectedFlight = action.payload;
+        state.error = null;
+      })
+      .addCase(getFlightDetailsAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch flight details';
+        state.selectedFlight = null;
       });
   }
 });
@@ -256,7 +217,8 @@ export const {
   addRecentSearch,
   updateFilters,
   resetFilters,
-  clearResults
+  clearResults,
+  setPage
 } = flightsSlice.actions;
 
 export default flightsSlice.reducer;

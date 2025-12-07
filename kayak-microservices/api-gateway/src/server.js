@@ -34,7 +34,7 @@ app.use(
   authenticate,
   isOwner,
   createProxyMiddleware({
-    target: 'http://listing-service:3003',
+    target: process.env.LISTING_SERVICE_URL || 'http://localhost:3003',
     changeOrigin: true,
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);
@@ -60,7 +60,7 @@ app.use(
   authenticate,
   isAdmin,
   createProxyMiddleware({
-    target: 'http://listing-service:3003',
+    target: process.env.LISTING_SERVICE_URL || 'http://localhost:3003',
     changeOrigin: true,
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);
@@ -86,7 +86,7 @@ app.use(
   authenticate,
   isAdmin,
   createProxyMiddleware({
-    target: 'http://admin-service:3007',
+    target: process.env.ADMIN_SERVICE_URL || 'http://localhost:3007',
     changeOrigin: true,
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);

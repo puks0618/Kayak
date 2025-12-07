@@ -9,11 +9,34 @@ const crypto = require('crypto');
 class HotelController {
   /**
    * Advanced search endpoint
-   * POST /api/listings/hotels/search
+   * GET /api/listings/hotels/search or POST /api/listings/hotels/search
    */
   async search(req, res) {
     try {
-      const searchParams = req.body;
+      // Support both GET (query params) and POST (body) requests
+      let searchParams;
+      
+      if (req.method === 'GET') {
+        // Parse query parameters for GET requests
+        searchParams = {
+          cities: req.query.cities ? (Array.isArray(req.query.cities) ? req.query.cities : [req.query.cities]) : [],
+          checkIn: req.query.checkIn,
+          checkOut: req.query.checkOut,
+          rooms: req.query.rooms ? parseInt(req.query.rooms) : 1,
+          guests: req.query.guests ? parseInt(req.query.guests) : 2,
+          priceMin: req.query.priceMin ? parseFloat(req.query.priceMin) : undefined,
+          priceMax: req.query.priceMax ? parseFloat(req.query.priceMax) : undefined,
+          starRating: req.query.starRating ? parseInt(req.query.starRating) : undefined,
+          amenities: req.query.amenities ? (Array.isArray(req.query.amenities) ? req.query.amenities : [req.query.amenities]) : [],
+          propertyType: req.query.propertyType,
+          sortBy: req.query.sortBy || 'price_asc',
+          page: req.query.page ? parseInt(req.query.page) : 1,
+          limit: req.query.limit ? parseInt(req.query.limit) : 20
+        };
+      } else {
+        // Use body for POST requests
+        searchParams = req.body;
+      }
       
       // Generate cache key from search parameters
       const cacheKey = `hotel_search:${crypto

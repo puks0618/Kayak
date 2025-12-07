@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
   ChevronDown, 
   Search
@@ -11,6 +12,7 @@ import { FaUmbrellaBeach } from "react-icons/fa6";
 import { HiSparkles } from "react-icons/hi2";
 import LocationInput from '../components/LocationInput';
 import DateTimePicker from '../components/DateTimePicker';
+import { getCarCitiesAsync, updateSearchForm, addRecentSearch } from '../store/slices/carsSlice';
 
 const DEFAULT_CAR_CITIES = [
   'Los Angeles, CA',
@@ -28,42 +30,27 @@ const DEFAULT_CAR_CITIES = [
 export default function Cars() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
   
-  // Search state
-  const [sameDropOff, setSameDropOff] = useState(true);
+  // Redux state
+  const { searchForm, cities: carCities, recentSearches } = useSelector(state => state.cars);
+  
+  // Local UI state
+  const [sameDropOff, setSameDropOff] = useState(searchForm.sameDropOff !== false);
   const [suvsOnly, setSuvsOnly] = useState(false);
-  const [pickupLocation, setPickupLocation] = useState('');
-  const [dropoffLocation, setDropoffLocation] = useState('');
-  const [pickupDate, setPickupDate] = useState(null);
-  const [pickupTime, setPickupTime] = useState('Noon');
-  const [dropoffDate, setDropoffDate] = useState(null);
-  const [dropoffTime, setDropoffTime] = useState('Noon');
-  const [carCities, setCarCities] = useState([]);
+  const [pickupLocation, setPickupLocation] = useState(searchForm.pickupLocation || '');
+  const [dropoffLocation, setDropoffLocation] = useState(searchForm.dropoffLocation || '');
+  const [pickupDate, setPickupDate] = useState(searchForm.pickupDate ? new Date(searchForm.pickupDate) : null);
+  const [pickupTime, setPickupTime] = useState(searchForm.pickupTime || 'Noon');
+  const [dropoffDate, setDropoffDate] = useState(searchForm.dropoffDate ? new Date(searchForm.dropoffDate) : null);
+  const [dropoffTime, setDropoffTime] = useState(searchForm.dropoffTime || 'Noon');
 
   // Fetch car cities on component mount
   useEffect(() => {
-    const fetchCarCities = async () => {
-      try {
-        console.log('Fetching car cities...');
-        const response = await fetch('http://localhost:3000/api/listings/cars/cities');
-        console.log('Response status:', response.status);
-        const data = await response.json();
-        console.log('Fetched car cities:', data);
-        
-        if (data.cities && Array.isArray(data.cities)) {
-          setCarCities(data.cities);
-          console.log('Set car cities:', data.cities.length, 'cities');
-        } else {
-          console.warn('No cities in response or invalid format:', data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch car cities:', error);
-        // Keep empty array as fallback
-      }
-    };
-    
-    fetchCarCities();
-  }, []);
+    if (carCities.length === 0) {
+      dispatch(getCarCitiesAsync());
+    }
+  }, [dispatch, carCities.length]);
 
   // Swap locations
   const handleSwapLocations = () => {
@@ -86,6 +73,30 @@ export default function Cars() {
       alert('Please select pickup and drop-off dates');
       return;
     }
+    
+    // Update Redux search form
+    const searchFormData = {
+      pickupLocation,
+      dropoffLocation: sameDropOff ? pickupLocation : dropoffLocation,
+      pickupDate: pickupDate.toISOString().split('T')[0],
+      dropoffDate: dropoffDate.toISOString().split('T')[0],
+      pickupTime,
+      dropoffTime,
+      sameDropOff,
+      type: suvsOnly ? 'suv' : ''
+    };
+    
+    dispatch(updateSearchForm(searchFormData));
+    
+    // Save to recent searches
+    dispatch(addRecentSearch({
+      pickupLocation,
+      dropoffLocation: sameDropOff ? pickupLocation : dropoffLocation,
+      pickupDate: pickupDate.toISOString().split('T')[0],
+      dropoffDate: dropoffDate.toISOString().split('T')[0],
+      pickupTime,
+      dropoffTime
+    }));
     
     // Build search query params
     const searchParams = new URLSearchParams({

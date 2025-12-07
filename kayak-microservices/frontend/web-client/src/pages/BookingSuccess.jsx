@@ -1,11 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2 } from 'lucide-react';
+import { setCurrentBooking, clearCurrentBooking } from '../store/slices/bookingSlice';
 
 export default function BookingSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { booking } = location.state || {};
+  const dispatch = useDispatch();
+  
+  // Get booking from location state or Redux
+  const { booking: locationBooking } = location.state || {};
+  const { currentBooking: reduxBooking } = useSelector(state => state.booking);
+  const booking = locationBooking || reduxBooking;
+  
+  // Set current booking in Redux if from location state
+  useEffect(() => {
+    if (locationBooking && !reduxBooking) {
+      dispatch(setCurrentBooking(locationBooking));
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      // Don't clear immediately, let user navigate away first
+    };
+  }, [locationBooking, reduxBooking, dispatch]);
 
   if (!booking) {
     return (
@@ -239,7 +258,10 @@ export default function BookingSuccess() {
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4">
           <button
-            onClick={() => navigate('/trips')}
+            onClick={() => {
+              dispatch(clearCurrentBooking());
+              navigate('/trips');
+            }}
             className="flex-1 bg-[#FF690F] hover:bg-[#d6570c] text-white py-3 rounded-md font-bold flex items-center justify-center gap-2"
           >
             <Calendar className="w-5 h-5" />

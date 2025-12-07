@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { Car, MapPin, Users, Settings, Star, ArrowLeft, Filter } from 'lucide-react';
+import { searchCarsAsync, updateSearchForm, setPage } from '../store/slices/carsSlice';
 
 export default function CarResults() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   
-  const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Redux state
+  const { results: cars, loading, error, pagination, searchForm } = useSelector(state => state.cars);
+  
+  // Local filter state
   const [filters, setFilters] = useState({
     type: searchParams.get('type') || '',
     minPrice: '',
@@ -23,42 +27,36 @@ export default function CarResults() {
   const pickupTime = searchParams.get('pickupTime');
   const dropoffTime = searchParams.get('dropoffTime');
 
+  // Parse search params on mount and update Redux, then search
   useEffect(() => {
-    fetchCars();
-  }, [filters.type, filters.minPrice, filters.maxPrice, filters.transmission, filters.sortBy]);
-
-  const fetchCars = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams({
-        location: location,
+    if (location && pickupDate && dropoffDate) {
+      dispatch(updateSearchForm({
+        pickupLocation: location,
+        pickupDate,
+        dropoffDate,
+        pickupTime: pickupTime || 'Noon',
+        dropoffTime: dropoffTime || 'Noon'
+      }));
+      
+      const params = {
+        location,
+        pickupDate,
+        dropoffDate,
+        pickupTime: pickupTime || 'Noon',
+        dropoffTime: dropoffTime || 'Noon',
         sortBy: filters.sortBy,
-        sortOrder: 'asc',
+        page: 1,
         limit: 50
-      });
-
-      if (filters.type) params.append('type', filters.type);
-      if (filters.minPrice) params.append('minPrice', filters.minPrice);
-      if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
-      if (filters.transmission) params.append('transmission', filters.transmission);
-
-      const response = await fetch(`http://localhost:3000/api/listings/cars/search?${params.toString()}`);
-      const data = await response.json();
-
-      if (data.cars) {
-        setCars(data.cars);
-      } else {
-        setError('No cars found');
-      }
-    } catch (err) {
-      console.error('Failed to fetch cars:', err);
-      setError('Failed to load cars. Please try again.');
-    } finally {
-      setLoading(false);
+      };
+      
+      if (filters.type) params.type = filters.type;
+      if (filters.minPrice) params.minPrice = filters.minPrice;
+      if (filters.maxPrice) params.maxPrice = filters.maxPrice;
+      if (filters.transmission) params.transmission = filters.transmission;
+      
+      dispatch(searchCarsAsync(params));
     }
-  };
+  }, [location, pickupDate, dropoffDate, pickupTime, dropoffTime, filters.type, filters.minPrice, filters.maxPrice, filters.transmission, filters.sortBy, dispatch]);
 
   const handleCarClick = (carId) => {
     navigate(`/cars/${carId}?${searchParams.toString()}`);
@@ -201,7 +199,7 @@ export default function CarResults() {
 
           {/* Results */}
           <div className="lg:col-span-3">
-            {loading ? (
+            {loading && cars.length === 0 ? (
               <div className="text-center py-12">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#FF690F] border-t-transparent"></div>
                 <p className="mt-4 text-gray-600 dark:text-gray-400">Loading cars...</p>

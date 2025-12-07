@@ -1,44 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Calendar, MapPin, Users, ChevronRight, Search, Car, Hotel } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { loadBookings } from '../store/slices/bookingSlice';
 
 export default function MyTrips() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const authState = useSelector((state) => state.auth || {});
   const user = authState.user;
-  const [bookings, setBookings] = useState([]);
+  const { completedBookings } = useSelector((state) => state.booking || { completedBookings: [] });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, upcoming, past
   const [bookingType, setBookingType] = useState('all'); // all, flight, hotel, car
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const fetchBookings = async () => {
-    try {
-      setLoading(true);
-      // Get bookings from localStorage for now (MVP)
-      const storedBookings = localStorage.getItem('bookings');
-      if (storedBookings) {
-        setBookings(JSON.parse(storedBookings));
-      }
-      
-      // TODO: Fetch from backend when API is ready
-      // if (user) {
-      //   const response = await axios.get(`${API_BASE_URL}/bookings/user/${user.id}`);
-      //   setBookings(response.data);
-      // }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Load bookings from Redux (which syncs with localStorage)
+    dispatch(loadBookings());
+    setLoading(false);
+  }, [dispatch]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -96,7 +77,7 @@ export default function MyTrips() {
     }
   };
 
-  const filteredBookings = bookings.filter(booking => {
+  const filteredBookings = completedBookings.filter(booking => {
     if (!booking) return false;
     
     // Filter by booking type

@@ -4,108 +4,23 @@
  */
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-// Mock flight data for development
-const MOCK_FLIGHTS = [
-  {
-    id: 'flt_1',
-    airline: 'Delta',
-    flightNumber: 'DL123',
-    origin: { code: 'SFO', city: 'San Francisco', name: 'San Francisco International' },
-    destination: { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles International' },
-    departureTime: '2025-12-14T09:30:00Z',
-    arrivalTime: '2025-12-14T11:00:00Z',
-    durationMinutes: 90,
-    stops: 0,
-    cabinClass: 'economy',
-    price: 177.00,
-    currency: 'USD',
-    seatsLeft: 5,
-    refundable: false
-  },
-  {
-    id: 'flt_2',
-    airline: 'United',
-    flightNumber: 'UA456',
-    origin: { code: 'SFO', city: 'San Francisco', name: 'San Francisco International' },
-    destination: { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles International' },
-    departureTime: '2025-12-14T14:15:00Z',
-    arrivalTime: '2025-12-14T15:45:00Z',
-    durationMinutes: 90,
-    stops: 0,
-    cabinClass: 'economy',
-    price: 156.00,
-    currency: 'USD',
-    seatsLeft: 3,
-    refundable: true
-  },
-  {
-    id: 'flt_3',
-    airline: 'American',
-    flightNumber: 'AA789',
-    origin: { code: 'SFO', city: 'San Francisco', name: 'San Francisco International' },
-    destination: { code: 'LAX', city: 'Los Angeles', name: 'Los Angeles International' },
-    departureTime: '2025-12-14T18:00:00Z',
-    arrivalTime: '2025-12-14T19:30:00Z',
-    durationMinutes: 90,
-    stops: 0,
-    cabinClass: 'economy',
-    price: 203.00,
-    currency: 'USD',
-    seatsLeft: 8,
-    refundable: false
-  }
-];
+import { searchFlights as searchFlightsAPI } from '../../services/flightsApi';
 
 // Async thunk to search flights
 export const searchFlights = createAsyncThunk(
   'flights/search',
   async (searchParams, { rejectWithValue }) => {
     try {
-      console.log('=== Searching flights with params ===', searchParams);
-      // Try real API first
-      const response = await axios.get('http://localhost:3000/api/listings/flights/search', {
-        params: searchParams
-      });
-      
-      console.log('=== API Response ===', response.data);
-      console.log('Flights:', response.data.flights?.length);
-      console.log('Return flights:', response.data.returnFlights?.length);
-      console.log('Is round trip:', response.data.isRoundTrip);
+      const response = await searchFlightsAPI(searchParams);
       
       return {
-        flights: response.data.flights || response.data,
-        returnFlights: response.data.returnFlights || [],
-        isRoundTrip: response.data.isRoundTrip || false,
-        total: response.data.total || response.data.length
+        flights: response.flights || response.data || [],
+        returnFlights: response.returnFlights || [],
+        isRoundTrip: response.isRoundTrip || false,
+        total: response.total || response.flights?.length || response.data?.length || 0
       };
     } catch (error) {
-      console.warn('Backend not available, using mock data:', error.message);
-      
-      // Fallback to mock data
-      // Filter mock data based on search params
-      let filteredFlights = [...MOCK_FLIGHTS];
-      
-      if (searchParams.origin) {
-        filteredFlights = filteredFlights.filter(f => 
-          f.origin.code === searchParams.origin.toUpperCase()
-        );
-      }
-      
-      if (searchParams.destination) {
-        filteredFlights = filteredFlights.filter(f => 
-          f.destination.code === searchParams.destination.toUpperCase()
-        );
-      }
-      
-      // Sort by price
-      filteredFlights.sort((a, b) => a.price - b.price);
-      
-      return {
-        flights: filteredFlights,
-        total: filteredFlights.length
-      };
+      return rejectWithValue(error.message);
     }
   }
 );

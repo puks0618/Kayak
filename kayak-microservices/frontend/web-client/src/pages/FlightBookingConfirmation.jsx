@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin, Plane } from 'lucide-react';
 import { bookingService } from '../services/api';
+import { saveBooking } from '../store/slices/bookingSlice';
 
 export default function FlightBookingConfirmation() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
   const { 
     outboundFlight, 
     returnFlight, 
@@ -164,14 +167,15 @@ export default function FlightBookingConfirmation() {
         const response = await bookingService.create(backendBooking);
         console.log('✅ Backend booking response:', response);
 
-        // Also store in localStorage for compatibility
-        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('bookings', JSON.stringify(existingBookings));
+        // Update booking ID from backend response
+        booking.id = response.booking_id || bookingId;
+
+        // Save to Redux store
+        dispatch(saveBooking(booking));
 
         // Navigate to success page
         navigate('/booking/success', { 
-          state: { booking: { ...booking, id: response.booking_id || bookingId }, type: 'flight' } 
+          state: { booking } 
         });
       } catch (error) {
         console.error('❌ Booking creation failed:', error);

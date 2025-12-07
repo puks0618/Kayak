@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin } from 'lucide-react';
 import { bookingService } from '../services/api';
+import { saveBooking } from '../store/slices/bookingSlice';
 
 export default function BookingConfirmation() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
   const { hotel, checkIn, checkOut, guests, nights, totalPrice } = location.state || {};
 
   const [formData, setFormData] = useState({
@@ -136,13 +139,11 @@ export default function BookingConfirmation() {
         // Update booking ID from backend response
         booking.id = response.booking_id || bookingId;
 
-        // Save to localStorage for local tracking
-        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('bookings', JSON.stringify(existingBookings));
+        // Save to Redux store
+        dispatch(saveBooking(booking));
 
         // Redirect to success page with booking details
-        navigate('/booking/success', { state: { booking, type: 'hotel' } });
+        navigate('/booking/success', { state: { booking } });
       } catch (error) {
         console.error('❌ Booking creation failed:', error);
         alert('Failed to save booking. Please try again.');

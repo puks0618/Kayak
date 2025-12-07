@@ -9,6 +9,7 @@ import storage from 'redux-persist/lib/storage'; // localStorage
 import authReducer from './authSlice';
 import flightsReducer from './slices/flightsSlice';
 import staysReducer from './slices/staysSlice';
+import carsReducer from './slices/carsSlice';
 
 // Persist configuration
 const persistConfig = {
@@ -24,6 +25,7 @@ export const store = configureStore({
     auth: persistedAuthReducer,
     flights: flightsReducer,
     stays: staysReducer,
+    cars: carsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -32,6 +34,17 @@ export const store = configureStore({
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
       },
     }),
+  // Enable Redux DevTools - explicitly enable it
+  devTools: true,
 });
 
 export const persistor = persistStore(store);
+
+// Expose store to window for Redux DevTools (development only)
+if (typeof window !== 'undefined') {
+  window.__REDUX_STORE__ = store;
+  // Also expose for Redux DevTools extension
+  if (window.__REDUX_DEVTOOLS_EXTENSION__) {
+    window.__REDUX_DEVTOOLS_EXTENSION__.connect();
+  }
+}

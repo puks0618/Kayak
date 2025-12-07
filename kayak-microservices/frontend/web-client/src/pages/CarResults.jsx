@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Car, MapPin, Users, Settings, Star, ArrowLeft, Filter } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Car, MapPin, Users, Settings, Star, ArrowLeft, Filter, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { searchCarsAsync, updateSearchForm, setPage } from '../store/slices/carsSlice';
 
 export default function CarResults() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   
-  const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { results, loading, error, pagination, searchForm, cached } = useSelector(state => state.cars);
+  
+  // Local filter state (for UI filters)
   const [filters, setFilters] = useState({
     type: searchParams.get('type') || '',
     minPrice: '',
@@ -17,47 +20,98 @@ export default function CarResults() {
     sortBy: 'price'
   });
 
-  const location = searchParams.get('location');
-  const pickupDate = searchParams.get('pickupDate');
-  const dropoffDate = searchParams.get('dropoffDate');
-  const pickupTime = searchParams.get('pickupTime');
-  const dropoffTime = searchParams.get('dropoffTime');
+  // Get search params from URL
+  const searchLocation = searchParams.get('location');
+  const searchPickupDate = searchParams.get('pickupDate');
+  const searchDropoffDate = searchParams.get('dropoffDate');
+  const searchPickupTime = searchParams.get('pickupTime');
+  const searchDropoffTime = searchParams.get('dropoffTime');
 
+  // Parse search params on mount and update Redux
   useEffect(() => {
-    fetchCars();
-  }, [filters.type, filters.minPrice, filters.maxPrice, filters.transmission, filters.sortBy]);
-
-  const fetchCars = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams({
-        location: location,
+    if (searchLocation && searchPickupDate && searchDropoffDate) {
+      // Update Redux state with search params
+      dispatch(updateSearchForm({
+        location: searchLocation,
+        pickupDate: searchPickupDate,
+        dropoffDate: searchDropoffDate,
+        pickupTime: searchPickupTime || 'Noon',
+        dropoffTime: searchDropoffTime || 'Noon',
+        type: searchParams.get('type') || ''
+      }));
+      
+      // Perform search
+      const params = {
+        location: searchLocation,
+        pickupDate: searchPickupDate,
+        dropoffDate: searchDropoffDate,
+        pickupTime: searchPickupTime || 'Noon',
+        dropoffTime: searchDropoffTime || 'Noon',
+        type: searchParams.get('type') || undefined,
         sortBy: filters.sortBy,
         sortOrder: 'asc',
-        limit: 50
-      });
-
-      if (filters.type) params.append('type', filters.type);
-      if (filters.minPrice) params.append('minPrice', filters.minPrice);
-      if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
-      if (filters.transmission) params.append('transmission', filters.transmission);
-
-      const response = await fetch(`http://localhost:3000/api/listings/cars/search?${params.toString()}`);
-      const data = await response.json();
-
-      if (data.cars) {
-        setCars(data.cars);
-      } else {
-        setError('No cars found');
-      }
-    } catch (err) {
-      console.error('Failed to fetch cars:', err);
-      setError('Failed to load cars. Please try again.');
-    } finally {
-      setLoading(false);
+        page: 1,
+        limit: 20
+      };
+      
+      dispatch(searchCarsAsync(params));
     }
+  }, [searchParams, dispatch, filters.sortBy, searchLocation, searchPickupDate, searchDropoffDate, searchPickupTime, searchDropoffTime]);
+
+  // Apply filters (re-search with new filters)
+  const handleApplyFilters = () => {
+    const params = {
+      location: searchForm.location || searchLocation,
+      pickupDate: searchForm.pickupDate || searchPickupDate,
+      dropoffDate: searchForm.dropoffDate || searchDropoffDate,
+      pickupTime: searchForm.pickupTime || searchPickupTime || 'Noon',
+      dropoffTime: searchForm.dropoffTime || searchDropoffTime || 'Noon',
+      type: filters.type || undefined,
+      transmission: filters.transmission || undefined,
+      minPrice: filters.minPrice || undefined,
+      maxPrice: filters.maxPrice || undefined,
+      sortBy: filters.sortBy,
+      sortOrder: 'asc',
+      page: 1,
+      limit: 20
+    };
+    
+    dispatch(searchCarsAsync(params));
+  };
+
+  // Handle sort change
+  const handleSortChange = (newSort) => {
+    setFilters({ ...filters, sortBy: newSort });
+    const params = {
+      location: searchForm.location || searchLocation,
+      pickupDate: searchForm.pickupDate || searchPickupDate,
+      dropoffDate: searchForm.dropoffDate || searchDropoffDate,
+      pickupTime: searchForm.pickupTime || searchPickupTime || 'Noon',
+      dropoffTime: searchForm.dropoffTime || searchDropoffTime || 'Noon',
+      sortBy: newSort,
+      sortOrder: 'asc',
+      page: 1,
+      limit: 20
+    };
+    dispatch(searchCarsAsync(params));
+  };
+
+  // Handle pagination
+  const handlePageChange = (newPage) => {
+    dispatch(setPage(newPage));
+    const params = {
+      location: searchForm.location || searchLocation,
+      pickupDate: searchForm.pickupDate || searchPickupDate,
+      dropoffDate: searchForm.dropoffDate || searchDropoffDate,
+      pickupTime: searchForm.pickupTime || searchPickupTime || 'Noon',
+      dropoffTime: searchForm.dropoffTime || searchDropoffTime || 'Noon',
+      sortBy: filters.sortBy,
+      sortOrder: 'asc',
+      page: newPage,
+      limit: 20
+    };
+    dispatch(searchCarsAsync(params));
+    window.scrollTo(0, 0);
   };
 
   const handleCarClick = (carId) => {
@@ -67,19 +121,19 @@ export default function CarResults() {
   const handleBookCar = (car, e) => {
     e.stopPropagation(); // Prevent card click when clicking book button
     // Calculate rental days
-    const pickup = new Date(pickupDate);
-    const dropoff = new Date(dropoffDate);
+    const pickup = new Date(searchPickupDate || searchForm.pickupDate);
+    const dropoff = new Date(searchDropoffDate || searchForm.dropoffDate);
     const days = Math.ceil((dropoff - pickup) / (1000 * 60 * 60 * 24));
-    const totalPrice = ((car.price_per_day * days) * 1.15).toFixed(2); // 15% tax included
+    const totalPrice = ((car.daily_rental_price * days) * 1.15).toFixed(2); // 15% tax included
 
     navigate('/cars/booking', {
       state: {
         car,
-        pickupDate,
-        dropoffDate,
-        pickupTime,
-        dropoffTime,
-        pickupLocation: location,
+        pickupDate: searchPickupDate || searchForm.pickupDate,
+        dropoffDate: searchDropoffDate || searchForm.dropoffDate,
+        pickupTime: searchPickupTime || searchForm.pickupTime || 'Noon',
+        dropoffTime: searchDropoffTime || searchForm.dropoffTime || 'Noon',
+        pickupLocation: searchLocation || searchForm.location,
         days,
         totalPrice
       }
@@ -100,10 +154,10 @@ export default function CarResults() {
           </button>
           
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Available Cars in {location}
+            Available Cars in {searchLocation || searchForm.location}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {pickupDate} {pickupTime} → {dropoffDate} {dropoffTime}
+            {searchPickupDate || searchForm.pickupDate} {searchPickupTime || searchForm.pickupTime || 'Noon'} → {searchDropoffDate || searchForm.dropoffDate} {searchDropoffTime || searchForm.dropoffTime || 'Noon'}
           </p>
         </div>
 
@@ -191,7 +245,17 @@ export default function CarResults() {
               </div>
 
               <button
-                onClick={() => setFilters({ type: '', minPrice: '', maxPrice: '', transmission: '', sortBy: 'price' })}
+                onClick={handleApplyFilters}
+                className="w-full px-4 py-2 bg-[#FF690F] hover:bg-[#d6570c] text-white rounded-lg transition-all font-semibold mb-3"
+              >
+                Apply Filters
+              </button>
+              
+              <button
+                onClick={() => {
+                  setFilters({ type: '', minPrice: '', maxPrice: '', transmission: '', sortBy: 'price' });
+                  handleApplyFilters();
+                }}
                 className="w-full px-4 py-2 text-[#FF690F] border-2 border-[#FF690F] rounded-lg hover:bg-[#FF690F] hover:text-white transition-all font-semibold"
               >
                 Clear Filters
@@ -201,16 +265,15 @@ export default function CarResults() {
 
           {/* Results */}
           <div className="lg:col-span-3">
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#FF690F] border-t-transparent"></div>
-                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading cars...</p>
+            {loading && results.length === 0 ? (
+              <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="w-12 h-12 animate-spin text-[#FF690F]" />
               </div>
             ) : error ? (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
                 <p className="text-red-600 dark:text-red-400">{error}</p>
               </div>
-            ) : cars.length === 0 ? (
+            ) : results.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 rounded-xl p-12 text-center shadow-lg">
                 <Car className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No cars found</h3>
@@ -218,11 +281,24 @@ export default function CarResults() {
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Found {cars.length} car{cars.length !== 1 ? 's' : ''}
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Found {pagination.total || results.length} car{(pagination.total || results.length) !== 1 ? 's' : ''}
+                    {cached && <span className="text-sm text-gray-500 ml-2">(cached)</span>}
+                  </p>
+                  <div className="relative">
+                    <select
+                      value={filters.sortBy}
+                      onChange={(e) => handleSortChange(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-white cursor-pointer"
+                    >
+                      <option value="price">Price: Low to High</option>
+                      <option value="rating">Rating: High to Low</option>
+                    </select>
+                  </div>
+                </div>
                 
-                {cars.map((car) => (
+                {results.map((car) => (
                   <div
                     key={car.id}
                     onClick={() => handleCarClick(car.id)}
@@ -321,6 +397,31 @@ export default function CarResults() {
                     </div>
                   </div>
                 ))}
+
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-8">
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page === 1}
+                      className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                    >
+                      <ChevronLeft className="w-5 h-5 dark:text-white" />
+                    </button>
+                    
+                    <span className="px-4 py-2 dark:text-white">
+                      Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                    
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page === pagination.totalPages}
+                      className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                    >
+                      <ChevronRight className="w-5 h-5 dark:text-white" />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

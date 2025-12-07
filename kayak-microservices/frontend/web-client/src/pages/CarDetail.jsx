@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   MapPin,
   Star,
@@ -17,17 +17,18 @@ import {
   Shield
 } from 'lucide-react';
 import LoginPromptModal from '../components/LoginPromptModal';
+import { getCarDetailsAsync } from '../store/slices/carsSlice';
 
 export default function CarDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerLocation = useLocation();
   const [searchParams] = useSearchParams();
+  const dispatch = useDispatch();
+  
+  const { selectedCar, loading, error } = useSelector(state => state.cars);
   const { user } = useSelector(state => state.auth);
   
-  const [car, setCar] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   
@@ -50,28 +51,9 @@ export default function CarDetail() {
   const days = calculateDays();
 
   useEffect(() => {
-    fetchCarDetails();
+    dispatch(getCarDetailsAsync(id));
     checkIfLiked();
-  }, [id]);
-
-  const fetchCarDetails = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/listings/cars/${id}`);
-      const data = await response.json();
-      
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setCar(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch car details:', err);
-      setError('Failed to load car details');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id, dispatch]);
 
   const checkIfLiked = () => {
     const favorites = JSON.parse(localStorage.getItem('favorites') || '{"cars": []}');
@@ -94,7 +76,7 @@ export default function CarDetail() {
       // Add to favorites
       if (!favorites.cars) favorites.cars = [];
       favorites.cars.push({
-        ...car,
+        ...selectedCar,
         savedAt: new Date().toISOString()
       });
       setIsLiked(true);
@@ -109,28 +91,32 @@ export default function CarDetail() {
       return;
     }
 
+    if (!selectedCar) {
+      return;
+    }
+
     if (!pickupDate || !dropoffDate) {
       alert('Please select pickup and drop-off dates');
       return;
     }
 
-    const totalPrice = ((car.daily_rental_price * days) * 1.15).toFixed(2);
+    const totalPrice = ((selectedCar.daily_rental_price * days) * 1.15).toFixed(2);
 
     // Ensure car images are passed correctly
-    const carImages = Array.isArray(car.images) ? car.images : (typeof car.images === 'string' ? JSON.parse(car.images) : []);
+    const carImages = Array.isArray(selectedCar.images) ? selectedCar.images : (typeof selectedCar.images === 'string' ? JSON.parse(selectedCar.images) : []);
     
     navigate('/cars/booking', {
       state: {
         car: {
-          ...car,
-          price_per_day: car.daily_rental_price,
+          ...selectedCar,
+          price_per_day: selectedCar.daily_rental_price,
           image_url: carImages[0] || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'
         },
         pickupDate,
         dropoffDate,
         pickupTime,
         dropoffTime,
-        pickupLocation: pickupLocation || car.location,
+        pickupLocation: pickupLocation || selectedCar.location,
         days,
         totalPrice
       }
@@ -145,7 +131,7 @@ export default function CarDetail() {
     );
   }
 
-  if (error || !car) {
+  if (error || !selectedCar) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <Car className="w-16 h-16 text-gray-400 mb-4" />
@@ -160,6 +146,7 @@ export default function CarDetail() {
     );
   }
 
+  const car = selectedCar;
   const carImages = Array.isArray(car.images) 
     ? car.images 
     : (typeof car.images === 'string' ? JSON.parse(car.images) : []);

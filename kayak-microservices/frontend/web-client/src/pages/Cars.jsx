@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
   ChevronDown, 
-  Search
+  Search,
+  MapPin,
+  Calendar,
+  Users
 } from 'lucide-react';
 import { PiAirplaneTiltFill } from "react-icons/pi";
 import { IoIosBed } from "react-icons/io";
@@ -11,6 +15,8 @@ import { FaUmbrellaBeach } from "react-icons/fa6";
 import { HiSparkles } from "react-icons/hi2";
 import LocationInput from '../components/LocationInput';
 import DateTimePicker from '../components/DateTimePicker';
+import { addRecentSearch } from '../store/slices/carsSlice';
+import { getCarCities } from '../services/carsApi';
 
 const DEFAULT_CAR_CITIES = [
   'Los Angeles, CA',
@@ -27,7 +33,11 @@ const DEFAULT_CAR_CITIES = [
 
 export default function Cars() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerLocation = useLocation();
+  const dispatch = useDispatch();
+  
+  // Redux state
+  const { recentSearches } = useSelector(state => state.cars);
   
   // Search state
   const [sameDropOff, setSameDropOff] = useState(true);
@@ -44,18 +54,8 @@ export default function Cars() {
   useEffect(() => {
     const fetchCarCities = async () => {
       try {
-        console.log('Fetching car cities...');
-        const response = await fetch('http://localhost:3000/api/listings/cars/cities');
-        console.log('Response status:', response.status);
-        const data = await response.json();
-        console.log('Fetched car cities:', data);
-        
-        if (data.cities && Array.isArray(data.cities)) {
-          setCarCities(data.cities);
-          console.log('Set car cities:', data.cities.length, 'cities');
-        } else {
-          console.warn('No cities in response or invalid format:', data);
-        }
+        const cities = await getCarCities();
+        setCarCities(cities);
       } catch (error) {
         console.error('Failed to fetch car cities:', error);
         // Keep empty array as fallback
@@ -87,11 +87,27 @@ export default function Cars() {
       return;
     }
     
+    // Format dates
+    const pickupDateStr = pickupDate.toISOString().split('T')[0];
+    const dropoffDateStr = dropoffDate.toISOString().split('T')[0];
+    
+    // Save to recent searches in Redux
+    dispatch(addRecentSearch({
+      location: pickupLocation,
+      pickupDate: pickupDateStr,
+      dropoffDate: dropoffDateStr,
+      pickupTime,
+      dropoffTime,
+      sameDropOff,
+      dropoffLocation: sameDropOff ? null : dropoffLocation,
+      type: suvsOnly ? 'suv' : ''
+    }));
+    
     // Build search query params
     const searchParams = new URLSearchParams({
       location: pickupLocation,
-      pickupDate: pickupDate.toISOString().split('T')[0],
-      dropoffDate: dropoffDate.toISOString().split('T')[0],
+      pickupDate: pickupDateStr,
+      dropoffDate: dropoffDateStr,
       pickupTime,
       dropoffTime,
     });
@@ -106,6 +122,20 @@ export default function Cars() {
     
     // Navigate to search results
     navigate(`/cars/search?${searchParams.toString()}`);
+  };
+
+  // Load a recent search
+  const loadRecentSearch = (search) => {
+    setPickupLocation(search.location || '');
+    setDropoffLocation(search.dropoffLocation || '');
+    setPickupDate(search.pickupDate ? new Date(search.pickupDate) : null);
+    setDropoffDate(search.dropoffDate ? new Date(search.dropoffDate) : null);
+    setPickupTime(search.pickupTime || 'Noon');
+    setDropoffTime(search.dropoffTime || 'Noon');
+    setSameDropOff(search.sameDropOff !== undefined ? search.sameDropOff : true);
+    if (search.type === 'suv') {
+      setSuvsOnly(true);
+    }
   };
 
   return (
@@ -123,9 +153,9 @@ export default function Cars() {
             <div className="lg:col-span-8">
               {/* Navigation Tabs */}
               <div className="flex flex-wrap gap-6 mb-6">
-                <NavTab icon={<PiAirplaneTiltFill />} label="Flights" active={location.pathname === '/'} link="/" />
-                <NavTab icon={<IoIosBed />} label="Stays" active={location.pathname === '/stays'} link="/stays" />
-                <NavTab icon={<IoCarSharp />} label="Cars" active={location.pathname === '/cars'} link="/cars" />
+                <NavTab icon={<PiAirplaneTiltFill />} label="Flights" active={routerLocation.pathname === '/'} link="/" />
+                <NavTab icon={<IoIosBed />} label="Stays" active={routerLocation.pathname === '/stays'} link="/stays" />
+                <NavTab icon={<IoCarSharp />} label="Cars" active={routerLocation.pathname === '/cars'} link="/cars" />
                 <NavTab icon={<FaUmbrellaBeach />} label="Packages" active={location.pathname === '/packages'} link="/packages" />
                 <NavTab icon={<HiSparkles />} label="AI Mode" active={location.pathname === '/ai-mode'} link="/ai-mode" />
               </div>
@@ -227,6 +257,38 @@ export default function Cars() {
               <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 text-center md:text-left">
                 💡 <span className="font-medium">Pro tip:</span> Prices tend to be lower on weekdays and for longer rental periods
               </p>
+
+              {/* Recent Searches */}
+              {recentSearches.length > 0 && (
+                <div className="mt-8">
+                  <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Recent Searches</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {recentSearches.map((search, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => loadRecentSearch(search)}
+                        className="p-4 bg-white dark:bg-gray-700 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-shadow border border-gray-200 dark:border-gray-600"
+                      >
+                        <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-white mb-2">
+                          <MapPin className="w-4 h-4 text-[#FF690F]" />
+                          {search.location}
+                        </div>
+                        {search.pickupDate && search.dropoffDate && (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            {search.pickupDate} → {search.dropoffDate}
+                          </div>
+                        )}
+                        {search.pickupTime && search.dropoffTime && (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {search.pickupTime} - {search.dropoffTime}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Column: Image Grid */}

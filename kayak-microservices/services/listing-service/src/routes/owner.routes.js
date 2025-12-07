@@ -49,47 +49,14 @@ router.delete('/cars/:id', carsController.deleteMyListing);
  * GET /api/owner/hotels
  * Get all hotels owned by the authenticated owner
  */
-// router.get('/hotels', hotelsController.getMyListings);
-
-/**
- * GET /api/owner/hotels
- * Get all hotels owned by the authenticated owner
- */
-router.get('/hotels', async (req, res) => {
-  try {
-    const mysql = require('mysql2/promise');
-    const owner_id = req.user.id;
-
-    const dbConfig = {
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'Somalwar1!',
-      database: 'kayak_listings',
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    };
-
-    const pool = mysql.createPool(dbConfig);
-    
-    const [hotels] = await pool.execute(
-      'SELECT * FROM hotels WHERE owner_id = ? ORDER BY created_at DESC',
-      [owner_id]
-    );
-
-    res.json(hotels);
-  } catch (error) {
-    console.error('Get owner hotels error:', error);
-    res.status(500).json({ error: 'Failed to get hotels' });
-  }
-});
+router.get('/hotels', hotelsController.getMyListings);
 
 /**
  * POST /api/owner/hotels
  * Create a new hotel listing (status: pending)
  * Body: { name, city, state, price_per_night, star_rating, amenities, images }
  */
-// router.post('/hotels', hotelsController.createListing);
+router.post('/hotels', hotelsController.createListing);
 
 /**
  * PUT /api/owner/hotels/:id
@@ -97,74 +64,14 @@ router.get('/hotels', async (req, res) => {
  * Params: { id: hotel_id }
  * Body: Any hotel fields to update
  */
-// router.put('/hotels/:id', hotelsController.updateMyListing);
+router.put('/hotels/:id', hotelsController.updateMyListing);
 
 /**
  * DELETE /api/owner/hotels/:id
  * Delete own hotel listing (soft delete)
  * Params: { id: hotel_id }
  */
-router.delete('/hotels/:id', async (req, res) => {
-  try {
-    const mysql = require('mysql2/promise');
-    const owner_id = req.user.id;
-    const hotel_id = req.params.id;
-
-    const dbConfig = {
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'Somalwar1!',
-      database: 'kayak_listings',
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    };
-
-    const pool = mysql.createPool(dbConfig);
-
-    // Verify ownership
-    const [hotels] = await pool.execute(
-      'SELECT id FROM hotels WHERE id = ? AND owner_id = ?',
-      [hotel_id, owner_id]
-    );
-
-    if (hotels.length === 0) {
-      return res.status(404).json({ error: 'Hotel not found or you do not own this hotel' });
-    }
-
-    // Check for active bookings in kayak_bookings database
-    const bookingsDbConfig = {
-      ...dbConfig,
-      database: 'kayak_bookings'
-    };
-    const bookingsPool = mysql.createPool(bookingsDbConfig);
-
-    const [activeBookings] = await bookingsPool.execute(
-      `SELECT COUNT(*) as count FROM bookings 
-       WHERE listing_id = ? 
-       AND listing_type = 'hotel' 
-       AND status IN ('pending', 'confirmed')
-       AND travel_date >= CURDATE()`,
-      [hotel_id]
-    );
-
-    if (activeBookings[0].count > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot delete hotel with active bookings',
-        message: `This hotel has ${activeBookings[0].count} active booking(s). Please wait for them to complete or contact support to cancel them first.`,
-        activeBookings: activeBookings[0].count
-      });
-    }
-
-    // Delete the hotel
-    await pool.execute('DELETE FROM hotels WHERE id = ?', [hotel_id]);
-
-    res.json({ message: 'Hotel deleted successfully' });
-  } catch (error) {
-    console.error('Delete hotel error:', error);
-    res.status(500).json({ error: 'Failed to delete hotel' });
-  }
-});
+router.delete('/hotels/:id', hotelsController.deleteMyListing);
 
 /**
  * GET /api/owner/bookings

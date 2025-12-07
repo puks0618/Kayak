@@ -379,6 +379,14 @@ const HotelModel = {
     }
   },
 
+  async findByOwner(owner_id) {
+    const [rows] = await pool.execute(
+      'SELECT * FROM hotels WHERE owner_id = ? ORDER BY created_at DESC',
+      [owner_id]
+    );
+    return rows;
+  },
+
   async update(id, updates) {
     const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
     const values = Object.values(updates).map(val =>
@@ -395,7 +403,7 @@ const HotelModel = {
   },
 
   async delete(id) {
-    await pool.execute('UPDATE hotels SET has_availability = 0 WHERE hotel_id = ?', [id]);
+    await pool.execute('UPDATE hotels SET deleted_at = NOW() WHERE id = ?', [id]);
     return true;
   },
 

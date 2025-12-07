@@ -7,9 +7,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
+COPY config.py .
 COPY agents ./agents
 COPY models ./models
 COPY services ./services
+COPY workers ./workers
 COPY main.py .
 
 # Expose port

@@ -302,9 +302,24 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - PORT=8000
       - KAFKA_BROKERS=kafka:29092
+      - DB_PATH=/app/data/kayak_ai.db
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Somalwar1!
+      - DB_NAME=kayak_listings
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FEED_INGESTION_INTERVAL=300
+      - DEAL_PRICE_DROP_THRESHOLD=15.0
+    volumes:
+      - ../../services/ai-agent/data:/app/data
     depends_on:
       - kafka
+      - mysql
+      - redis
     networks:
       - kayak-network
 

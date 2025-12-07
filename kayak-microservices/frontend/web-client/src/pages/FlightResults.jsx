@@ -30,6 +30,7 @@ import { FaHeart } from 'react-icons/fa';
 import { buildFareOptions, getFareAmenities } from '../utils/fareOptions';
 import { updateSearchForm, searchFlights } from '../store/slices/flightsSlice';
 import { AIRPORTS } from '../constants/airports';
+import { getUserFavorites, addToUserFavorites, removeFromUserFavorites, isUserFavorite } from '../utils/userStorage';
 
 // Airline color mapping
 const getAirlineColor = (airline) => {
@@ -104,26 +105,27 @@ export default function FlightResults() {
 
   // Load liked flights from localStorage
   useEffect(() => {
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"flights": []}');
-    const liked = {};
-    favorites.flights?.forEach(f => {
-      liked[f.id] = true;
-    });
-    setLikedFlights(liked);
-  }, []);
+    if (user && user.id) {
+      const favorites = getUserFavorites(user.id);
+      const liked = {};
+      favorites.flights?.forEach(f => {
+        liked[f.id] = true;
+      });
+      setLikedFlights(liked);
+    }
+  }, [user]);
 
   const toggleLikeFlight = (flight) => {
-    if (!user) {
+    if (!user || !user.id) {
       alert('Please log in to save favorites');
       return;
     }
 
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"flights": [], "hotels": [], "cars": []}');
     const isLiked = likedFlights[flight.id];
 
     if (isLiked) {
       // Remove from favorites
-      favorites.flights = favorites.flights.filter(f => f.id !== flight.id);
+      removeFromUserFavorites(user.id, 'flights', flight.id);
       setLikedFlights(prev => {
         const newLiked = { ...prev };
         delete newLiked[flight.id];
@@ -131,15 +133,9 @@ export default function FlightResults() {
       });
     } else {
       // Add to favorites
-      if (!favorites.flights) favorites.flights = [];
-      favorites.flights.push({
-        ...flight,
-        savedAt: new Date().toISOString()
-      });
+      addToUserFavorites(user.id, 'flights', flight);
       setLikedFlights(prev => ({ ...prev, [flight.id]: true }));
     }
-
-    localStorage.setItem('favorites', JSON.stringify(favorites));
   };
 
   // Check if this is a deal click (has maxDealPrice parameter)
@@ -733,7 +729,10 @@ export default function FlightResults() {
                 const airline = flight.airline || 'Unknown';
                 const flightNumber = flight.flightNumber || flight.flight_code || flight.id;
                 const cabinClass = flight.cabinClass || flight.cabin_class || 'economy';
-                const price = flight.price || 0;
+                const basePrice = flight.price || 0;
+                const passengers = searchForm.adults || 1;
+                const price = basePrice * passengers; // Multiply by number of passengers
+                const seatsLeft = flight.seats_left || flight.seatsLeft || 0;
                 const isExpanded = expandedFlight === flight.id;
                 const isCheapest = index === 0 && sortBy === 'cheapest';
                 const isBest = index === 0 && sortBy === 'best';
@@ -814,9 +813,21 @@ export default function FlightResults() {
                                   )}
                                 </div>
                                 
-                                <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-800 text-xs rounded">
-                                  {originCode}–{destCode}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-800 text-xs rounded">
+                                    {originCode}–{destCode}
+                                  </span>
+                                  {seatsLeft > 0 && seatsLeft <= 10 && (
+                                    <span className="inline-block px-2 py-0.5 bg-red-50 text-red-700 text-xs rounded font-medium">
+                                      Only {seatsLeft} seats left
+                                    </span>
+                                  )}
+                                  {seatsLeft > 10 && (
+                                    <span className="inline-block px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded">
+                                      {seatsLeft} seats available
+                                    </span>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Return Flight (if round trip) */}

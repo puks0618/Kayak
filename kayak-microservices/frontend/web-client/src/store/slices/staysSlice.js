@@ -135,17 +135,6 @@ const staysSlice = createSlice({
       .addCase(searchStaysAsync.fulfilled, (state, action) => {
         state.loading = false;
         const hotels = action.payload.hotels || [];
-        // Debug logging
-        if (hotels.length > 0) {
-          console.log('Redux storing hotels:', {
-            count: hotels.length,
-            firstHotel: {
-              hotel_id: hotels[0].hotel_id,
-              id: hotels[0].id,
-              name: hotels[0].hotel_name
-            }
-          });
-        }
         state.results = hotels;
         state.pagination = action.payload.pagination || initialState.pagination;
         state.cached = action.payload.cached || false;

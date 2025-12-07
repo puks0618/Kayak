@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import LoginPromptModal from '../components/LoginPromptModal';
 import DateRangeCalendar from '../components/DateRangeCalendar';
+import ReviewSection from '../components/ReviewSection';
 import {
   MapPin,
   Star,
@@ -65,15 +66,18 @@ export default function HotelDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
 
   const { selectedStay, loading, error } = useSelector(state => state.stays);
   const { user } = useSelector(state => state.auth);
   const [selectedImage, setSelectedImage] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-  const [guests, setGuests] = useState(1);
+  
+  // Initialize dates from URL params if available
+  const [checkIn, setCheckIn] = useState(searchParams.get('checkIn') || '');
+  const [checkOut, setCheckOut] = useState(searchParams.get('checkOut') || '');
+  const [guests, setGuests] = useState(parseInt(searchParams.get('guests')) || 1);
   const [isLiked, setIsLiked] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -92,6 +96,19 @@ export default function HotelDetail() {
     dispatch(getStayDetailsAsync(id));
     checkIfLiked();
   }, [id, dispatch]);
+
+  // Debug logging when stay data loads
+  useEffect(() => {
+    if (selectedStay) {
+      console.log('=== Hotel Detail Data ==>');
+      console.log('Full hotel object:', selectedStay);
+      console.log('Star rating:', selectedStay.star_rating);
+      console.log('Review score rating:', selectedStay.review_scores_rating);
+      console.log('Amenities:', selectedStay.amenities);
+      console.log('Reviews:', selectedStay.reviews);
+      console.log('Description:', selectedStay.description);
+    }
+  }, [selectedStay]);
 
   const checkIfLiked = () => {
     const favorites = JSON.parse(localStorage.getItem('favorites') || '{"hotels": []}');
@@ -299,35 +316,12 @@ export default function HotelDetail() {
               </div>
             )}
 
-            {/* Reviews */}
-            {hotel.reviews && hotel.reviews.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-bold mb-4 dark:text-white">Reviews</h2>
-                <div className="space-y-4">
-                  {hotel.reviews.slice(0, 5).map((review, idx) => (
-                    <div key={idx} className="border-b dark:border-gray-700 pb-4 last:border-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                          <span className="font-bold dark:text-white">{review.reviewer_name?.charAt(0) || 'U'}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium dark:text-white">{review.reviewer_name || 'Anonymous'}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {review.date ? new Date(review.date).toLocaleDateString() : 'No date'}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-gray-700 dark:text-gray-300 line-clamp-3">{review.comments}</p>
-                    </div>
-                  ))}
-                </div>
-                {hotel.reviews.length > 5 && (
-                  <button className="mt-4 text-[#FF690F] hover:underline font-medium">
-                    Show all {hotel.reviews.length} reviews
-                  </button>
-                )}
-              </div>
-            )}
+            {/* Reviews Section */}
+            <ReviewSection 
+              type="hotels" 
+              listingId={hotel.hotel_id} 
+              listingName={hotel.hotel_name}
+            />
             </div>
           </div>
 

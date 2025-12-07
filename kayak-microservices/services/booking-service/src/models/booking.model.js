@@ -21,7 +21,7 @@ const BookingModel = {
   async create(bookingData) {
     const {
       user_id, listing_id, listing_type, status,
-      travel_date, total_amount
+      travel_date, total_amount, booking_details
     } = bookingData;
 
     const id = uuidv4();
@@ -29,16 +29,41 @@ const BookingModel = {
     // Convert ISO date to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
     const mysqlDate = travel_date ? new Date(travel_date).toISOString().slice(0, 19).replace('T', ' ') : null;
     
+    // Check if booking_details column exists, if not we'll skip it
     const query = `
       INSERT INTO bookings 
-      (id, user_id, listing_id, listing_type, status, travel_date, total_amount) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (id, user_id, listing_id, listing_type, status, travel_date, total_amount${booking_details ? ', booking_details' : ''}) 
+      VALUES (?, ?, ?, ?, ?, ?, ?${booking_details ? ', ?' : ''})
     `;
 
-    await pool.execute(query, [
+    const params = [
       id, user_id, listing_id, listing_type, status || 'pending',
       mysqlDate, total_amount
-    ]);
+    ];
+    
+    if (booking_details) {
+      params.push(JSON.stringify(booking_details));
+    }
+
+    try {
+      await pool.execute(query, params);
+    } catch (error) {
+      // If booking_details column doesn't exist, insert without it
+      if (error.code === 'ER_BAD_FIELD_ERROR') {
+        console.warn('⚠️  booking_details column not found, inserting without it');
+        const fallbackQuery = `
+          INSERT INTO bookings 
+          (id, user_id, listing_id, listing_type, status, travel_date, total_amount) 
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        await pool.execute(fallbackQuery, [
+          id, user_id, listing_id, listing_type, status || 'pending',
+          mysqlDate, total_amount
+        ]);
+      } else {
+        throw error;
+      }
+    }
 
     return { id, ...bookingData };
   },

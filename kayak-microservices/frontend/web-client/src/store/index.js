@@ -9,6 +9,7 @@ import storage from 'redux-persist/lib/storage'; // localStorage
 import authReducer from './authSlice';
 import flightsReducer from './slices/flightsSlice';
 import staysReducer from './slices/staysSlice';
+import carsReducer from './slices/carsSlice';
 
 // Persist configuration
 const persistConfig = {
@@ -24,6 +25,7 @@ export const store = configureStore({
     auth: persistedAuthReducer,
     flights: flightsReducer,
     stays: staysReducer,
+    cars: carsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

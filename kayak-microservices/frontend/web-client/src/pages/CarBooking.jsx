@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car, Calendar } from 'lucide-react';
 import { bookingService } from '../services/api';
+import { addUserBooking } from '../utils/userStorage';
 
 export default function CarBooking() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useSelector(state => state.auth);
   const { car, pickupDate, dropoffDate, pickupTime, dropoffTime, pickupLocation, days, totalPrice } = location.state || {};
 
   const [formData, setFormData] = useState({
@@ -26,6 +29,43 @@ export default function CarBooking() {
 
   const [errors, setErrors] = useState({});
 
+  // Validation functions
+  const validStates = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming'
+  };
+
+  const validateZipCode = (zip) => {
+    const zipPattern = /^(\d{2}|\d{5})(-\d{4})?$/;
+    return zipPattern.test(zip);
+  };
+
+  const validateState = (state) => {
+    if (!state) return false;
+    const upperState = state.toUpperCase();
+    const lowerState = state.toLowerCase();
+    return upperState in validStates || Object.values(validStates).map(s => s.toLowerCase()).includes(lowerState);
+  };
+
+  const validatePhone = (phone) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length === 10;
+  };
+
+  const validateLicenseNumber = (license) => {
+    // US Driver License: 8-15 alphanumeric characters
+    const licensePattern = /^[A-Za-z0-9]{8,15}$/;
+    return licensePattern.test(license);
+  };
+
   if (!car) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -44,7 +84,26 @@ export default function CarBooking() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    let processedValue = value;
+
+    // Auto-format phone: remove non-digits and limit to 10
+    if (name === 'phone') {
+      processedValue = value.replace(/\D/g, '').slice(0, 10);
+    }
+
+    // Auto-format license: uppercase alphanumeric only, max 15 chars
+    if (name === 'licenseNumber') {
+      processedValue = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 15);
+    }
+
+    // Auto-format state: uppercase and limit to 2 characters if abbreviation
+    if (name === 'state') {
+      if (value.length <= 2) {
+        processedValue = value.toUpperCase().slice(0, 2);
+      }
+    }
+
+    setFormData(prev => ({ ...prev, [name]: processedValue }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -57,11 +116,30 @@ export default function CarBooking() {
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    
+    // Phone validation
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!validatePhone(formData.phone)) {
+      newErrors.phone = 'Phone must be 10 digits';
+    }
+    
     if (!formData.address.trim()) newErrors.address = 'Address is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.zipCode.trim()) newErrors.zipCode = 'Zip code is required';
-    if (!formData.licenseNumber.trim()) newErrors.licenseNumber = 'Driver license number is required';
+    
+    // Zip code validation
+    if (!formData.zipCode.trim()) {
+      newErrors.zipCode = 'Zip code is required';
+    } else if (!validateZipCode(formData.zipCode)) {
+      newErrors.zipCode = 'Enter valid zip code (e.g., 12, 95123, 90086-1929)';
+    }
+    
+    // License number validation
+    if (!formData.licenseNumber.trim()) {
+      newErrors.licenseNumber = 'Driver license number is required';
+    } else if (!validateLicenseNumber(formData.licenseNumber)) {
+      newErrors.licenseNumber = 'License must be 8-15 alphanumeric characters';
+    }
     
     if (formData.paymentType !== 'paypal') {
       if (!formData.cardNumber.trim()) newErrors.cardNumber = 'Card number is required';
@@ -69,6 +147,7 @@ export default function CarBooking() {
       if (!formData.expiryDate.trim()) newErrors.expiryDate = 'Expiry date is required';
       if (!formData.cvv.trim()) newErrors.cvv = 'CVV is required';
     }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -145,13 +224,13 @@ export default function CarBooking() {
         // Update booking ID from backend response
         booking.id = response.booking_id || bookingId;
 
-        // Save to localStorage for local tracking
-        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('bookings', JSON.stringify(existingBookings));
+        // Save to user-specific localStorage for local tracking
+        if (user && user.id) {
+          addUserBooking(user.id, booking);
+        }
 
-        // Redirect to car-specific success page with booking details
-        navigate('/booking/car/success', { state: { booking, type: 'car' } });
+        // Redirect to success page with booking details
+        navigate('/booking/car/success', { state: { booking } });
       } catch (error) {
         console.error('❌ Car booking creation failed:', error);
         alert('Failed to save booking. Please try again.');

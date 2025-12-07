@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Check, X, Plane } from 'lucide-react';
 import { buildDetailedFareOptions } from '../utils/fareOptions';
+import ReviewSection from '../components/ReviewSection';
 
 export default function FareSelectionPage() {
   const location = useLocation();
@@ -27,8 +28,9 @@ export default function FareSelectionPage() {
     return null;
   }
   
-  // Build detailed fare options
-  const basePrice = flight.price || 0;
+  // Calculate price with passenger count
+  const passengers = searchForm?.adults || 1;
+  const basePrice = (flight.price || 0) * passengers;
   const fareOptions = buildDetailedFareOptions(basePrice);
   const selectedFare = fareOptions.find(f => f.code === selectedFareCode);
   
@@ -89,7 +91,7 @@ export default function FareSelectionPage() {
           returnFlight: returnFlight || null,
           fare: selectedFare,
           totalPrice: selectedFare.price,
-          passengers: 1,
+          passengers: passengers,
           searchForm
         } 
       });
@@ -130,7 +132,7 @@ export default function FareSelectionPage() {
             {/* Fare Info */}
             <div className="mb-6">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Total prices may include estimated baggage fees and flexibility. Some options may require added baggage or flexibility when checking out.
+                {originCode} to {destCode}, roundtrip, {passengers} traveler{passengers !== 1 ? 's' : ''}
               </p>
             
               {/* Fare Cards */}
@@ -250,6 +252,29 @@ export default function FareSelectionPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {flight.airline} Reviews
+            </h2>
+            <button
+              onClick={() => navigate(`/flights/airlines/${flight.airline}/reviews`)}
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm flex items-center gap-2"
+            >
+              View All Reviews
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <ReviewSection 
+            type="flights" 
+            listingId={flight.airline} 
+            listingName={flight.airline}
+          />
         </div>
       </div>
     </div>

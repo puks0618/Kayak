@@ -145,58 +145,58 @@ const CarModel = {
     } = searchParams;
 
     let query = `
-      SELECT * FROM cars
-      WHERE approval_status = 'approved'
-      AND availability_status = 1
+      SELECT c.* FROM cars c
+      WHERE c.approval_status = 'approved'
+      AND c.availability_status = 1
     `;
     const params = [];
 
     // Location filter (required)
     if (location) {
-      query += ' AND location LIKE ?';
+      query += ' AND c.location LIKE ?';
       params.push(`%${location}%`);
     }
 
     // Type filter
     if (type) {
-      query += ' AND type = ?';
+      query += ' AND c.type = ?';
       params.push(type);
     }
 
     // Transmission filter
     if (transmission) {
-      query += ' AND transmission = ?';
+      query += ' AND c.transmission = ?';
       params.push(transmission);
     }
 
     // Seats filter
     if (seats) {
-      query += ' AND seats >= ?';
+      query += ' AND c.seats >= ?';
       params.push(seats);
     }
 
     // Company filter
     if (company) {
-      query += ' AND company_name LIKE ?';
+      query += ' AND c.company_name LIKE ?';
       params.push(`%${company}%`);
     }
 
     // Price range
     if (minPrice) {
-      query += ' AND daily_rental_price >= ?';
+      query += ' AND c.daily_rental_price >= ?';
       params.push(minPrice);
     }
     if (maxPrice) {
-      query += ' AND daily_rental_price <= ?';
+      query += ' AND c.daily_rental_price <= ?';
       params.push(maxPrice);
     }
 
     // Sorting
     const sortColumn = sortBy === 'price' ? 'daily_rental_price' : 'rating';
-    query += ` ORDER BY ${sortColumn} ${sortOrder.toUpperCase()}`;
+    query += ` ORDER BY c.${sortColumn} ${sortOrder.toUpperCase()}`;
 
     // Count total
-    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
+    const countQuery = query.replace('SELECT c.*', 'SELECT COUNT(*) as total');
     const [countResult] = await pool.execute(countQuery, params);
     const total = countResult[0].total;
 

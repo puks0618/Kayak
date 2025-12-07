@@ -53,10 +53,10 @@ export default function BookingSuccess() {
           </div>
         </div>
 
-        {/* Booking Details - Hotel or Flight */}
+        {/* Booking Details - Flight, Hotel, or Car */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold mb-4 dark:text-white">
-            {booking.type === 'flight' ? 'Flight Details' : 'Hotel Details'}
+            {booking.type === 'flight' ? 'Flight Details' : booking.type === 'car' ? 'Car Details' : 'Hotel Details'}
           </h2>
           
           {booking.type === 'flight' ? (
@@ -96,6 +96,27 @@ export default function BookingSuccess() {
                 </p>
               </div>
             </div>
+          ) : booking.type === 'car' ? (
+            // Car Booking Details
+            <div className="flex gap-4 mb-6">
+              <img
+                src={booking.car?.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400'}
+                alt={booking.car?.make || 'Car'}
+                className="w-32 h-32 object-cover rounded-lg"
+              />
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-2 dark:text-white">
+                  {booking.car?.make} {booking.car?.model} ({booking.car?.year})
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-2">
+                  {booking.car?.category} • {booking.car?.transmission}
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Pickup: {booking.pickupLocation}
+                </p>
+              </div>
+            </div>
           ) : (
             // Hotel Booking Details
             <div className="flex gap-4 mb-6">
@@ -127,7 +148,7 @@ export default function BookingSuccess() {
             </div>
           )}
 
-          {booking.type !== 'flight' && (
+          {booking.type !== 'flight' && booking.type !== 'car' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t dark:border-gray-700 pt-4">
               <div>
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
@@ -157,10 +178,10 @@ export default function BookingSuccess() {
         {/* Guest/Passenger Information */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold mb-4 dark:text-white">
-            {booking.type === 'flight' ? 'Passenger Information' : 'Guest Information'}
+            {booking.type === 'flight' ? 'Passenger Information' : booking.type === 'car' ? 'Driver Information' : 'Guest Information'}
           </h2>
           {(() => {
-            const info = booking.passengerInfo || booking.guestInfo;
+            const info = booking.passengerInfo || booking.guestInfo || booking.driverInfo;
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -177,6 +198,12 @@ export default function BookingSuccess() {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
                   <p className="font-semibold dark:text-white">{info?.phone}</p>
                 </div>
+                {booking.type === 'car' && info?.licenseNumber && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Driver License</p>
+                    <p className="font-semibold dark:text-white">{info.licenseNumber}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Address</p>
                   <p className="font-semibold dark:text-white">
@@ -207,6 +234,20 @@ export default function BookingSuccess() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Service fee (10%)</span>
                   <span className="dark:text-white">${((booking.fare?.price || booking.totalPrice) * 0.1).toFixed(2)}</span>
+                </div>
+              </>
+            ) : booking.type === 'car' ? (
+              // Car payment breakdown
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    ${booking.car?.daily_rental_price} × {booking.days} day{booking.days !== 1 ? 's' : ''}
+                  </span>
+                  <span className="dark:text-white">${(booking.car?.daily_rental_price * booking.days).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Service fee</span>
+                  <span className="dark:text-white">${(booking.car?.daily_rental_price * booking.days * 0.1).toFixed(2)}</span>
                 </div>
               </>
             ) : (

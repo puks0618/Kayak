@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Car, MapPin, Users, Settings, Star, ArrowLeft, Filter } from 'lucide-react';
 
 export default function CarResults() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   
   const [cars, setCars] = useState([]);
@@ -16,6 +16,14 @@ export default function CarResults() {
     transmission: '',
     sortBy: 'price'
   });
+
+  // Edit search panel state
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [editLocation, setEditLocation] = useState(searchParams.get('location') || '');
+  const [editPickupDate, setEditPickupDate] = useState(searchParams.get('pickupDate') || '');
+  const [editDropoffDate, setEditDropoffDate] = useState(searchParams.get('dropoffDate') || '');
+  const [editPickupTime, setEditPickupTime] = useState(searchParams.get('pickupTime') || '10:00');
+  const [editDropoffTime, setEditDropoffTime] = useState(searchParams.get('dropoffTime') || '10:00');
 
   const location = searchParams.get('location');
   const pickupDate = searchParams.get('pickupDate');
@@ -38,6 +46,10 @@ export default function CarResults() {
         sortOrder: 'asc',
         limit: 50
       });
+
+      // Add pickup and dropoff dates for availability checking
+      if (pickupDate) params.append('pickupDate', pickupDate);
+      if (dropoffDate) params.append('dropoffDate', dropoffDate);
 
       if (filters.type) params.append('type', filters.type);
       if (filters.minPrice) params.append('minPrice', filters.minPrice);
@@ -86,6 +98,24 @@ export default function CarResults() {
     });
   };
 
+  const handleUpdateSearch = () => {
+    // Update search params with new values
+    const newParams = new URLSearchParams({
+      location: editLocation,
+      pickupDate: editPickupDate,
+      dropoffDate: editDropoffDate,
+      pickupTime: editPickupTime,
+      dropoffTime: editDropoffTime
+    });
+
+    // Update URL and trigger new search
+    setSearchParams(newParams);
+    setShowEditPanel(false);
+    
+    // Trigger refetch with new parameters
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pt-20">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -99,13 +129,118 @@ export default function CarResults() {
             Back to Search
           </button>
           
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Available Cars in {location}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {pickupDate} {pickupTime} → {dropoffDate} {dropoffTime}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Available Cars in {location}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {pickupDate} {pickupTime} → {dropoffDate} {dropoffTime}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowEditPanel(!showEditPanel)}
+              className="px-6 py-2 bg-[#FF690F] text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              {showEditPanel ? 'Close' : 'Edit Search'}
+            </button>
+          </div>
         </div>
+
+        {/* Edit Search Panel */}
+        {showEditPanel && (
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Your Search</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Pickup Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Pickup Location
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    placeholder="City or Airport"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Pickup Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Pickup Date
+                </label>
+                <input
+                  type="date"
+                  value={editPickupDate}
+                  onChange={(e) => setEditPickupDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* Pickup Time */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Pickup Time
+                </label>
+                <input
+                  type="time"
+                  value={editPickupTime}
+                  onChange={(e) => setEditPickupTime(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* Dropoff Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Dropoff Date
+                </label>
+                <input
+                  type="date"
+                  value={editDropoffDate}
+                  onChange={(e) => setEditDropoffDate(e.target.value)}
+                  min={editPickupDate || new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* Dropoff Time */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Dropoff Time
+                </label>
+                <input
+                  type="time"
+                  value={editDropoffTime}
+                  onChange={(e) => setEditDropoffTime(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#FF690F] dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Update Search Button */}
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowEditPanel(false)}
+                className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateSearch}
+                className="px-6 py-2 bg-[#FF690F] text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              >
+                Update Search
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Filters Sidebar */}

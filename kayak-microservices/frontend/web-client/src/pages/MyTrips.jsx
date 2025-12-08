@@ -22,19 +22,69 @@ export default function MyTrips() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      // Get bookings from localStorage for now (MVP)
+      
+      // Fetch from backend API
+      if (user && user.id) {
+        const response = await fetch(`${API_BASE_URL}/bookings/user/${user.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Transform backend data to match frontend format
+          const transformedBookings = data.map(booking => ({
+            id: booking.id,
+            type: booking.listing_type,
+            travel_date: booking.travel_date,
+            return_date: booking.return_date,
+            status: booking.status,
+            total_amount: booking.total_amount,
+            listing_id: booking.listing_id,
+            rental_days: booking.rental_days,
+            // Set dates for compatibility
+            pickupDate: booking.travel_date,
+            dropoffDate: booking.return_date,
+            checkIn: booking.travel_date,
+            checkOut: booking.return_date,
+            // Will need to fetch listing details separately if needed
+            outboundFlight: booking.listing_type === 'flight' ? { 
+              departure_time: booking.travel_date 
+            } : null,
+            car: booking.listing_type === 'car' ? { 
+              brand: 'Car', 
+              model: booking.listing_id 
+            } : null,
+            hotel: booking.listing_type === 'hotel' ? { 
+              hotel_name: 'Hotel', 
+              city: 'City' 
+            } : null
+          }));
+          setBookings(transformedBookings);
+        } else {
+          console.error('Failed to fetch bookings:', response.statusText);
+          // Fallback to localStorage if API fails
+          const storedBookings = localStorage.getItem('bookings');
+          if (storedBookings) {
+            setBookings(JSON.parse(storedBookings));
+          }
+        }
+      } else {
+        // Fallback to localStorage for non-logged in users
+        const storedBookings = localStorage.getItem('bookings');
+        if (storedBookings) {
+          setBookings(JSON.parse(storedBookings));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      // Fallback to localStorage on error
       const storedBookings = localStorage.getItem('bookings');
       if (storedBookings) {
         setBookings(JSON.parse(storedBookings));
       }
-      
-      // TODO: Fetch from backend when API is ready
-      // if (user) {
-      //   const response = await axios.get(`${API_BASE_URL}/bookings/user/${user.id}`);
-      //   setBookings(response.data);
-      // }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
     } finally {
       setLoading(false);
     }

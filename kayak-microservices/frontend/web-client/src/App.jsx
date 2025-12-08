@@ -3,14 +3,21 @@
  * User-facing web application
  */
 
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import SharedLayout from './components/SharedLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import FlightResults from './pages/FlightResults';
 import FareSelectionPage from './pages/FareSelectionPage';
+import AirlineReviews from './pages/AirlineReviews';
 import Stays from './pages/Stays';
+import StaysSearch from './pages/StaysSearch';
+import HotelDetail from './pages/HotelDetail';
+import BookingConfirmation from './pages/BookingConfirmation';
+import FlightBookingConfirmation from './pages/FlightBookingConfirmation';
+import BookingSuccess from './pages/BookingSuccess';
+import MyTrips from './pages/MyTrips';
 import Cars from './pages/Cars';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
@@ -26,85 +33,128 @@ import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerCars from './pages/OwnerCars';
 import CarForm from './pages/CarForm';
 
-function App() {
+// Component to remove hash from URL
+function HashRemover() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // If URL has a hash, remove it
+    if (window.location.hash) {
+      const cleanPath = window.location.pathname + window.location.search;
+      window.history.replaceState(null, '', cleanPath);
+    }
+  }, [location]);
+
+  return null;
+}
+
+function AppRoutes() {
   return (
-    <Router>
+    <>
+      <HashRemover />
       <Routes>
         {/* Pages without layout (Login/Signup) */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
-        {/* Traveller routes - Protected (only travellers can access) */}
+        {/* Public routes - No login required */}
         <Route 
           path="/" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><Home /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><Home /></SharedLayout>} 
         />
         <Route 
           path="/flights/results" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><FlightResults /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><FlightResults /></SharedLayout>} 
         />
         <Route 
-          path="/fare-selection" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><FareSelectionPage /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          path="/flights/fare-selection" 
+          element={<SharedLayout><FareSelectionPage /></SharedLayout>} 
+        />
+        <Route 
+          path="/flights/airlines/:airlineName/reviews" 
+          element={<SharedLayout><AirlineReviews /></SharedLayout>} 
         />
         <Route 
           path="/stays" 
+          element={<SharedLayout><Stays /></SharedLayout>} 
+        />
+        <Route 
+          path="/stays/search" 
+          element={<SharedLayout><StaysSearch /></SharedLayout>} 
+        />
+        <Route 
+          path="/stays/hotel/:id" 
+          element={<SharedLayout><HotelDetail /></SharedLayout>} 
+        />
+        
+        {/* Protected routes - Login required */}
+        <Route 
+          path="/flights/booking/confirm" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><Stays /></SharedLayout>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><FlightBookingConfirmation /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/stays/booking/confirm" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><BookingConfirmation /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/booking/success" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><BookingSuccess /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/trips" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><MyTrips /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/booking/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><BookingSuccess /></SharedLayout>
             </ProtectedRoute>
           } 
         />
         <Route 
           path="/cars" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><Cars /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><Cars /></SharedLayout>} 
         />
         <Route 
           path="/packages" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><Packages /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><Packages /></SharedLayout>} 
         />
         <Route 
           path="/ai-mode" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller']}>
-              <SharedLayout><AIMode /></SharedLayout>
-            </ProtectedRoute>
-          } 
+          element={<SharedLayout><AIMode /></SharedLayout>} 
         />
         <Route 
           path="/listings" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><Listings /></SharedLayout>
             </ProtectedRoute>
           } 
         />
         
-        {/* Billing routes - Protected (only travellers) */}
+        {/* Billing routes - Protected (travellers and owners) */}
         <Route 
           path="/billing" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><BillingList /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -112,7 +162,7 @@ function App() {
         <Route 
           path="/billing/dashboard" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><BillingDashboard /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -120,7 +170,7 @@ function App() {
         <Route 
           path="/billing/new" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><CreateBilling /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -128,7 +178,7 @@ function App() {
         <Route 
           path="/billing/:id" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><BillingDetail /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -136,7 +186,7 @@ function App() {
         <Route 
           path="/billing/:id/invoice" 
           element={
-            <ProtectedRoute allowedRoles={['traveller']}>
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
               <SharedLayout><InvoiceViewerPage /></SharedLayout>
             </ProtectedRoute>
           } 
@@ -176,6 +226,14 @@ function App() {
           } 
         />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppRoutes />
     </Router>
   );
 }

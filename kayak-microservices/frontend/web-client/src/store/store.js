@@ -3,17 +3,17 @@
  */
 
 import { configureStore } from '@reduxjs/toolkit';
+import authReducer from './authSlice';
 import flightsReducer from './slices/flightsSlice';
-
-// TODO: Import other reducers
-// import authReducer from './slices/authSlice';
-// import bookingReducer from './slices/bookingSlice';
+import staysReducer from './slices/staysSlice';
+import bookingReducer from './slices/bookingSlice';
 
 export const store = configureStore({
   reducer: {
+    auth: authReducer,
     flights: flightsReducer,
-    // auth: authReducer,
-    // booking: bookingReducer,
+    stays: staysReducer,
+    booking: bookingReducer,
   },
 });
 

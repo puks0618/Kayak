@@ -6,6 +6,9 @@ const express = require('express');
 const router = express.Router();
 const carController = require('./controller');
 
+// Search route (must come before /:id)
+router.get('/search', carController.search);
+
 router.get('/', carController.getAll);
 router.get('/:id', carController.getById);
 router.post('/', carController.create);

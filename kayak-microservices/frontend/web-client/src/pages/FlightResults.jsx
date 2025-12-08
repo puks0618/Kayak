@@ -21,11 +21,12 @@ import {
   Plug,
   UtensilsCrossed,
   Briefcase,
-  ShoppingBag,
+  Luggage,
+  Armchair,
   Info,
-  Share2
+  Star
 } from 'lucide-react';
-import { FaHeart, FaShareAlt } from 'react-icons/fa';
+import { FaHeart } from 'react-icons/fa';
 import { buildFareOptions, getFareAmenities } from '../utils/fareOptions';
 import { updateSearchForm, searchFlights } from '../store/slices/flightsSlice';
 import { AIRPORTS } from '../constants/airports';
@@ -89,9 +90,27 @@ export default function FlightResults() {
   const [stops, setStops] = useState({ nonstop: true, oneStop: true, twoPlus: true });
   const [priceRange, setPriceRange] = useState([0, 10000]);
   const [selectedAirlines, setSelectedAirlines] = useState([]);
+  const [departureTime, setDepartureTime] = useState({ morning: true, afternoon: true, evening: true, night: true });
   const [sortBy, setSortBy] = useState('best');
   const [expandedFlight, setExpandedFlight] = useState(null);
   const [showAmenitiesPopup, setShowAmenitiesPopup] = useState(null);
+  
+  // Calculate min/max prices from results - using BASE/BASIC fare prices
+  const prices = results.map(f => f.price || 0).filter(p => p > 0);
+  const minPrice = prices.length > 0 ? Math.floor(Math.min(...prices)) : 0;
+  const maxPrice = prices.length > 0 ? Math.ceil(Math.max(...prices)) : 10000;
+
+  // Check if this is a deal click (has maxDealPrice parameter)
+  useEffect(() => {
+    const maxDealPrice = searchParams.get('maxDealPrice');
+    if (maxDealPrice) {
+      const dealPrice = parseInt(maxDealPrice);
+      // Set price range to show flights around the deal price (±$50)
+      const minDealPrice = Math.max(0, dealPrice - 50);
+      const maxDealPriceRange = dealPrice + 50;
+      setPriceRange([minDealPrice, maxDealPriceRange]);
+    }
+  }, [searchParams]);
 
   // Filter airports based on search
   const filteredOrigins = AIRPORTS.filter(airport => {
@@ -250,6 +269,8 @@ export default function FlightResults() {
     const flightStops = flight.stops ?? 0;
     const flightPrice = flight.price || 0;
     const flightAirline = flight.airline || 'Unknown';
+    const departureDateTime = new Date(flight.departureTime || flight.departure_time);
+    const departureHour = departureDateTime.getHours();
 
     const stopsMatch = 
       (stops.nonstop && flightStops === 0) ||
@@ -258,8 +279,14 @@ export default function FlightResults() {
 
     const priceMatch = flightPrice >= priceRange[0] && flightPrice <= priceRange[1];
     const airlineMatch = selectedAirlines.length === 0 || selectedAirlines.includes(flightAirline);
+    
+    const timeMatch = 
+      (departureTime.morning && departureHour >= 6 && departureHour < 12) ||
+      (departureTime.afternoon && departureHour >= 12 && departureHour < 18) ||
+      (departureTime.evening && departureHour >= 18 && departureHour < 24) ||
+      (departureTime.night && departureHour >= 0 && departureHour < 6);
 
-    return stopsMatch && priceMatch && airlineMatch;
+    return stopsMatch && priceMatch && airlineMatch && timeMatch;
   });
 
   // For round-trip searches, only show flights that have BOTH outbound and return flights
@@ -461,62 +488,140 @@ export default function FlightResults() {
       <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
         
         {/* Filters Sidebar */}
-        <div className="w-64 flex-shrink-0">
-          <div className="bg-white rounded-lg border border-gray-200 p-4 sticky top-24">
-            <h3 className="font-bold text-lg mb-4">Stops</h3>
-
+        <div className="w-56 flex-shrink-0">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sticky top-24 space-y-6">
+            
+            {/* Price Range Filter */}
+            <div>
+              <h3 className="font-bold text-lg mb-3 text-gray-900 dark:text-white">Price</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                  <span>${priceRange[0]}</span>
+                  <span>${priceRange[1] === 10000 ? 'Any' : priceRange[1]}</span>
+                </div>
+                <input
+                  type="range"
+                  min={minPrice}
+                  max={maxPrice}
+                  value={priceRange[1]}
+                  onChange={(e) => setPriceRange([minPrice, parseInt(e.target.value)])}
+                  className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#FF690F]"
+                />
+              </div>
+            </div>
+            
+            {/* Departure Time Filter */}
+            <div>
+              <h3 className="font-bold text-lg mb-3 text-gray-900 dark:text-white">Departure Time</h3>
+              <div className="space-y-2">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Morning</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">6am - 12pm</div>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={departureTime.morning}
+                    onChange={(e) => setDepartureTime({...departureTime, morning: e.target.checked})}
+                    className="w-4 h-4 accent-[#FF690F]"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Afternoon</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">12pm - 6pm</div>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={departureTime.afternoon}
+                    onChange={(e) => setDepartureTime({...departureTime, afternoon: e.target.checked})}
+                    className="w-4 h-4 accent-[#FF690F]"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Evening</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">6pm - 12am</div>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={departureTime.evening}
+                    onChange={(e) => setDepartureTime({...departureTime, evening: e.target.checked})}
+                    className="w-4 h-4 accent-[#FF690F]"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">Night</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">12am - 6am</div>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={departureTime.night}
+                    onChange={(e) => setDepartureTime({...departureTime, night: e.target.checked})}
+                    className="w-4 h-4 accent-[#FF690F]"
+                  />
+                </label>
+              </div>
+            </div>
+            
             {/* Stops Filter */}
-            <div className="mb-6">
-              <label className="flex items-center justify-between mb-2 cursor-pointer">
-                <span className="text-sm">Nonstop</span>
+            <div>
+              <h3 className="font-bold text-lg mb-3 text-gray-900 dark:text-white">Stops</h3>
+              <div className="space-y-2">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">Nonstop</span>
                 <input 
                   type="checkbox" 
                   checked={stops.nonstop}
                   onChange={(e) => setStops({...stops, nonstop: e.target.checked})}
-                  className="w-4 h-4"
+                  className="w-4 h-4 accent-[#FF690F]"
                 />
               </label>
-              <label className="flex items-center justify-between mb-2 cursor-pointer">
-                <span className="text-sm">1 stop</span>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">1 stop</span>
                 <input 
                   type="checkbox" 
                   checked={stops.oneStop}
                   onChange={(e) => setStops({...stops, oneStop: e.target.checked})}
-                  className="w-4 h-4"
+                  className="w-4 h-4 accent-[#FF690F]"
                 />
               </label>
               <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm">2+ stops</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">2+ stops</span>
                 <input 
                   type="checkbox" 
                   checked={stops.twoPlus}
                   onChange={(e) => setStops({...stops, twoPlus: e.target.checked})}
-                  className="w-4 h-4"
+                  className="w-4 h-4 accent-[#FF690F]"
                 />
               </label>
             </div>
+          </div>
 
             {/* Airlines Filter */}
             {airlines.length > 0 && (
               <div>
-                <h3 className="font-bold text-lg mb-4">Airlines</h3>
-                {airlines.slice(0, 5).map(airline => (
-                  <label key={airline} className="flex items-center justify-between mb-2 cursor-pointer">
-                    <span className="text-sm">{airline}</span>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedAirlines.includes(airline)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedAirlines([...selectedAirlines, airline]);
-                        } else {
-                          setSelectedAirlines(selectedAirlines.filter(a => a !== airline));
-                        }
-                      }}
-                      className="w-4 h-4"
-                    />
-                  </label>
-                ))}
+                <h3 className="font-bold text-lg mb-3 text-gray-900 dark:text-white">Airlines</h3>
+                <div className="space-y-2">
+                  {airlines.slice(0, 6).map(airline => (
+                    <label key={airline} className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate pr-2">{airline}</span>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedAirlines.includes(airline)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedAirlines([...selectedAirlines, airline]);
+                          } else {
+                            setSelectedAirlines(selectedAirlines.filter(a => a !== airline));
+                          }
+                        }}
+                        className="w-4 h-4 accent-[#FF690F] flex-shrink-0"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -596,15 +701,11 @@ export default function FlightResults() {
                     key={flight.id}
                     className={`bg-white border-x border-gray-200 ${index === sortedFlights.length - 1 ? 'border-b rounded-b-lg' : 'border-b'}`}
                   >
-                    {/* Save and Share Buttons */}
+                    {/* Save Button */}
                     <div className="px-5 pt-3 flex gap-2">
-                      <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded text-xs font-medium hover:bg-gray-50">
+                      <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
                         <FaHeart className="w-3 h-3" />
                         Save
-                      </button>
-                      <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded text-xs font-medium hover:bg-gray-50">
-                        <FaShareAlt className="w-3 h-3" />
-                        Share
                       </button>
                     </div>
 
@@ -638,7 +739,32 @@ export default function FlightResults() {
                                     <span>{formatDuration(duration)}</span>
                                   </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-1">{airline}</p>
+                                
+                                {/* Airline name with rating */}
+                                <div className="flex items-center gap-2 mb-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/flights/airlines/${encodeURIComponent(airline)}/reviews`);
+                                    }}
+                                    className="text-sm text-gray-600 hover:text-blue-600 hover:underline"
+                                  >
+                                    {airline}
+                                  </button>
+                                  
+                                  {flight.airline_rating && flight.airline_rating > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                      <span className="text-sm font-medium text-gray-700">
+                                        {parseFloat(flight.airline_rating).toFixed(1)}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        ({flight.airline_review_count} reviews)
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                
                                 <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-800 text-xs rounded">
                                   {originCode}–{destCode}
                                 </span>
@@ -656,7 +782,32 @@ export default function FlightResults() {
                                       <span>{formatDuration(returnFlights[index].duration)}</span>
                                     </div>
                                   </div>
-                                  <p className="text-sm text-gray-600 mb-1">{returnFlights[index].airline}</p>
+                                  
+                                  {/* Return airline name with rating */}
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/flights/airlines/${encodeURIComponent(returnFlights[index].airline)}/reviews`);
+                                      }}
+                                      className="text-sm text-gray-600 hover:text-blue-600 hover:underline"
+                                    >
+                                      {returnFlights[index].airline}
+                                    </button>
+                                    
+                                    {returnFlights[index].airline_rating && returnFlights[index].airline_rating > 0 && (
+                                      <div className="flex items-center gap-1">
+                                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                        <span className="text-sm font-medium text-gray-700">
+                                          {parseFloat(returnFlights[index].airline_rating).toFixed(1)}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          ({returnFlights[index].airline_review_count} reviews)
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
                                   <span className="inline-block px-2 py-0.5 bg-amber-50 text-amber-800 text-xs rounded">
                                     {returnFlights[index].departure_airport}–{returnFlights[index].arrival_airport}
                                   </span>
@@ -705,9 +856,10 @@ export default function FlightResults() {
                                   className="w-full px-4 py-2 bg-[#FF690F] hover:bg-[#d6570c] text-white font-bold rounded text-sm transition-colors mb-3"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate('/fare-selection', {
+                                    navigate('/flights/fare-selection', {
                                       state: {
                                         flight,
+                                        returnFlight: returnFlights && returnFlights[index] ? returnFlights[index] : null,
                                         fareCode: fare.code,
                                         farePrice: fare.price,
                                         searchForm
@@ -725,16 +877,16 @@ export default function FlightResults() {
                                 <div className="flex items-center justify-center gap-2">
                                   {amenities.map((amenity, idx) => (
                                     <div key={idx} className="relative">
-                                      {amenity.icon === '💼' && <Briefcase className="w-4 h-4 text-gray-600" />}
-                                      {amenity.icon === '🧳' && <ShoppingBag className="w-4 h-4 text-gray-600" />}
-                                      {amenity.icon === '🪑' && <UtensilsCrossed className="w-4 h-4 text-gray-600" />}
+                                      {amenity.icon === '💼' && <Briefcase className={`w-4 h-4 ${amenity.included ? 'text-green-600' : 'text-gray-500'}`} />}
+                                      {amenity.icon === '🧳' && <Luggage className={`w-4 h-4 ${amenity.included ? 'text-green-600' : 'text-gray-500'}`} />}
+                                      {amenity.icon === '🪑' && <Armchair className={`w-4 h-4 ${amenity.included ? 'text-green-600' : 'text-gray-500'}`} />}
                                       
                                       {amenity.included ? (
                                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
-                                          <Check className="w-2 h-2 text-white" />
+                                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
                                         </div>
                                       ) : (
-                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-white border-2 border-gray-600 rounded-full flex items-center justify-center">
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-white border-2 border-gray-400 rounded-full flex items-center justify-center">
                                           <span className="text-[7px] font-bold text-gray-600">$</span>
                                         </div>
                                       )}

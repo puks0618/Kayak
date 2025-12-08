@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser } from '../store/authSlice';
 import '../styles/Login.css';
@@ -11,8 +11,12 @@ const Login = () => {
     const [localError, setLocalError] = useState('');
     const [socialModalOpen, setSocialModalOpen] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const dispatch = useDispatch();
     const { loading, error: reduxError } = useSelector((state) => state.auth);
+    
+    // Get the page user was trying to access before login
+    const from = location.state?.from?.pathname || '/';
     
     const error = localError || reduxError;
     const isLoading = loading;
@@ -42,12 +46,9 @@ const Login = () => {
             if (userRole === 'admin') {
                 // Admins go to admin portal (port 5174)
                 window.location.href = 'http://localhost:5174';
-            } else if (userRole === 'owner') {
-                // Owners go to owner dashboard on web-client
-                navigate('/owner/dashboard');
             } else {
-                // Travellers go to home
-                navigate('/');
+                // Return to the page they were trying to access
+                navigate(from, { replace: true });
             }
         } catch (err) {
             console.error('Login failed:', err);
@@ -81,10 +82,9 @@ const Login = () => {
             
             if (userRole === 'admin') {
                 window.location.href = 'http://localhost:5174';
-            } else if (userRole === 'owner') {
-                navigate('/owner/dashboard');
             } else {
-                navigate('/');
+                // Return to the page they were trying to access
+                navigate(from, { replace: true });
             }
         } catch (err) {
             console.error('Social login failed:', err);

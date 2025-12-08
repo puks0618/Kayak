@@ -90,6 +90,11 @@ data/
 *.sql.gz
 *.dump
 
+# Large CSV data files
+*_reduced.csv
+*/stays-data/*.csv
+*/flight-data/*.csv
+
 # Redis dumps
 dump.rdb
 appendonly.aof

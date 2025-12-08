@@ -11,7 +11,9 @@ const carRoutes = require('./modules/cars/route');
 const listingsRoutes = require('./routes/listings.routes');
 const ownerRoutes = require('./routes/owner.routes');
 const adminListingsRoutes = require('./routes/admin.routes');
+const airlineReviewsRoutes = require('./routes/airline-reviews.routes');
 const redisCache = require('./cache/redis');
+const mongoAtlas = require('./database/mongodb-atlas');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -39,7 +41,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     service: 'listing-service',
-    redis: redisCache.isConnected
+    redis: redisCache.isConnected,
+    mongodb: mongoAtlas.isConnected
   });
 });
 
@@ -55,6 +58,9 @@ app.use('/api/listings/hotels', hotelRoutes);
 app.use('/api/listings/cars', carRoutes);
 app.use('/api/listings', listingsRoutes); // Admin unified listings route
 
+// Airline reviews routes (public access)
+app.use('/api/listings/reviews', airlineReviewsRoutes);
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -65,8 +71,8 @@ app.use((err, req, res, next) => {
 async function initialize() {
   try {
     await redisCache.connect();
+    await mongoAtlas.connect();
     // TODO: Initialize MySQL connection
-    // TODO: Initialize MongoDB connection
     // TODO: Initialize Kafka producers/consumers
     
     app.listen(PORT, () => {

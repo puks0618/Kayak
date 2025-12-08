@@ -1,0 +1,31 @@
+{
+  "user_id": "test-user-12345",
+  "listing_id": "flight-456",
+  "listing_type": "flight",
+  "travel_date": "2025-12-20",
+  "total_amount": 450.00,
+  "payment_details": {
+    "method": "credit"
+  },
+  "booking_details": {
+    "outboundFlight": {
+      "airline": "United Airlines",
+      "origin": "LAX",
+      "destination": "JFK",
+      "departureTime": "2025-12-20T10:00:00Z"
+    },
+    "returnFlight": {
+      "airline": "United Airlines",
+      "origin": "JFK",
+      "destination": "LAX",
+      "departureTime": "2025-12-25T15:00:00Z"
+    },
+    "passengers": 2,
+    "passengerInfo": {
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "test@example.com",
+      "phone": "555-0100"
+    }
+  }
+}

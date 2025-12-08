@@ -7,8 +7,10 @@
         "init-db": "node create_databases.js"
     },
     "dependencies": {
-        "mysql2": "^3.6.0",
+        "csv-parser": "^3.2.0",
+        "dotenv": "^16.3.1",
+        "kafkajs": "^2.2.4",
         "mongodb": "^6.0.0",
-        "dotenv": "^16.3.1"
+        "mysql2": "^3.6.0"
     }
 }

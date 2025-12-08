@@ -7,6 +7,17 @@ const api = axios.create({
     },
 });
 
+// Add auth token to requests if available
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
+
 export const searchFlights = (params) => api.get('/flights', { params });
 export const searchHotels = (params) => api.get('/hotels', { params });
 export const searchCars = (params) => api.get('/cars', { params });
@@ -131,6 +142,35 @@ export const billingService = {
             responseType: 'blob'
         });
         return response.data;
+    }
+};
+
+// Booking API - Through API Gateway
+export const bookingService = {
+    /**
+     * Create a new booking
+     */
+    create: async (bookingData) => {
+        try {
+            const response = await api.post('/bookings', bookingData);
+            return response.data;
+        } catch (error) {
+            console.error('Booking API Error:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Get user's bookings
+     */
+    getUserBookings: async (userId) => {
+        try {
+            const response = await api.get(`/bookings/user/${userId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Get bookings error:', error);
+            throw error;
+        }
     }
 };
 

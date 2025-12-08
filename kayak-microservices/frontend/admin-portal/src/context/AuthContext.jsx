@@ -126,6 +126,7 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user);
       
       return { success: true, user: data.user };
+      */
     } catch (error) {
       console.error('Registration error:', error);
       return { success: false, error: error.message };

@@ -1,28 +1,29 @@
 /**
  * Fare Selection Page
  * Step 1: Choose a fare (Basic vs Economy)
- * Step 2: Choose where to book
+ * Direct booking without external providers
  */
 
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, Plane } from 'lucide-react';
-import kayakLogo from "../assets/images/kayak logo.png";
+import { useSelector } from 'react-redux';
+import { Check, X, Plane } from 'lucide-react';
 import { buildDetailedFareOptions } from '../utils/fareOptions';
 
 export default function FareSelectionPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useSelector(state => state.auth);
   
   // Get flight and fare info from navigation state
-  const { flight, fareCode: initialFareCode, farePrice, searchForm } = location.state || {};
+  const { flight, returnFlight, fareCode: initialFareCode, farePrice, searchForm } = location.state || {};
   
   // State for selected fare
   const [selectedFareCode, setSelectedFareCode] = useState(initialFareCode || 'BASIC');
   
   // If no flight data, redirect back
   if (!flight) {
-    navigate('/flights');
+    navigate('/flights/results');
     return null;
   }
   
@@ -65,24 +66,36 @@ export default function FareSelectionPage() {
   
   // Handle booking
   const handleBook = async () => {
+    // Check if user is logged in
+    if (!user) {
+      const shouldLogin = window.confirm(
+        'Please sign in to book this flight.\n\n' +
+        'Click OK to go to login page, or Cancel to continue browsing.'
+      );
+      
+      if (shouldLogin) {
+        navigate('/login', { 
+          state: { from: { pathname: location.pathname } } 
+        });
+      }
+      return;
+    }
+    
     try {
-      // TODO: Call booking API
-      const bookingData = {
-        userId: 'current-user-id', // Replace with actual user ID from auth
-        type: 'flight',
-        outboundSegmentId: flight.id,
-        returnSegmentId: flight.id, // TODO: Handle return flight separately
-        fare: selectedFare
-      };
-      
-      console.log('Booking:', bookingData);
-      
-      // Navigate to confirmation page (to be created)
-      alert(`Booking ${selectedFare.label} fare for ${formatPrice(selectedFare.price)}!`);
-      navigate('/');
+      // Navigate to booking confirmation page
+      navigate('/flights/booking/confirm', { 
+        state: { 
+          outboundFlight: flight,
+          returnFlight: returnFlight || null,
+          fare: selectedFare,
+          totalPrice: selectedFare.price,
+          passengers: 1,
+          searchForm
+        } 
+      });
     } catch (error) {
       console.error('Booking error:', error);
-      alert('Booking failed. Please try again.');
+      alert('Failed to proceed to booking. Please try again.');
     }
   };
   
@@ -91,219 +104,151 @@ export default function FareSelectionPage() {
   };
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center gap-4">
-          <button 
-            className="p-1 hover:bg-gray-100 rounded"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
-          </button>
-          <div className="h-8 w-32 overflow-hidden relative flex items-center">
-            <img 
-              src={kayakLogo} 
-              alt="KAYAK" 
-              className="w-full h-full object-contain object-left"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right mr-4">
-            <p className="text-2xl font-bold text-gray-900">{formatPrice(selectedFare?.price || basePrice)}</p>
-            <p className="text-xs text-gray-600">Super.com</p>
-          </div>
-          <button className="px-6 py-2 bg-[#FF690F] hover:bg-[#d6570c] text-white font-bold rounded text-sm transition-colors">
-            Book
-          </button>
-        </div>
-      </header>
-      
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
-        
-        {/* Left Column: Fare Selection */}
-        <div className="flex-1">
-          
-          {/* Step 1: Choose a Fare */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Step 1: Choose a fare</h2>
-            <p className="text-sm text-gray-600 mb-1">
-              <a href="#" className="text-blue-600 hover:underline">See baggage size and weight limit</a>. Total prices may include estimated baggage fees and flexibility. Some options may require added baggage or flexibility when checking out. Check terms and conditions on the booking site.
-            </p>
-            <p className="text-xs text-gray-500 mb-6">
-              Fare and baggage fees apply to the entire trip.
-            </p>
-            
-            {/* Fare Cards */}
-            <div className="flex gap-4">
-              {fareOptions.map((fare) => {
-                const isSelected = selectedFareCode === fare.code;
-                
-                return (
-                  <div 
-                    key={fare.code}
-                    onClick={() => setSelectedFareCode(fare.code)}
-                    className={`flex-1 border-2 rounded-lg p-6 cursor-pointer transition-all ${
-                      isSelected 
-                        ? 'border-blue-600 bg-blue-50' 
-                        : 'border-gray-300 bg-white hover:border-gray-400'
-                    }`}
-                  >
-                    {/* Fare Header */}
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold text-gray-900">{fare.label}</h3>
-                      <p className="text-3xl font-bold text-gray-900 mt-1">{formatPrice(fare.price)}</p>
-                    </div>
-                    
-                    {/* Perks List */}
-                    <div className="space-y-3">
-                      {fare.perks.map((perk, idx) => {
-                        const isNegative = perk.includes('for a fee') || perk.includes('No refunds');
-                        const isPartial = perk.includes('$146') || perk.includes('unavailable');
-                        
-                        return (
-                          <div key={idx} className="flex items-start gap-2">
-                            {isNegative ? (
-                              <div className="w-5 h-5 rounded-full border-2 border-gray-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <span className="text-xs font-bold text-gray-600">$</span>
-                              </div>
-                            ) : isPartial ? (
-                              <div className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <span className="text-xs font-bold text-white">$</span>
-                              </div>
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <Check className="w-3 h-3 text-white" />
-                              </div>
-                            )}
-                            <p className="text-sm text-gray-700">{perk}</p>
-                          </div>
-                        );
-                      })}
-                      
-                      {/* Refund Badge */}
-                      {!fare.refundable && (
-                        <div className="flex items-start gap-2">
-                          <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <X className="w-3 h-3 text-gray-600" />
-                          </div>
-                          <p className="text-sm text-gray-700">No refunds</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Header with Price and Book Button */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Choose a fare</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatPrice(selectedFare?.price || basePrice)}</p>
             </div>
-            
-            {/* Hide fare details link */}
-            <button className="text-sm text-blue-600 hover:underline mt-4">
-              Hide fare details
+            <button 
+              onClick={handleBook}
+              className="px-8 py-3 bg-[#FF690F] hover:bg-[#d6570c] text-white font-bold rounded-lg text-base transition-colors"
+            >
+              Book
             </button>
           </div>
-          
-          {/* Step 2: Choose Where to Book */}
-          {selectedFareCode && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Step 2: Choose where to book</h2>
-              <p className="text-sm text-gray-600 mb-6">
-                KAYAK compares hundreds of travel sites at once to show prices available for your trip.
-              </p>
-              
-              {/* Booking Option */}
-              <div className="bg-white border border-gray-300 rounded-lg p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {/* Provider Logo */}
-                    <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-lg">K</span>
-                    </div>
-                    
-                    {/* Provider Info */}
-                    <div>
-                      <p className="font-semibold text-gray-900">Kiwi.com</p>
-                      <p className="text-xs text-gray-500">Ad</p>
-                    </div>
-                  </div>
-                  
-                  {/* Price and Book Button */}
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900">{formatPrice(selectedFare.price)}</p>
-                      <button className="text-xs text-gray-600 hover:underline flex items-center gap-1">
-                        <span className="w-4 h-4 border border-gray-400 rounded-full flex items-center justify-center text-[10px]">i</span>
-                      </button>
-                    </div>
-                    <button 
-                      onClick={handleBook}
-                      className="px-8 py-3 bg-[#FF690F] hover:bg-[#d6570c] text-white font-bold rounded text-sm transition-colors"
-                    >
-                      Book
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
         
-        {/* Right Column: Trip Summary */}
-        <div className="w-80 flex-shrink-0">
-          <div className="bg-white border border-gray-200 rounded-lg p-5 sticky top-24">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">
-              {originCode} to {destCode}
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              {searchForm?.tripType || 'Round-trip'}, {searchForm?.adults || 1} {(searchForm?.adults || 1) === 1 ? 'traveler' : 'travelers'}
-            </p>
+        <div className="flex gap-6">
+        
+          {/* Left Column: Fare Selection */}
+          <div className="flex-1">
+            {/* Fare Info */}
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Total prices may include estimated baggage fees and flexibility. Some options may require added baggage or flexibility when checking out.
+              </p>
             
-            {/* Outbound Flight */}
-            <div className="mb-4 pb-4 border-b border-gray-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Plane className="w-4 h-4 text-gray-600 rotate-45" />
-                <p className="text-sm font-semibold text-gray-900">
-                  {originCode} → {destCode}
-                </p>
-                <span className="text-xs text-gray-600">
-                  {formatDate(departureTime)}
-                </span>
+              {/* Fare Cards */}
+              <div className="flex gap-4">
+                {fareOptions.map((fare) => {
+                  const isSelected = selectedFareCode === fare.code;
+                  
+                  return (
+                    <div 
+                      key={fare.code}
+                      onClick={() => setSelectedFareCode(fare.code)}
+                      className={`flex-1 border-2 rounded-lg p-6 cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500' 
+                          : 'border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      {/* Fare Header */}
+                      <div className="mb-4">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{fare.label}</h3>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{formatPrice(fare.price)}</p>
+                      </div>
+                    
+                      {/* Perks List */}
+                      <div className="space-y-3">
+                        {fare.perks.map((perk, idx) => (
+                          <div key={idx} className="flex items-start gap-2.5">
+                            {perk.status === 'included' ? (
+                              <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                              </div>
+                            ) : perk.status === 'fee' ? (
+                              <div className="w-5 h-5 rounded-full border-2 border-gray-400 dark:border-gray-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span className="text-xs font-bold text-gray-600 dark:text-gray-400">$</span>
+                              </div>
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <X className="w-3 h-3 text-gray-600 dark:text-gray-400" strokeWidth={2.5} />
+                              </div>
+                            )}
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-5">{perk.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-xs text-gray-600 mb-1">
-                {stops === 0 ? 'Nonstop' : `${stops} stop${stops > 1 ? 's' : ''}`} • {formatDuration(duration)}
-              </p>
-              <p className="text-sm text-gray-900">
-                {formatTime(departureTime)} – {formatTime(arrivalTime)}
-              </p>
-              <p className="text-xs text-gray-600">
-                {originCode} – {destCode}
-              </p>
             </div>
-            
-            {/* Return Flight */}
-            {searchForm?.returnDate && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Plane className="w-4 h-4 text-gray-600 rotate-[225deg]" />
-                  <p className="text-sm font-semibold text-gray-900">
-                    {destCode} → {originCode}
-                  </p>
-                  <span className="text-xs text-gray-600">
-                    {formatDate(searchForm.returnDate)}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-600 mb-1">
-                  Nonstop • 6h 47m
-                </p>
-                <p className="text-sm text-gray-900">
-                  9:30 am – 1:17 pm
-                </p>
-                <p className="text-xs text-gray-600">
-                  {destCode} – {originCode}
+          </div>
+          
+          {/* Right Column: Trip Summary */}
+          <div className="w-96 flex-shrink-0">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm sticky top-24">
+              {/* Trip Header */}
+              <div className="mb-5 pb-5 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  {originCode} to {destCode}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {searchForm?.tripType || 'roundtrip'}, {searchForm?.adults || 1} {(searchForm?.adults || 1) === 1 ? 'traveler' : 'travelers'}
                 </p>
               </div>
-            )}
+              
+              {/* Outbound Flight */}
+              <div className="mb-5 pb-5 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 mb-3">
+                  <Plane className="w-5 h-5 text-orange-500 dark:text-orange-400 rotate-45" />
+                  <p className="text-base font-bold text-gray-900 dark:text-white">
+                    {originCode} → {destCode}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  {formatDate(departureTime)}
+                </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-base font-semibold text-gray-900 dark:text-white">
+                      {formatTime(departureTime)} – {formatTime(arrivalTime)}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {stops === 0 ? 'Nonstop' : `${stops} stop${stops > 1 ? 's' : ''}`} • {formatDuration(duration)}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500">
+                    {flight.airline || 'N/A'} {flight.flight_number || flight.flightNumber || ''}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Return Flight */}
+              {returnFlight && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Plane className="w-5 h-5 text-orange-500 dark:text-orange-400 rotate-[225deg]" />
+                    <p className="text-base font-bold text-gray-900 dark:text-white">
+                      {returnFlight.departure_airport || returnFlight.origin} → {returnFlight.arrival_airport || returnFlight.destination}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    {formatDate(returnFlight.departure_time || returnFlight.departureTime)}
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-base font-semibold text-gray-900 dark:text-white">
+                        {formatTime(returnFlight.departure_time || returnFlight.departureTime)} – {formatTime(returnFlight.arrival_time || returnFlight.arrivalTime)}
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {returnFlight.stops === 0 ? 'Nonstop' : `${returnFlight.stops} stop${returnFlight.stops > 1 ? 's' : ''}`} • {formatDuration(returnFlight.duration || returnFlight.durationMinutes)}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
+                      {returnFlight.airline || 'N/A'} {returnFlight.flight_number || returnFlight.flightNumber || ''}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

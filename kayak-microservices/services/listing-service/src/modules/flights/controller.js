@@ -91,26 +91,33 @@ class FlightController {
   /**
    * Get flight deals (for "Travel deals under $X" section)
    * GET /api/listings/flights/deals
+   * Returns the cheapest unique destinations from origin
    */
   async getDeals(req, res) {
     try {
       const { 
-        maxPrice = 310,
+        origin,
         limit = 12,
         cabinClass = 'economy'
       } = req.query;
 
       const deals = await FlightModel.findDeals({
-        maxPrice: parseFloat(maxPrice),
+        origin,
         limit: parseInt(limit),
         cabinClass: cabinClass.toLowerCase()
       });
+
+      // Calculate max price from the deals
+      const maxPrice = deals.length > 0 
+        ? Math.max(...deals.map(d => parseFloat(d.price))) 
+        : 0;
 
       res.json({
         success: true,
         deals,
         total: deals.length,
-        maxPrice: parseFloat(maxPrice)
+        maxPrice,
+        origin
       });
     } catch (error) {
       console.error('Get deals error:', error);

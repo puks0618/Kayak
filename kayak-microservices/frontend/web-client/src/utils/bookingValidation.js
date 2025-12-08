@@ -12,21 +12,82 @@ export const validateEmail = (email) => {
 };
 
 /**
- * Validate phone number (basic international format)
+ * Validate phone number (10 digits)
  */
 export const validatePhone = (phone) => {
-  const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-  return phone.length >= 10 && phoneRegex.test(phone);
+  const cleaned = phone.replace(/\D/g, '');
+  return cleaned.length === 10;
 };
 
 /**
- * Validate credit card number (Luhn algorithm)
+ * Validate US zip code
+ */
+export const validateZipCode = (zip) => {
+  // Accept: 12, 95123, 10293, 90086-1929
+  const zipPattern = /^(\d{2}|\d{5})(-\d{4})?$/;
+  return zipPattern.test(zip);
+};
+
+/**
+ * Validate US state
+ */
+export const validateState = (state) => {
+  if (!state) return false;
+  const validStates = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
+    'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
+    'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
+    'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
+    'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+    'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
+    'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
+    'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
+    'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
+    'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
+    'WI': 'Wisconsin', 'WY': 'Wyoming'
+  };
+  const upperState = state.toUpperCase();
+  return validStates[upperState] !== undefined;
+};
+
+/**
+ * Detect card type from card number
+ */
+export const detectCardType = (cardNumber) => {
+  const cleaned = cardNumber.replace(/\s/g, '');
+  
+  // Visa: starts with 4
+  if (/^4/.test(cleaned)) return 'visa';
+  
+  // Mastercard: starts with 51-55 or 2221-2720
+  if (/^5[1-5]/.test(cleaned) || /^2(22[1-9]|2[3-9]\d|[3-6]\d{2}|7[01]\d|720)/.test(cleaned)) {
+    return 'mastercard';
+  }
+  
+  // American Express: starts with 34 or 37
+  if (/^3[47]/.test(cleaned)) return 'amex';
+  
+  // Discover: starts with 6011, 622126-622925, 644-649, or 65
+  if (/^6011|^622(12[6-9]|1[3-9]\d|[2-8]\d{2}|9[01]\d|92[0-5])|^64[4-9]|^65/.test(cleaned)) {
+    return 'discover';
+  }
+  
+  return 'unknown';
+};
+
+/**
+ * Validate credit/debit card number (Luhn algorithm)
+ * Works for both credit and debit cards
  */
 export const validateCardNumber = (cardNumber) => {
   const cleaned = cardNumber.replace(/\s/g, '');
+  
+  // Card number should be 13-19 digits
   if (!/^\d{13,19}$/.test(cleaned)) return false;
   
-  // Luhn algorithm
+  // Luhn algorithm (checksum validation)
   let sum = 0;
   let isEven = false;
   
@@ -47,27 +108,50 @@ export const validateCardNumber = (cardNumber) => {
 
 /**
  * Validate expiry date (MM/YY format)
+ * Checks format and ensures card is not expired
  */
 export const validateExpiryDate = (expiryDate) => {
+  // Check format MM/YY
   const regex = /^(0[1-9]|1[0-2])\/\d{2}$/;
   if (!regex.test(expiryDate)) return false;
   
   const [month, year] = expiryDate.split('/').map(Number);
   const now = new Date();
-  const currentYear = now.getFullYear() % 100;
+  const currentYear = now.getFullYear() % 100; // Get last 2 digits
   const currentMonth = now.getMonth() + 1;
   
+  // Card is expired if year is in the past
   if (year < currentYear) return false;
+  
+  // If same year, check if month is current or future
   if (year === currentYear && month < currentMonth) return false;
   
   return true;
 };
 
 /**
- * Validate CVV
+ * Validate CVV (3 digits for most cards, 4 for Amex)
  */
-export const validateCVV = (cvv) => {
-  return /^\d{3,4}$/.test(cvv);
+export const validateCVV = (cvv, cardType = null) => {
+  const cleaned = cvv.replace(/\D/g, '');
+  
+  // American Express uses 4-digit CVV
+  if (cardType === 'amex') {
+    return /^\d{4}$/.test(cleaned);
+  }
+  
+  // Most cards use 3-digit CVV
+  return /^\d{3}$/.test(cleaned);
+};
+
+/**
+ * Validate cardholder name
+ */
+export const validateCardholderName = (name) => {
+  if (!name || name.trim().length < 3) return false;
+  
+  // Name should contain only letters, spaces, hyphens, and apostrophes
+  return /^[a-zA-Z\s\-']+$/.test(name.trim());
 };
 
 /**
@@ -113,13 +197,38 @@ export const validatePassenger = (passenger, isInternational = false) => {
   if (!passenger.phone?.trim()) {
     errors.phone = 'Phone number is required';
   } else if (!validatePhone(passenger.phone)) {
-    errors.phone = 'Invalid phone number';
+    errors.phone = 'Phone must be exactly 10 digits';
   }
   
-  if (!passenger.dateOfBirth) {
-    errors.dateOfBirth = 'Date of birth is required';
-  } else if (!validateDateOfBirth(passenger.dateOfBirth)) {
-    errors.dateOfBirth = 'Invalid date of birth';
+  // Address validation (same as cars/hotels)
+  if (passenger.address !== undefined && !passenger.address?.trim()) {
+    errors.address = 'Address is required';
+  }
+  
+  if (passenger.city !== undefined && !passenger.city?.trim()) {
+    errors.city = 'City is required';
+  }
+  
+  if (passenger.state !== undefined) {
+    if (!passenger.state?.trim()) {
+      errors.state = 'State is required';
+    } else if (!validateState(passenger.state)) {
+      errors.state = 'Invalid state code. Please use 2-letter US state code (e.g., CA, NY)';
+    }
+  }
+  
+  if (passenger.zipCode !== undefined) {
+    if (!passenger.zipCode?.trim()) {
+      errors.zipCode = 'Zip code is required';
+    } else if (!validateZipCode(passenger.zipCode)) {
+      errors.zipCode = 'Invalid zip code. Valid formats: 12, 95123, or 12345-6789';
+    }
+  }
+  
+  if (passenger.dateOfBirth) {
+    if (!validateDateOfBirth(passenger.dateOfBirth)) {
+      errors.dateOfBirth = 'Invalid date of birth';
+    }
   }
   
   // International flight requirements
@@ -171,7 +280,7 @@ export const validateContactInfo = (contactInfo) => {
   if (!contactInfo.phone?.trim()) {
     errors.phone = 'Phone number is required';
   } else if (!validatePhone(contactInfo.phone)) {
-    errors.phone = 'Invalid phone number';
+    errors.phone = 'Phone must be exactly 10 digits';
   }
   
   if (!contactInfo.address?.trim()) {
@@ -184,10 +293,8 @@ export const validateContactInfo = (contactInfo) => {
   
   if (!contactInfo.zipCode?.trim()) {
     errors.zipCode = 'Zip code is required';
-  }
-  
-  if (!contactInfo.country?.trim()) {
-    errors.country = 'Country is required';
+  } else if (!validateZipCode(contactInfo.zipCode)) {
+    errors.zipCode = 'Invalid zip code. Valid formats: 12, 95123, or 12345-6789';
   }
   
   return errors;
@@ -420,6 +527,8 @@ export default {
   validateCardNumber,
   validateExpiryDate,
   validateCVV,
+  validateCardholderName,
+  detectCardType,
   validatePassportNumber,
   validateDateOfBirth,
   validatePassenger,

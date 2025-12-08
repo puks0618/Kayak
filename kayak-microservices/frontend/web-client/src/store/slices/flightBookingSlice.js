@@ -297,6 +297,7 @@ const flightBookingSlice = createSlice({
     setSelectedFare: (state, action) => {
       state.selectedFare = action.payload;
       // Update pricing based on fare type
+      // NOTE: Don't multiply by passengers here - the fare selection page already calculated the total
       if (state.selectedOutboundFlight) {
         const fareMultiplier = action.payload === 'flexible' ? 1.3 : action.payload === 'standard' ? 1.15 : 1;
         state.pricing.basePrice = state.selectedOutboundFlight.price * fareMultiplier;
@@ -383,6 +384,24 @@ const flightBookingSlice = createSlice({
     
     updatePaymentInfo: (state, action) => {
       state.paymentInfo = { ...state.paymentInfo, ...action.payload };
+      
+      // If precalculated pricing is provided (from fare selection page), use it
+      if (action.payload.precalculatedBasePrice) {
+        state.pricing.basePrice = action.payload.precalculatedBasePrice;
+        state.pricing.taxesAndFees = action.payload.precalculatedBasePrice * 0.15;
+        state.pricing.serviceFee = action.payload.precalculatedBasePrice * 0.10;
+        state.pricing.totalPrice = action.payload.precalculatedTotal || (
+          state.pricing.basePrice +
+          state.pricing.taxesAndFees +
+          state.pricing.serviceFee +
+          state.pricing.seatSelectionFee +
+          state.pricing.baggageFee +
+          state.pricing.insuranceFee +
+          state.pricing.priorityBoardingFee -
+          state.pricing.discount
+        );
+      }
+      
       saveBookingToStorage(state);
     },
     

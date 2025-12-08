@@ -1,29 +1,110 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin } from 'lucide-react';
-import { bookingService } from '../services/api';
+import { bookingService, billingService } from '../services/api';
 import { addUserBooking } from '../utils/userStorage';
+import {
+  setSelectedHotel,
+  setStayDetails,
+  updateContactInfo,
+  updatePaymentInfo,
+  calculatePricing,
+  createStayBooking,
+  setValidationErrors
+} from '../store/slices/stayBookingSlice';
+import {
+  validatePhone,
+  validateZipCode,
+  validateState,
+  validateCardNumber,
+  validateExpiryDate,
+  validateCVV,
+  validateCardholderName,
+  detectCardType
+} from '../utils/bookingValidation';
 
 export default function BookingConfirmation() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  
+  // Get user and stay booking state from Redux
   const { user } = useSelector(state => state.auth);
-  const { hotel, checkIn, checkOut, guests, nights, totalPrice } = location.state || {};
+  const {
+    selectedHotel,
+    checkInDate,
+    checkOutDate,
+    guests,
+    rooms,
+    nights,
+    contactInfo: reduxContactInfo,
+    paymentInfo: reduxPaymentInfo,
+    pricing,
+    isProcessing,
+    bookingError,
+    validationErrors
+  } = useSelector(state => state.stayBooking);
+
+  // Fallback: Initialize from location state if Redux state is empty (backward compatibility)
+  useEffect(() => {
+    const locationState = location.state;
+    if (locationState?.hotel && !selectedHotel) {
+      dispatch(setSelectedHotel(locationState.hotel));
+      dispatch(setStayDetails({
+        checkInDate: locationState.checkIn,
+        checkOutDate: locationState.checkOut,
+        guests: locationState.guests || 1,
+        rooms: 1
+      }));
+      dispatch(calculatePricing());
+    }
+  }, [location.state, selectedHotel, dispatch]);
+
+  // Auto-fill user details from profile - runs once on mount, fills ALL fields at once
+  useEffect(() => {
+    if (user && !reduxContactInfo.email) {
+      // Clean phone to only digits (max 10)
+      const cleanPhone = (user.phone || '').replace(/\D/g, '').slice(0, 10);
+      // Clean zipCode to valid format
+      const cleanZip = (user.zipCode || '').trim();
+      // Clean state to uppercase 2 letters
+      const cleanState = (user.state || '').toUpperCase().slice(0, 2);
+      
+      // Only auto-fill fields with VALID data
+      dispatch(updateContactInfo({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: validatePhone(cleanPhone) ? cleanPhone : '',
+        address: user.address || '',
+        city: user.city || '',
+        state: validateState(cleanState) ? cleanState : '',
+        zipCode: validateZipCode(cleanZip) ? cleanZip : ''
+      }));
+    }
+  }, [user, reduxContactInfo.email, dispatch]);
+
+  // Use Redux state, fallback to location.state for backward compatibility
+  const hotel = selectedHotel || location.state?.hotel;
+  const checkIn = checkInDate || location.state?.checkIn;
+  const checkOut = checkOutDate || location.state?.checkOut;
+  const totalPrice = pricing?.totalPrice || location.state?.totalPrice;
+  const nightsCount = nights || location.state?.nights || 1;
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
+    firstName: reduxContactInfo.firstName || '',
+    lastName: reduxContactInfo.lastName || '',
+    email: reduxContactInfo.email || '',
+    phone: reduxContactInfo.phone || '',
     address: '',
     city: '',
     zipCode: '',
-    paymentType: 'credit',
-    cardNumber: '',
-    cardName: '',
-    expiryDate: '',
-    cvv: ''
+    paymentType: reduxPaymentInfo.method || 'credit',
+    cardNumber: reduxPaymentInfo.cardNumber || '',
+    cardName: reduxPaymentInfo.cardName || '',
+    expiryDate: reduxPaymentInfo.expiryDate || '',
+    cvv: reduxPaymentInfo.cvv || ''
   });
 
   const [errors, setErrors] = useState({});
@@ -92,6 +173,15 @@ export default function BookingConfirmation() {
     }
 
     setFormData(prev => ({ ...prev, [name]: processedValue }));
+    
+    // Sync with Redux for contact and payment info
+    if (['firstName', 'lastName', 'email', 'phone'].includes(name)) {
+      dispatch(updateContactInfo({ [name]: processedValue }));
+    } else if (['paymentType', 'cardNumber', 'cardName', 'expiryDate', 'cvv'].includes(name)) {
+      const paymentField = name === 'paymentType' ? 'method' : name;
+      dispatch(updatePaymentInfo({ [paymentField]: processedValue }));
+    }
+    
     // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -124,10 +214,34 @@ export default function BookingConfirmation() {
     }
     
     if (formData.paymentType !== 'paypal') {
-      if (!formData.cardNumber.trim()) newErrors.cardNumber = 'Card number is required';
-      if (!formData.cardName.trim()) newErrors.cardName = 'Cardholder name is required';
-      if (!formData.expiryDate.trim()) newErrors.expiryDate = 'Expiry date is required';
-      if (!formData.cvv.trim()) newErrors.cvv = 'CVV is required';
+      // Card number validation
+      if (!formData.cardNumber.trim()) {
+        newErrors.cardNumber = 'Card number is required';
+      } else if (!validateCardNumber(formData.cardNumber)) {
+        newErrors.cardNumber = 'Invalid card number';
+      }
+      
+      // Cardholder name validation
+      if (!formData.cardName.trim()) {
+        newErrors.cardName = 'Cardholder name is required';
+      } else if (!validateCardholderName(formData.cardName)) {
+        newErrors.cardName = 'Invalid name (letters, spaces, hyphens only)';
+      }
+      
+      // Expiry date validation
+      if (!formData.expiryDate.trim()) {
+        newErrors.expiryDate = 'Expiry date is required';
+      } else if (!validateExpiryDate(formData.expiryDate)) {
+        newErrors.expiryDate = 'Invalid or expired date (MM/YY)';
+      }
+      
+      // CVV validation
+      const cardType = detectCardType(formData.cardNumber);
+      if (!formData.cvv.trim()) {
+        newErrors.cvv = 'CVV is required';
+      } else if (!validateCVV(formData.cvv, cardType)) {
+        newErrors.cvv = cardType === 'amex' ? 'CVV must be 4 digits for Amex' : 'CVV must be 3 digits';
+      }
     }
 
     setErrors(newErrors);
@@ -148,7 +262,7 @@ export default function BookingConfirmation() {
         checkIn: checkIn,
         checkOut: checkOut,
         guests: guests,
-        nights: nights,
+        nights: nightsCount,
         totalPrice: totalPrice,
         paymentType: formData.paymentType,
         guestInfo: {
@@ -185,7 +299,7 @@ export default function BookingConfirmation() {
             checkIn: checkIn,
             checkOut: checkOut,
             guests: guests,
-            nights: nights,
+            nights: nightsCount,
             guestInfo: booking.guestInfo
           }
         };
@@ -195,15 +309,73 @@ export default function BookingConfirmation() {
         console.log('✅ Backend booking response:', response);
 
         // Update booking ID from backend response
-        booking.id = response.booking_id || bookingId;
+        const finalBookingId = response.booking_id || bookingId;
+        booking.id = finalBookingId;
 
-        // Save to user-specific localStorage for local tracking
-        if (user && user.id) {
-          addUserBooking(user.id, booking);
+        // Create billing record
+        const paymentMethodMap = {
+          'credit': 'CREDIT_CARD',
+          'debit': 'DEBIT_CARD',
+          'paypal': 'PAYPAL',
+          'other': 'OTHER'
+        };
+
+        const billingData = {
+          userId: user?.id || user?.user_id || 'guest',
+          bookingType: 'HOTEL',
+          bookingId: finalBookingId,
+          totalAmount: parseFloat(totalPrice),
+          paymentMethod: paymentMethodMap[formData.paymentType] || 'CREDIT_CARD',
+          transactionStatus: 'PAID',
+          invoiceDetails: {
+            customer_name: `${formData.firstName} ${formData.lastName}`,
+            customer_email: formData.email,
+            item_description: `${nightsCount} night${nightsCount !== 1 ? 's' : ''} at ${hotel.hotel_name || hotel.name}`,
+            currency: 'USD',
+            metadata: {
+              hotel: {
+                id: hotel.hotel_id || hotel.id,
+                name: hotel.hotel_name || hotel.name,
+                city: hotel.city,
+                neighbourhood: hotel.neighbourhood_cleansed || hotel.neighbourhood
+              },
+              checkIn,
+              checkOut,
+              guests,
+              nights: nightsCount
+            }
+          }
+        };
+
+        console.log('📤 Creating billing record:', billingData);
+        const billingResponse = await billingService.create(billingData);
+        console.log('✅ Billing record created:', billingResponse);
+
+        // Update Redux state with confirmed booking
+        const confirmedBookingData = {
+          booking_id: finalBookingId,
+          id: finalBookingId,
+          type: 'hotel',
+          ...booking,
+          billing_id: billingResponse.data.billing_id,
+          status: 'confirmed',
+          paymentStatus: 'paid'
+        };
+
+        // Dispatch action to save confirmed booking in Redux
+        dispatch(createStayBooking.fulfilled(confirmedBookingData));
+
+        // Save to user-specific localStorage for My Trips (use confirmedBookingData with proper IDs)
+        const userId = user?.id || user?.user_id;
+        if (userId) {
+          console.log('💾 Saving hotel booking to localStorage:', { userId, bookingId: finalBookingId });
+          addUserBooking(userId, confirmedBookingData);
+        } else {
+          console.warn('⚠️ No user ID found, cannot save to localStorage');
         }
 
-        // Redirect to success page with booking details
-        navigate('/booking/success', { state: { booking, type: 'hotel' } });
+        // Navigate to success page with booking data as backup (dispatch may not complete before navigation)
+        navigate('/booking/success', { state: { booking: confirmedBookingData, type: 'hotel' } });
       } catch (error) {
         console.error('❌ Booking creation failed:', error);
         alert('Failed to save booking. Please try again.');
@@ -316,7 +488,7 @@ export default function BookingConfirmation() {
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
                         errors.phone ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
-                      placeholder="+1 (555) 123-4567"
+                      placeholder=""
                     />
                     {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                   </div>
@@ -353,6 +525,24 @@ export default function BookingConfirmation() {
                       placeholder="New York"
                     />
                     {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 dark:text-white">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      maxLength={2}
+                      className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
+                        errors.state ? 'border-red-500' : 'dark:border-gray-600'
+                      }`}
+                      placeholder="NY"
+                    />
+                    {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
                   </div>
 
                   <div>

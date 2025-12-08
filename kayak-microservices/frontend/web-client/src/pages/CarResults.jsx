@@ -98,7 +98,7 @@ export default function CarResults() {
     dispatch(calculatePricing());
     
     // Navigate to booking page (Redux state is already set)
-    navigate('/cars/booking');
+    navigate('/cars/booking/confirm');
   };
 
   const handleUpdateSearch = () => {
@@ -431,7 +431,7 @@ export default function CarResults() {
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                           <div>
                             <p className="text-2xl font-bold text-[#FF690F]">
-                              ${parseFloat(car.daily_rental_price).toFixed(0)}
+                              ${parseFloat(car.daily_rental_price).toFixed(2)}
                             </p>
                             <p className="text-sm text-gray-500 dark:text-gray-400">per day</p>
                           </div>

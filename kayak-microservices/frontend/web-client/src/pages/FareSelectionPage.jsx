@@ -19,6 +19,15 @@ export default function FareSelectionPage() {
   // Get flight and fare info from navigation state
   const { flight, returnFlight, fareCode: initialFareCode, farePrice, searchForm } = location.state || {};
   
+  // Debug: Log incoming flight data
+  console.log('🎫 FareSelectionPage - Received flight:', {
+    departure_airport: flight?.departure_airport,
+    arrival_airport: flight?.arrival_airport,
+    origin: flight?.origin,
+    destination: flight?.destination,
+    searchForm
+  });
+  
   // State for selected fare
   const [selectedFareCode, setSelectedFareCode] = useState(initialFareCode || 'BASIC');
   
@@ -59,8 +68,9 @@ export default function FareSelectionPage() {
     return `${hours}h ${mins}m`;
   };
   
-  const originCode = flight.origin?.code || flight.departure_airport || flight.origin || 'N/A';
-  const destCode = flight.destination?.code || flight.arrival_airport || flight.destination || 'N/A';
+  // Extract airport codes - prioritize departure_airport/arrival_airport which contain actual codes
+  const originCode = flight.departure_airport || flight.origin?.code || flight.origin || 'N/A';
+  const destCode = flight.arrival_airport || flight.destination?.code || flight.destination || 'N/A';
   const departureTime = flight.departureTime || flight.departure_time;
   const arrivalTime = flight.arrivalTime || flight.arrival_time;
   const duration = flight.durationMinutes || flight.duration || 0;

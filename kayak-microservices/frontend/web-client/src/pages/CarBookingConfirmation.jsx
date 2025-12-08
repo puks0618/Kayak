@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car } from 'lucide-react';
-import { bookingService } from '../services/api';
+import { bookingService, billingService } from '../services/api';
 import { addUserBooking } from '../utils/userStorage';
+import { 
+  validateState, 
+  validatePhone, 
+  validateZipCode as validateZip,
+  validateCardNumber,
+  validateExpiryDate,
+  validateCVV,
+  validateCardholderName,
+  detectCardType
+} from '../utils/bookingValidation';
 
 export default function CarBookingConfirmation() {
   const navigate = useNavigate();
@@ -12,13 +22,14 @@ export default function CarBookingConfirmation() {
   const { car, pickupDate, dropoffDate, pickupTime, dropoffTime, pickupLocation, days, totalPrice } = location.state || {};
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    zipCode: '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    city: user?.city || '',
+    state: user?.state || '',
+    zipCode: user?.zipCode || '',
     licenseNumber: '',
     paymentType: 'credit',
     cardNumber: '',
@@ -29,15 +40,34 @@ export default function CarBookingConfirmation() {
 
   const [errors, setErrors] = useState({});
 
-  const validateZipCode = (zip) => {
-    const zipPattern = /^(\d{2}|\d{5})(-\d{4})?$/;
-    return zipPattern.test(zip);
-  };
-
-  const validatePhone = (phone) => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    return cleanPhone.length === 10;
-  };
+  // Auto-fill user details from profile - runs once on mount, fills ALL fields at once
+  useEffect(() => {
+    if (user) {
+      // Clean phone to only digits (max 10)
+      const cleanPhone = (user.phone || '').replace(/\D/g, '').slice(0, 10);
+      // Clean zipCode to valid format
+      const cleanZip = (user.zipCode || '').trim();
+      // Clean state to uppercase 2 letters
+      const cleanState = (user.state || '').toUpperCase().slice(0, 2);
+      
+      console.log('🔄 Auto-filling ALL fields from user profile:', user);
+      
+      // Set ALL form fields at once with validated user data
+      setFormData(prev => ({
+        ...prev, // Keep payment info if already entered
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: validatePhone(cleanPhone) ? cleanPhone : '',
+        address: user.address || '',
+        city: user.city || '',
+        state: validateState(cleanState) ? cleanState : '',
+        zipCode: validateZip(cleanZip) ? cleanZip : ''
+      }));
+      
+      console.log('✅ All fields auto-filled at once');
+    }
+  }, [user]); // Only depend on user, runs when component mounts and user is available
 
   const validateLicenseNumber = (license) => {
     const licensePattern = /^[A-Za-z0-9]{8,15}$/;
@@ -71,6 +101,10 @@ export default function CarBookingConfirmation() {
     if (name === 'licenseNumber') {
       processedValue = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 15);
     }
+    
+    if (name === 'state') {
+      processedValue = value.toUpperCase().slice(0, 2);
+    }
 
     setFormData(prev => ({ ...prev, [name]: processedValue }));
     if (errors[name]) {
@@ -95,9 +129,15 @@ export default function CarBookingConfirmation() {
     if (!formData.address.trim()) newErrors.address = 'Address is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
     
+    if (!formData.state.trim()) {
+      newErrors.state = 'State is required';
+    } else if (!validateState(formData.state)) {
+      newErrors.state = 'Invalid state code. Please use 2-letter US state code (e.g., CA, NY)';
+    }
+    
     if (!formData.zipCode.trim()) {
       newErrors.zipCode = 'Zip code is required';
-    } else if (!validateZipCode(formData.zipCode)) {
+    } else if (!validateZip(formData.zipCode)) {
       newErrors.zipCode = 'Enter valid zip code';
     }
     
@@ -108,10 +148,34 @@ export default function CarBookingConfirmation() {
     }
     
     if (formData.paymentType !== 'paypal') {
-      if (!formData.cardNumber.trim()) newErrors.cardNumber = 'Card number is required';
-      if (!formData.cardName.trim()) newErrors.cardName = 'Cardholder name is required';
-      if (!formData.expiryDate.trim()) newErrors.expiryDate = 'Expiry date is required';
-      if (!formData.cvv.trim()) newErrors.cvv = 'CVV is required';
+      // Card number validation
+      if (!formData.cardNumber.trim()) {
+        newErrors.cardNumber = 'Card number is required';
+      } else if (!validateCardNumber(formData.cardNumber)) {
+        newErrors.cardNumber = 'Invalid card number';
+      }
+      
+      // Cardholder name validation
+      if (!formData.cardName.trim()) {
+        newErrors.cardName = 'Cardholder name is required';
+      } else if (!validateCardholderName(formData.cardName)) {
+        newErrors.cardName = 'Invalid name (letters, spaces, hyphens only)';
+      }
+      
+      // Expiry date validation
+      if (!formData.expiryDate.trim()) {
+        newErrors.expiryDate = 'Expiry date is required';
+      } else if (!validateExpiryDate(formData.expiryDate)) {
+        newErrors.expiryDate = 'Invalid or expired date (MM/YY)';
+      }
+      
+      // CVV validation
+      const cardType = detectCardType(formData.cardNumber);
+      if (!formData.cvv.trim()) {
+        newErrors.cvv = 'CVV is required';
+      } else if (!validateCVV(formData.cvv, cardType)) {
+        newErrors.cvv = cardType === 'amex' ? 'CVV must be 4 digits for Amex' : 'CVV must be 3 digits';
+      }
     }
 
     setErrors(newErrors);
@@ -181,7 +245,49 @@ export default function CarBookingConfirmation() {
         };
 
         const response = await bookingService.create(backendBooking);
-        booking.id = response.booking_id || bookingId;
+        const finalBookingId = response.booking_id || bookingId;
+        booking.id = finalBookingId;
+
+        // Create billing record
+        const paymentMethodMap = {
+          'credit': 'CREDIT_CARD',
+          'debit': 'DEBIT_CARD',
+          'paypal': 'PAYPAL',
+          'other': 'OTHER'
+        };
+
+        const billingData = {
+          userId: user?.id || user?.user_id || 'guest',
+          bookingType: 'CAR',
+          bookingId: finalBookingId,
+          totalAmount: parseFloat(totalPrice),
+          paymentMethod: paymentMethodMap[formData.paymentType] || 'CREDIT_CARD',
+          transactionStatus: 'PAID',
+          invoiceDetails: {
+            customer_name: `${formData.firstName} ${formData.lastName}`,
+            customer_email: formData.email,
+            item_description: `${days} day${days !== 1 ? 's' : ''} rental: ${car.make} ${car.model}`,
+            currency: 'USD',
+            metadata: {
+              car: {
+                id: car.id,
+                make: car.make,
+                model: car.model,
+                year: car.year,
+                category: car.category,
+                company_name: car.company_name
+              },
+              pickupDate,
+              dropoffDate,
+              pickupLocation,
+              days
+            }
+          }
+        };
+
+        console.log('📤 Creating billing record:', billingData);
+        const billingResponse = await billingService.create(billingData);
+        console.log('✅ Billing record created:', billingResponse);
 
         if (user && user.id) {
           addUserBooking(user.id, booking);
@@ -291,7 +397,7 @@ export default function CarBookingConfirmation() {
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
                         errors.phone ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
-                      placeholder="1234567890"
+                      placeholder=""
                     />
                     {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                   </div>
@@ -345,6 +451,24 @@ export default function CarBookingConfirmation() {
                       placeholder="New York"
                     />
                     {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 dark:text-white">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      maxLength={2}
+                      className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
+                        errors.state ? 'border-red-500' : 'dark:border-gray-600'
+                      }`}
+                      placeholder="NY"
+                    />
+                    {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
                   </div>
 
                   <div>
@@ -513,7 +637,7 @@ export default function CarBookingConfirmation() {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    ${car.daily_rental_price} × {days} day{days !== 1 ? 's' : ''}
+                    ${parseFloat(car.daily_rental_price).toFixed(2)} × {days} day{days !== 1 ? 's' : ''}
                   </span>
                   <span className="dark:text-white">${(car.daily_rental_price * days).toFixed(2)}</span>
                 </div>
@@ -525,7 +649,7 @@ export default function CarBookingConfirmation() {
 
               <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-3">
                 <span className="dark:text-white">Total</span>
-                <span className="text-[#FF690F]">${totalPrice}</span>
+                <span className="text-[#FF690F]">${parseFloat(totalPrice).toFixed(2)}</span>
               </div>
             </div>
           </div>

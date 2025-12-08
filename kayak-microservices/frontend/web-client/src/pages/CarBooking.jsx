@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car, Calendar } from 'lucide-react';
 import { bookingService, billingService } from '../services/api';
+import { addUserBooking } from '../utils/userStorage';
 import {
   setSelectedCar,
   setRentalDetails,
@@ -96,6 +97,31 @@ export default function CarBooking() {
     }
   };
 
+  // Validation helpers
+  const validateZipCode = (zip) => {
+    const zipPattern = /^(\d{2}|\d{5})(-\d{4})?$/;
+    return zipPattern.test(zip);
+  };
+
+  const validatePhone = (phone) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length === 10;
+  };
+
+  const validateState = (state) => {
+    const states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 
+                    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 
+                    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 
+                    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 
+                    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
+    return states.includes(state.toUpperCase());
+  };
+
+  const validateLicenseNumber = (license) => {
+    const licensePattern = /^[A-Za-z0-9]{8,15}$/;
+    return licensePattern.test(license);
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -103,11 +129,37 @@ export default function CarBooking() {
     if (!driverInfo.lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!driverInfo.email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(driverInfo.email)) newErrors.email = 'Email is invalid';
-    if (!driverInfo.phone.trim()) newErrors.phone = 'Phone number is required';
+    
+    // Phone validation
+    if (!driverInfo.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!validatePhone(driverInfo.phone)) {
+      newErrors.phone = 'Phone must be 10 digits';
+    }
+    
     if (!driverInfo.address.trim()) newErrors.address = 'Address is required';
     if (!driverInfo.city.trim()) newErrors.city = 'City is required';
-    if (!driverInfo.zipCode.trim()) newErrors.zipCode = 'Zip code is required';
-    if (!driverInfo.licenseNumber.trim()) newErrors.licenseNumber = 'Driver license number is required';
+    
+    // State validation
+    if (!driverInfo.state.trim()) {
+      newErrors.state = 'State is required';
+    } else if (!validateState(driverInfo.state)) {
+      newErrors.state = 'Invalid state code. Please use 2-letter US state code (e.g., CA, NY)';
+    }
+    
+    // Zip code validation
+    if (!driverInfo.zipCode.trim()) {
+      newErrors.zipCode = 'Zip code is required';
+    } else if (!validateZipCode(driverInfo.zipCode)) {
+      newErrors.zipCode = 'Enter valid zip code (e.g., 12, 95123, 90086-1929)';
+    }
+    
+    // License validation
+    if (!driverInfo.licenseNumber.trim()) {
+      newErrors.licenseNumber = 'Driver license number is required';
+    } else if (!validateLicenseNumber(driverInfo.licenseNumber)) {
+      newErrors.licenseNumber = 'License must be 8-15 alphanumeric characters';
+    }
     
     if (paymentInfo.method !== 'paypal') {
       if (!paymentInfo.cardNumber.trim()) newErrors.payment_cardNumber = 'Card number is required';
@@ -235,6 +287,7 @@ export default function CarBooking() {
       const confirmedBookingData = {
         booking_id: finalBookingId,
         id: finalBookingId,
+        type: 'car',
         ...booking,
         billing_id: billingResponse.data.billing_id,
         status: 'confirmed',
@@ -244,8 +297,17 @@ export default function CarBooking() {
       // Dispatch action to save confirmed booking in Redux
       dispatch(createCarBooking.fulfilled(confirmedBookingData));
 
-      // Navigate to success page (data will be retrieved from Redux)
-      navigate('/booking/car/success');
+      // Save to user-specific localStorage for My Trips
+      const userId = user?.id || user?.user_id;
+      if (userId) {
+        console.log('💾 Saving car booking to localStorage:', { userId, bookingId: finalBookingId });
+        addUserBooking(userId, confirmedBookingData);
+      } else {
+        console.warn('⚠️ No user ID found, cannot save to localStorage');
+      }
+
+      // Navigate to success page with booking data as backup (dispatch may not complete before navigation)
+      navigate('/booking/success', { state: { booking: confirmedBookingData, type: 'car' } });
       
     } catch (error) {
       console.error('❌ Car booking creation failed:', error);
@@ -412,6 +474,24 @@ export default function CarBooking() {
                       placeholder="New York"
                     />
                     {validationErrors.city && <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 dark:text-white">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={driverInfo.state || ''}
+                      onChange={(e) => handleDriverInfoChange('state', e.target.value.toUpperCase())}
+                      maxLength={2}
+                      className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
+                        validationErrors.state ? 'border-red-500' : 'dark:border-gray-600'
+                      }`}
+                      placeholder="NY"
+                    />
+                    {validationErrors.state && <p className="text-red-500 text-sm mt-1">{validationErrors.state}</p>}
                   </div>
 
                   <div>
@@ -606,23 +686,23 @@ export default function CarBooking() {
               <div className="border-t dark:border-gray-700 pt-4 mt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    ${car.price_per_day} × {days} day{days !== 1 ? 's' : ''}
+                    ${car.price_per_day || 0} × {days} day{days !== 1 ? 's' : ''}
                   </span>
-                  <span className="dark:text-white">${pricing.basePrice.toFixed(2)}</span>
+                  <span className="dark:text-white">${(pricing.basePrice || 0).toFixed(2)}</span>
                 </div>
                 {pricing.additionalServices > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Additional Services</span>
-                    <span className="dark:text-white">${pricing.additionalServices.toFixed(2)}</span>
+                    <span className="dark:text-white">${(pricing.additionalServices || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Taxes & Fees (15%)</span>
-                  <span className="dark:text-white">${pricing.taxesAndFees.toFixed(2)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Service fee</span>
+                  <span className="dark:text-white">${(pricing.taxesAndFees || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-2 mt-2">
-                  <span className="dark:text-white">Total</span>
-                  <span className="text-[#FF690F]">${pricing.totalPrice.toFixed(2)}</span>
+                  <span className="dark:text-white">Total Paid</span>
+                  <span className="text-[#FF690F]">${(pricing.totalPrice || 0).toFixed(2)}</span>
                 </div>
               </div>
 

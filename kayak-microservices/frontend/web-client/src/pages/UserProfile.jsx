@@ -9,8 +9,7 @@ import {
   Camera,
   Edit2,
   Save,
-  X,
-  Lock
+  X
 } from 'lucide-react';
 import { updateUser } from '../store/authSlice';
 
@@ -35,7 +34,11 @@ export default function UserProfile() {
     city: '',
     state: '',
     zipCode: '',
+    profileImage: '',
   });
+
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -48,7 +51,9 @@ export default function UserProfile() {
         city: user.city || '',
         state: user.state || '',
         zipCode: user.zipCode || '',
+        profileImage: user.profileImage || '',
       });
+      setImagePreview(user.profileImage || '');
     }
   }, [user]);
 
@@ -156,20 +161,68 @@ export default function UserProfile() {
         return;
       }
 
-      // Update local storage and Redux directly (simulate API update)
+      let profileImageUrl = formData.profileImage;
+
+      // If a new image was selected, convert to base64 and store locally
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          profileImageUrl = reader.result; // base64 string
+          
+          // Update user with new image and all fields explicitly
+          const updatedUser = {
+            ...user,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zipCode: formData.zipCode,
+            profileImage: profileImageUrl
+          };
+          
+          console.log('💾 Saving user profile with image:', updatedUser);
+          
+          // Update Redux store (redux-persist handles localStorage)
+          dispatch(updateUser(updatedUser));
+          
+          setSuccess('Profile updated successfully!');
+          setIsEditing(false);
+          setImageFile(null);
+          setImagePreview(profileImageUrl);
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => setSuccess(''), 3000);
+          setIsSaving(false);
+        };
+        reader.readAsDataURL(imageFile);
+        return; // Exit early, the reader callback will handle the rest
+      }
+
+      // No new image, just update other fields
       const updatedUser = {
         ...user,
-        ...formData
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        profileImage: profileImageUrl
       };
       
-      // Update localStorage
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('💾 Saving user profile:', updatedUser);
       
-      // Update Redux store
+      // Update Redux store (redux-persist handles localStorage)
       dispatch(updateUser(updatedUser));
       
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
+      setImageFile(null);
       
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
@@ -192,10 +245,57 @@ export default function UserProfile() {
       city: user.city || '',
       state: user.state || '',
       zipCode: user.zipCode || '',
+      profileImage: user.profileImage || '',
     });
+    setImageFile(null);
+    setImagePreview(user.profileImage || '');
     setIsEditing(false);
     setError('');
     setSuccess('');
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select a valid image file');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size must be less than 5MB');
+        return;
+      }
+
+      setImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setError('');
+    }
+  };
+
+  const handleRemoveImage = () => {
+    // Reset to default avatar
+    const updatedUser = {
+      ...user,
+      profileImage: ''
+    };
+    
+    // Update Redux store (redux-persist handles localStorage)
+    dispatch(updateUser(updatedUser));
+    
+    setImageFile(null);
+    setImagePreview('');
+    setFormData(prev => ({ ...prev, profileImage: '' }));
+    setSuccess('Profile image removed');
+    setTimeout(() => setSuccess(''), 3000);
   };
 
   const getInitials = () => {
@@ -234,13 +334,42 @@ export default function UserProfile() {
             <div className="flex items-center gap-6">
               {/* Profile Picture */}
               <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-[#FF690F] flex items-center justify-center text-white text-3xl font-bold">
-                  {getInitials()}
-                </div>
+                {imagePreview || user.profileImage ? (
+                  <img 
+                    src={imagePreview || user.profileImage} 
+                    alt="Profile" 
+                    className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-[#FF690F] flex items-center justify-center text-white text-3xl font-bold border-4 border-white dark:border-gray-700 shadow-lg">
+                    {getInitials()}
+                  </div>
+                )}
                 {isEditing && (
-                  <button className="absolute bottom-0 right-0 w-8 h-8 bg-white dark:bg-gray-700 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <Camera className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                  </button>
+                  <>
+                    <input
+                      type="file"
+                      id="profileImage"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="profileImage"
+                      className="absolute bottom-0 right-0 w-8 h-8 bg-white dark:bg-gray-700 rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer"
+                    >
+                      <Camera className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    </label>
+                    {(imagePreview || user.profileImage) && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full shadow-lg flex items-center justify-center border-2 border-white dark:border-gray-800 hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -448,21 +577,6 @@ export default function UserProfile() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Security Section */}
-            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Lock className="w-5 h-5" />
-                Security
-              </h3>
-              <button
-                type="button"
-                onClick={() => navigate('/change-password')}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Change Password
-              </button>
             </div>
           </form>
         </div>

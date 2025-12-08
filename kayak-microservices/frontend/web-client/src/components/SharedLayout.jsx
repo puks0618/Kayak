@@ -132,9 +132,17 @@ export default function SharedLayout({ children }) {
               className="p-1 relative"
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             >
-              <div className="w-10 h-10 bg-[#FF690F] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                {(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '') || user.email?.charAt(0).toUpperCase()}
-              </div>
+              {user.profileImage ? (
+                <img 
+                  src={user.profileImage} 
+                  alt="Profile" 
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[#FF690F]"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-[#FF690F] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  {(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '') || user.email?.charAt(0).toUpperCase()}
+                </div>
+              )}
             </button>
           )}
           
@@ -154,9 +162,17 @@ export default function SharedLayout({ children }) {
                     onClick={() => { navigate('/profile'); setIsUserMenuOpen(false); }}
                     className="flex items-center gap-3 mb-3 w-full text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg p-2 -m-2 transition-colors"
                   >
-                    <div className="w-10 h-10 bg-[#FF690F] rounded-full flex items-center justify-center text-white font-semibold">
-                      {(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '') || user.email?.charAt(0).toUpperCase()}
-                    </div>
+                    {user.profileImage ? (
+                      <img 
+                        src={user.profileImage} 
+                        alt="Profile" 
+                        className="w-10 h-10 rounded-full object-cover border-2 border-[#FF690F]"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-[#FF690F] rounded-full flex items-center justify-center text-white font-semibold">
+                        {(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '') || user.email?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="flex-1">
                       <div className="font-semibold text-gray-900 dark:text-white">
                         {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}

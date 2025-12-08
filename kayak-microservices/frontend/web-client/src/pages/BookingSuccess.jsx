@@ -1,18 +1,38 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2 } from 'lucide-react';
 
 export default function BookingSuccess() {
 
   const navigate = useNavigate();
-  // Get Redux state for both flight and stay bookings
+  const location = useLocation();
+  
+  // Get Redux state for flight, stay, and car bookings
   const flightState = useSelector(state => state.flightBooking);
   const stayState = useSelector(state => state.stayBooking);
+  const carState = useSelector(state => state.carBooking);
 
-  // Prefer flight booking if present, else stay booking
+  // Helper function to get passenger/guest count
+  const getCount = (value) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'object' && value !== null) {
+      // Handle {adults: 1, children: 0, infants: 0} structure
+      return (value.adults || 0) + (value.children || 0) + (value.infants || 0);
+    }
+    return 0;
+  };
+
+  // Check if booking was passed via location.state (for hotels without Redux)
+  const locationBooking = location.state?.booking;
+
+  // PRIORITY: location.state booking (passed during navigation) takes precedence
+  // This ensures we show the correct booking type that was just completed
   let booking = null;
-  if (flightState.confirmedBooking) {
+  if (locationBooking && locationBooking.type) {
+    // Use the booking passed via location.state (has type and correct data)
+    booking = locationBooking;
+  } else if (flightState.confirmedBooking) {
     booking = flightState.confirmedBooking;
   } else if (flightState.selectedOutboundFlight) {
     booking = {
@@ -68,6 +88,31 @@ export default function BookingSuccess() {
       bookingDate: new Date().toISOString(),
       status: 'confirmed'
     };
+  } else if (carState.confirmedBooking) {
+    booking = {
+      ...carState.confirmedBooking,
+      type: 'car',
+    };
+  } else if (carState.selectedCar) {
+    booking = {
+      id: carState.bookingId,
+      type: 'car',
+      car: carState.selectedCar,
+      pickupDate: carState.pickupDate,
+      dropoffDate: carState.dropoffDate,
+      pickupTime: carState.pickupTime,
+      dropoffTime: carState.dropoffTime,
+      pickupLocation: carState.pickupLocation,
+      days: carState.days,
+      totalPrice: carState.pricing?.totalPrice || 0,
+      paymentType: carState.paymentInfo?.method === 'credit' ? 'Credit Card' : carState.paymentInfo?.method === 'debit' ? 'Debit Card' : 'PayPal',
+      driverInfo: carState.driverInfo,
+      bookingDate: new Date().toISOString(),
+      status: 'confirmed'
+    };
+  } else if (locationBooking) {
+    // Use booking passed via location.state (hotels without Redux)
+    booking = locationBooking;
   }
 
   if (!booking) {
@@ -112,7 +157,7 @@ export default function BookingSuccess() {
           </p>
           <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 inline-block">
             <p className="text-sm text-gray-600 dark:text-gray-400">Booking ID</p>
-            <p className="text-2xl font-bold text-[#FF690F]">{booking.id}</p>
+            <p className="text-2xl font-bold text-[#FF690F]">{booking.id || booking.booking_id || 'N/A'}</p>
           </div>
         </div>
 
@@ -155,7 +200,7 @@ export default function BookingSuccess() {
               <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
                 <p className="font-semibold text-blue-900 dark:text-blue-200">{booking.fare.label} Fare</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  {booking.passengers} passenger{booking.passengers !== 1 ? 's' : ''}
+                  {getCount(booking.passengers)} passenger{getCount(booking.passengers) !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
@@ -232,7 +277,7 @@ export default function BookingSuccess() {
                   <Users className="w-4 h-4" />
                   <span className="text-sm">Guests</span>
                 </div>
-                <p className="font-semibold dark:text-white">{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</p>
+                <p className="font-semibold dark:text-white">{getCount(booking.guests)} {getCount(booking.guests) === 1 ? 'guest' : 'guests'}</p>
               </div>
             </div>
           )}
@@ -290,9 +335,9 @@ export default function BookingSuccess() {
               <>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    {booking.fare?.label} fare × {booking.passengers} passenger{booking.passengers !== 1 ? 's' : ''}
+                    {booking.fare?.label} fare × {getCount(booking.passengers)} passenger{getCount(booking.passengers) !== 1 ? 's' : ''}
                   </span>
-                  <span className="dark:text-white">${booking.fare?.price || booking.totalPrice}</span>
+                  <span className="dark:text-white">${parseFloat(booking.fare?.price || booking.totalPrice).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Service fee (10%)</span>
@@ -330,7 +375,7 @@ export default function BookingSuccess() {
             )}
             <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-3">
               <span className="dark:text-white">Total Paid</span>
-              <span className="text-[#FF690F]">${booking.totalPrice}</span>
+              <span className="text-[#FF690F]">${parseFloat(booking.totalPrice).toFixed(2)}</span>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-3">
               <p className="text-sm text-green-800 dark:text-green-200 font-semibold">

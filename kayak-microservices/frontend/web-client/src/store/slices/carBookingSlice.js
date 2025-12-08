@@ -96,6 +96,7 @@ const initialState = {
     phone: '',
     address: '',
     city: '',
+    state: '',
     zipCode: '',
     licenseNumber: ''
   },
@@ -254,7 +255,8 @@ const carBookingSlice = createSlice({
     
     // Pricing calculation
     calculatePricing: (state) => {
-      const basePrice = state.pricing.basePrice;
+      // Ensure basePrice is a valid number
+      const basePrice = parseFloat(state.pricing.basePrice) || 0;
       let additionalServices = 0;
       
       // Add service costs

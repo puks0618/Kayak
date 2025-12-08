@@ -349,9 +349,9 @@ export default function CarDetail() {
               <div className="border-t dark:border-gray-700 pt-4 mb-6 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    ${car.daily_rental_price} × {days} {days === 1 ? 'day' : 'days'}
+                    ${parseFloat(car.daily_rental_price).toFixed(2)} × {days} {days === 1 ? 'day' : 'days'}
                   </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">${subtotal}</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">${parseFloat(subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Taxes & Fees (15%)</span>
@@ -359,7 +359,7 @@ export default function CarDetail() {
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t dark:border-gray-700 pt-2 mt-2">
                   <span className="text-gray-900 dark:text-white">Total</span>
-                  <span className="text-[#FF690F]">${total}</span>
+                  <span className="text-[#FF690F]">${parseFloat(total).toFixed(2)}</span>
                 </div>
               </div>
 

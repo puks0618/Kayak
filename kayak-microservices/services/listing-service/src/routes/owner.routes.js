@@ -102,7 +102,7 @@ router.get('/bookings', async (req, res) => {
         u.email as user_email
       FROM kayak_bookings.bookings b
       INNER JOIN kayak_listings.cars c ON b.listing_id = c.id AND b.listing_type = 'car'
-      LEFT JOIN kayak_auth.users u ON b.user_id = u.id
+      LEFT JOIN kayak_users.users u ON b.user_id = u.id
       WHERE c.owner_id = ?
       ORDER BY b.created_at DESC
     `, [owner_id]);
@@ -111,12 +111,12 @@ router.get('/bookings', async (req, res) => {
     const [hotelBookings] = await pool.execute(`
       SELECT 
         b.*,
-        h.name as listing_name,
+        h.hotel_name as listing_name,
         h.city as listing_city,
         u.email as user_email
       FROM kayak_bookings.bookings b
-      INNER JOIN kayak_listings.hotels h ON b.listing_id = h.id AND b.listing_type = 'hotel'
-      LEFT JOIN kayak_auth.users u ON b.user_id = u.id
+      INNER JOIN kayak_listings.hotels h ON b.listing_id = h.listing_id AND b.listing_type = 'hotel'
+      LEFT JOIN kayak_users.users u ON b.user_id = u.id
       WHERE h.owner_id = ?
       ORDER BY b.created_at DESC
     `, [owner_id]);
@@ -167,13 +167,13 @@ router.get('/stats', async (req, res) => {
       WHERE owner_id = ?
     `, [owner_id]);
 
-    // Count hotels by status
+    // Count hotels (no approval_status column in hotels table)
     const [hotelStats] = await pool.execute(`
       SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN approval_status = 'approved' THEN 1 ELSE 0 END) as approved,
-        SUM(CASE WHEN approval_status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN approval_status = 'rejected' THEN 1 ELSE 0 END) as rejected
+        COUNT(*) as approved,
+        0 as pending,
+        0 as rejected
       FROM kayak_listings.hotels 
       WHERE owner_id = ?
     `, [owner_id]);
@@ -184,10 +184,8 @@ router.get('/stats', async (req, res) => {
         COUNT(*) as total_bookings,
         COALESCE(SUM(b.total_amount), 0) as total_revenue
       FROM kayak_bookings.bookings b
-      LEFT JOIN kayak_listings.hotels h ON b.listing_id = h.id AND b.listing_type = 'hotel'
-      LEFT JOIN kayak_listings.cars c ON b.listing_id = c.id AND b.listing_type = 'car'
-      WHERE (h.owner_id = ? OR c.owner_id = ?)
-    `, [owner_id, owner_id]);
+      WHERE b.owner_id = ?
+    `, [owner_id]);
 
     res.json({
       cars: {

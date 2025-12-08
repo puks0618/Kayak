@@ -106,12 +106,39 @@ app.use(
   })
 );
 
+// User management routes - require admin role
+app.use(
+  '/api/users',
+  authenticate,
+  isAdmin,
+  createProxyMiddleware({
+    target: 'http://user-service:3002',
+    changeOrigin: true,
+    pathRewrite: (path) => path.replace('/api', ''),
+    onProxyReq: (proxyReq, req) => {
+      proxyReq.setHeader('X-Trace-ID', req.id);
+      if (req.user) {
+        proxyReq.setHeader('X-User-ID', req.user.id);
+        proxyReq.setHeader('X-User-Email', req.user.email);
+        proxyReq.setHeader('X-User-Role', req.user.role);
+      }
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error for /api/users:', err.message);
+      res.status(502).json({
+        error: 'Bad Gateway',
+        message: 'User service temporarily unavailable'
+      });
+    }
+  })
+);
+
 // ===== EXISTING ROUTES (WITH OLD AUTH) =====
 
 // Setup proxy routes
 Object.entries(routes).forEach(([path, config]) => {
   // Skip routes we've already defined with RBAC
-  if (path.startsWith('/api/owner') || path.startsWith('/api/admin')) {
+  if (path.startsWith('/api/owner') || path.startsWith('/api/admin') || path === '/api/users') {
     return;
   }
 

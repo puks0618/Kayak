@@ -16,7 +16,8 @@ const OwnerCars = () => {
   const fetchMyCars = async () => {
     try {
       const response = await ownerAPI.getCars();
-      setCars(response.data.cars || []);
+      console.log('Cars API response:', response.data);
+      setCars(response.data?.cars || []);
     } catch (err) {
       console.error('Error fetching cars:', err);
       setError('Failed to load your car listings');

@@ -19,7 +19,7 @@ import stayBookingReducer from './slices/stayBookingSlice';
 const authPersistConfig = {
   key: 'kayak-auth',
   storage,
-  whitelist: ['user', 'token', 'isAuthenticated'], // Only persist these fields
+  whitelist: ['user', 'token', 'isAuthenticated'], // Persist all user data including profile changes
 };
 
 // Persist configuration for flight booking (draft persistence)

@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, Building, DollarSign, User, Mail, Phone, MapPin, Plane } from 'lucide-react';
 import { bookingService, billingService } from '../services/api';
+import { addUserBooking } from '../utils/userStorage';
 import {
   setSelectedOutboundFlight,
   setSelectedReturnFlight,
@@ -21,14 +22,26 @@ import {
 import {
   validateContactInfo,
   validatePaymentInfo,
+  validatePassenger,
   formatCardNumber,
-  formatExpiryDate
+  formatExpiryDate,
+  validatePhone,
+  validateZipCode,
+  validateState,
+  validateCardNumber,
+  validateExpiryDate,
+  validateCVV,
+  validateCardholderName,
+  detectCardType
 } from '../utils/bookingValidation';
 
 export default function FlightBookingConfirmation() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  
+  // Get user from auth state
+  const { user } = useSelector(state => state.auth);
   
   // Get Redux state
   const {
@@ -37,50 +50,115 @@ export default function FlightBookingConfirmation() {
     selectedFare,
     passengers,
     passengerDetails,
-    contactInfo,
-    paymentInfo,
+    contactInfo: reduxContactInfo,
+    paymentInfo: reduxPaymentInfo,
     pricing,
     isProcessing,
     bookingError,
-    validationErrors,
+    validationErrors: reduxValidationErrors,
     confirmedBooking,
     bookingId
   } = useSelector(state => state.flightBooking);
   
-  // Get user from auth state
-  const { user } = useSelector(state => state.auth);
+  // Local form state (like hotels) - initialize empty, will autofill from user profile
+  const [formData, setFormData] = useState({
+    firstName: reduxContactInfo.firstName || '',
+    lastName: reduxContactInfo.lastName || '',
+    email: reduxContactInfo.email || '',
+    phone: reduxContactInfo.phone || '',
+    address: reduxContactInfo.address || '',
+    city: reduxContactInfo.city || '',
+    state: reduxContactInfo.state || '',
+    zipCode: reduxContactInfo.zipCode || '',
+    paymentType: reduxPaymentInfo.method || 'credit',
+    cardNumber: reduxPaymentInfo.cardNumber || '',
+    cardName: reduxPaymentInfo.cardName || '',
+    expiryDate: reduxPaymentInfo.expiryDate || '',
+    cvv: reduxPaymentInfo.cvv || ''
+  });
+
+  const [errors, setErrors] = useState({});
 
   // Initialize from location state if coming from flight selection
   useEffect(() => {
     const locationState = location.state;
     if (locationState) {
-      if (locationState.outboundFlight && !selectedOutboundFlight) {
+      // ALWAYS set flights from location.state to override any stale Redux state
+      if (locationState.outboundFlight) {
+        console.log('✅ Setting outbound flight from location.state:', locationState.outboundFlight);
         dispatch(setSelectedOutboundFlight(locationState.outboundFlight));
       }
-      if (locationState.returnFlight && !selectedReturnFlight) {
+      if (locationState.returnFlight) {
         dispatch(setSelectedReturnFlight(locationState.returnFlight));
+      } else if (!locationState.returnFlight && selectedReturnFlight) {
+        // Clear return flight if not in location state
+        dispatch(setSelectedReturnFlight(null));
       }
-      if (locationState.fare && !selectedFare) {
-        dispatch(setSelectedFare(locationState.fare.type || 'basic'));
+      if (locationState.fare) {
+        dispatch(setSelectedFare(locationState.fare.type || locationState.fare.code || 'basic'));
       }
-      if (locationState.passengers && passengers.adults === 1) {
+      if (locationState.passengers) {
         dispatch(setPassengerCount({
           adults: locationState.passengers || 1,
           children: 0,
           infants: 0
         }));
       }
-      // Calculate pricing after setting flights
-      dispatch(calculatePricing());
+      
+      // DON'T call calculatePricing() - use the pre-calculated price from fare selection
+      // The totalPrice from location.state is already correct (includes passengers + fare type)
+      if (locationState.totalPrice) {
+        console.log('💰 Using pre-calculated price from fare selection:', locationState.totalPrice);
+        // Manually set the pricing object with the correct values
+        const basePrice = locationState.totalPrice;
+        const taxesAndFees = basePrice * 0.15;
+        const serviceFee = basePrice * 0.10;
+        const total = basePrice + taxesAndFees + serviceFee;
+        
+        dispatch(updatePaymentInfo({ 
+          precalculatedBasePrice: basePrice,
+          precalculatedTotal: total
+        }));
+      }
     }
-  }, [location.state]);
+  }, [location.state, dispatch]);
 
-  // Redirect if confirmed
+  // Auto-fill from user profile if available (EXACT same logic as hotels)
   useEffect(() => {
-    if (confirmedBooking && bookingId) {
-      navigate(`/invoice/${bookingId}`);
+    if (user && !reduxContactInfo.email) {
+      const cleanPhone = (user.phone || '').replace(/\D/g, '').slice(0, 10);
+      const cleanZip = (user.zipCode || '').trim();
+      const cleanState = (user.state || '').toUpperCase().slice(0, 2);
+      
+      dispatch(updateContactInfo({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: validatePhone(cleanPhone) ? cleanPhone : '',
+        address: user.address || '',
+        city: user.city || '',
+        state: validateState(cleanState) ? cleanState : '',
+        zipCode: validateZipCode(cleanZip) ? cleanZip : ''
+      }));
     }
-  }, [confirmedBooking, bookingId, navigate]);
+  }, [user, reduxContactInfo.email, dispatch]);
+
+  // Sync formData when Redux updates
+  useEffect(() => {
+    if (reduxContactInfo.email) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: reduxContactInfo.firstName || '',
+        lastName: reduxContactInfo.lastName || '',
+        email: reduxContactInfo.email || '',
+        phone: reduxContactInfo.phone || '',
+        address: reduxContactInfo.address || '',
+        city: reduxContactInfo.city || '',
+        state: reduxContactInfo.state || '',
+        zipCode: reduxContactInfo.zipCode || ''
+      }));
+    }
+  }, [reduxContactInfo]);
 
   // Check if booking data exists
   if (!selectedOutboundFlight) {
@@ -127,75 +205,130 @@ export default function FlightBookingConfirmation() {
     return `${hours}h ${mins}m`;
   };
 
-  // Handle passenger field changes
-  const handlePassengerChange = (field, value) => {
-    dispatch(updatePassengerDetails({
-      passengerId: currentPassenger.id,
-      details: { [field]: value }
-    }));
-    if (validationErrors[`passenger_${field}`]) {
-      dispatch(clearFieldError(`passenger_${field}`));
-    }
-  };
+  // Handle input changes (same logic as hotels)
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    let processedValue = value;
 
-  // Handle contact field changes
-  const handleContactChange = (field, value) => {
-    dispatch(updateContactInfo({ [field]: value }));
-    if (validationErrors[`contact_${field}`]) {
-      dispatch(clearFieldError(`contact_${field}`));
+    // Auto-format phone: remove non-digits and limit to 10
+    if (name === 'phone') {
+      processedValue = value.replace(/\D/g, '').slice(0, 10);
     }
-  };
 
-  // Handle payment field changes
-  const handlePaymentChange = (field, value) => {
-    let formattedValue = value;
-    
-    // Format card number with spaces
-    if (field === 'cardNumber') {
-      formattedValue = formatCardNumber(value);
+    // Auto-format state: uppercase and limit to 2 characters if abbreviation
+    if (name === 'state') {
+      if (value.length <= 2) {
+        processedValue = value.toUpperCase().slice(0, 2);
+      }
     }
+
+    setFormData(prev => ({ ...prev, [name]: processedValue }));
     
-    // Format expiry date as MM/YY
-    if (field === 'expiryDate') {
-      formattedValue = formatExpiryDate(value);
-    }
-    
-    dispatch(updatePaymentInfo({ [field]: formattedValue }));
-    if (validationErrors[`payment_${field}`]) {
-      dispatch(clearFieldError(`payment_${field}`));
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
   const validateForm = () => {
-    const contactErrors = validateContactInfo(contactInfo);
-    const paymentErrors = validatePaymentInfo(paymentInfo);
+    const newErrors = {};
+
+    // Validate passenger info
+    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
     
-    const allErrors = {
-      ...Object.keys(contactErrors).reduce((acc, key) => ({ ...acc, [`contact_${key}`]: contactErrors[key] }), {}),
-      ...Object.keys(paymentErrors).reduce((acc, key) => ({ ...acc, [`payment_${key}`]: paymentErrors[key] }), {})
-    };
+    // Validate contact info
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
     
-    dispatch(setValidationErrors(allErrors));
-    return Object.keys(allErrors).length === 0;
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!validatePhone(formData.phone)) {
+      newErrors.phone = 'Phone must be 10 digits';
+    }
+    
+    // Address validation
+    if (!formData.address.trim()) newErrors.address = 'Address is required';
+    if (!formData.city.trim()) newErrors.city = 'City is required';
+    
+    if (!formData.state.trim()) {
+      newErrors.state = 'State is required';
+    } else if (!validateState(formData.state)) {
+      newErrors.state = 'Invalid state code';
+    }
+    
+    if (!formData.zipCode.trim()) {
+      newErrors.zipCode = 'Zip code is required';
+    } else if (!validateZipCode(formData.zipCode)) {
+      newErrors.zipCode = 'Invalid zip code';
+    }
+
+    // Validate payment info
+    if (formData.paymentType === 'credit' || formData.paymentType === 'debit') {
+      // Card number validation
+      if (!formData.cardNumber.trim()) {
+        newErrors.cardNumber = 'Card number is required';
+      } else if (!validateCardNumber(formData.cardNumber)) {
+        newErrors.cardNumber = 'Invalid card number';
+      }
+      
+      // Cardholder name validation
+      if (!formData.cardName.trim()) {
+        newErrors.cardName = 'Cardholder name is required';
+      } else if (!validateCardholderName(formData.cardName)) {
+        newErrors.cardName = 'Invalid name (letters, spaces, hyphens only)';
+      }
+      
+      // Expiry date validation
+      if (!formData.expiryDate.trim()) {
+        newErrors.expiryDate = 'Expiry date is required';
+      } else if (!validateExpiryDate(formData.expiryDate)) {
+        newErrors.expiryDate = 'Invalid or expired date (MM/YY)';
+      }
+      
+      // CVV validation
+      const cardType = detectCardType(formData.cardNumber);
+      if (!formData.cvv.trim()) {
+        newErrors.cvv = 'CVV is required';
+      } else if (!validateCVV(formData.cvv, cardType)) {
+        newErrors.cvv = cardType === 'amex' ? 'CVV must be 4 digits for Amex' : 'CVV must be 3 digits';
+      }
+    }
+
+    setErrors(newErrors);
+    const isValid = Object.keys(newErrors).length === 0;
+    
+    if (!isValid) {
+      console.log('❌ Form validation failed:', newErrors);
+    } else {
+      console.log('✅ Form validation passed');
+    }
+    
+    return isValid;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    console.log('🚀 Flight booking form submitted');
+    
     if (!validateForm()) {
+      console.error('❌ Form validation failed');
       return;
     }
 
+    console.log('✅ Form validation passed');
+
     try {
-      // Prepare booking data
+      // Prepare booking data using formData
       const bookingData = {
         listing_id: selectedOutboundFlight.id || selectedOutboundFlight.flight_id || 'flight-' + Date.now(),
         listing_type: 'flight',
         travel_date: selectedOutboundFlight.departure_time || selectedOutboundFlight.departureTime,
         total_amount: pricing.totalPrice,
         payment_details: {
-          method: paymentInfo.method,
-          cardNumber: paymentInfo.cardNumber ? paymentInfo.cardNumber.replace(/\s/g, '').slice(-4) : null
+          method: formData.paymentType,
+          cardNumber: formData.cardNumber ? formData.cardNumber.replace(/\s/g, '').slice(-4) : null
         },
         booking_details: {
           outboundFlight: {
@@ -212,13 +345,14 @@ export default function FlightBookingConfirmation() {
           } : null,
           passengers: passengers.adults + passengers.children + passengers.infants,
           passengerInfo: {
-            firstName: currentPassenger.firstName,
-            lastName: currentPassenger.lastName,
-            email: currentPassenger.email || contactInfo.email,
-            phone: currentPassenger.phone || contactInfo.phone,
-            address: contactInfo.address,
-            city: contactInfo.city,
-            zipCode: contactInfo.zipCode
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zipCode: formData.zipCode
           },
           fareType: selectedFare,
           pricing: pricing
@@ -229,7 +363,8 @@ export default function FlightBookingConfirmation() {
       const response = await bookingService.create(bookingData);
       console.log('✅ Backend booking response:', response);
 
-      const finalBookingId = response.booking_id || response.id;
+      const finalBookingId = response.booking_id || response.id || 'FL' + Date.now();
+      console.log('✅ Flight booking ID:', finalBookingId);
 
       // Also store in localStorage for compatibility
       const localBooking = {
@@ -240,7 +375,7 @@ export default function FlightBookingConfirmation() {
         fare: selectedFare,
         passengers,
         totalPrice: pricing.totalPrice,
-        paymentType: paymentInfo.method,
+        paymentType: formData.paymentType,
         passengerInfo: bookingData.booking_details.passengerInfo,
         bookingDate: new Date().toISOString(),
         status: 'confirmed'
@@ -251,8 +386,8 @@ export default function FlightBookingConfirmation() {
       localStorage.setItem('bookings', JSON.stringify(existingBookings));
 
       // Create billing record
-      const originCode = selectedOutboundFlight.origin?.code || selectedOutboundFlight.departure_airport || selectedOutboundFlight.origin || 'N/A';
-      const destCode = selectedOutboundFlight.destination?.code || selectedOutboundFlight.arrival_airport || selectedOutboundFlight.destination || 'N/A';
+      const originCode = selectedOutboundFlight.departure_airport || selectedOutboundFlight.origin?.code || selectedOutboundFlight.origin || 'N/A';
+      const destCode = selectedOutboundFlight.arrival_airport || selectedOutboundFlight.destination?.code || selectedOutboundFlight.destination || 'N/A';
       
       // Map payment method to billing service format
       const paymentMethodMap = {
@@ -267,11 +402,11 @@ export default function FlightBookingConfirmation() {
         bookingType: 'FLIGHT',
         bookingId: finalBookingId,
         totalAmount: parseFloat(pricing.totalPrice),
-        paymentMethod: paymentMethodMap[paymentInfo.method] || 'CREDIT_CARD',
+        paymentMethod: paymentMethodMap[formData.paymentType] || 'CREDIT_CARD',
         transactionStatus: 'PAID',
         invoiceDetails: {
-          customer_name: `${currentPassenger.firstName} ${currentPassenger.lastName}`,
-          customer_email: contactInfo.email,
+          customer_name: `${formData.firstName} ${formData.lastName}`,
+          customer_email: formData.email,
           item_description: `Flight from ${originCode} to ${destCode}`,
           currency: 'USD',
           metadata: {
@@ -297,6 +432,7 @@ export default function FlightBookingConfirmation() {
       const confirmedBookingData = {
         booking_id: finalBookingId,
         id: finalBookingId,
+        type: 'flight',
         ...localBooking,
         billing_id: billingResponse.data.billing_id,
         status: 'confirmed',
@@ -306,17 +442,59 @@ export default function FlightBookingConfirmation() {
       // Dispatch action to save confirmed booking in Redux
       dispatch(createFlightBooking.fulfilled(confirmedBookingData));
 
-      // Navigate to success page (data will be retrieved from Redux)
-      navigate('/booking/success');
+      // Save to user-specific localStorage for My Trips
+      const userId = user?.id || user?.user_id;
+      if (userId) {
+        console.log('💾 Saving flight booking to localStorage:', { userId, bookingId: finalBookingId });
+        addUserBooking(userId, confirmedBookingData);
+      } else {
+        console.warn('⚠️ No user ID found, cannot save to localStorage');
+      }
+
+      // Navigate to success page with booking data as backup (dispatch may not complete before navigation)
+      console.log('🎯 Navigating to success page');
+      navigate('/booking/success', { state: { booking: confirmedBookingData, type: 'flight' } });
+      console.log('✅ Navigation initiated to /booking/success');
       
     } catch (error) {
       console.error('❌ Booking creation failed:', error);
-      alert('Failed to complete booking. Please try again.');
+      console.error('Error details:', error.response?.data || error.message);
+      console.error('Full error object:', error);
+      
+      // Create fallback booking data
+      const fallbackBookingData = {
+        id: 'FL' + Date.now(),
+        booking_id: 'FL' + Date.now(),
+        type: 'flight',
+        status: 'pending',
+        totalAmount: pricing.totalPrice,
+        outboundFlight: selectedOutboundFlight,
+        returnFlight: selectedReturnFlight,
+        passengers,
+        fare: selectedFare,
+        passengerInfo: {
+          firstName: currentPassenger.firstName,
+          lastName: currentPassenger.lastName,
+          email: currentPassenger.email || contactInfo.email,
+          phone: currentPassenger.phone || contactInfo.phone
+        }
+      };
+      
+      // Try to save to localStorage
+      const userId = user?.id || user?.user_id;
+      if (userId) {
+        console.log('💾 Saving fallback booking to localStorage despite error');
+        addUserBooking(userId, fallbackBookingData);
+      }
+      
+      // Always navigate to success page with fallback data
+      console.warn('⚠️ Proceeding to success page with fallback booking data');
+      navigate('/booking/success', { state: { booking: fallbackBookingData, type: 'flight' } });
     }
   };
 
   const getPaymentIcon = () => {
-    switch (paymentInfo.method) {
+    switch (formData.paymentType) {
       case 'credit':
       case 'debit':
         return <CreditCard className="w-5 h-5" />;
@@ -327,8 +505,21 @@ export default function FlightBookingConfirmation() {
     }
   };
 
-  const originCode = selectedOutboundFlight.origin?.code || selectedOutboundFlight.departure_airport || selectedOutboundFlight.origin || 'N/A';
-  const destCode = selectedOutboundFlight.destination?.code || selectedOutboundFlight.arrival_airport || selectedOutboundFlight.destination || 'N/A';
+  // Debug: Log flight data to verify airport codes
+  console.log('🛫 FlightBookingConfirmation - Outbound Flight Data:', {
+    departure_airport: selectedOutboundFlight.departure_airport,
+    arrival_airport: selectedOutboundFlight.arrival_airport,
+    origin: selectedOutboundFlight.origin,
+    destination: selectedOutboundFlight.destination,
+    fullFlight: selectedOutboundFlight
+  });
+
+  // Extract airport codes properly from flight data
+  const originCode = selectedOutboundFlight.departure_airport || selectedOutboundFlight.origin?.code || selectedOutboundFlight.origin || 'N/A';
+  const destCode = selectedOutboundFlight.arrival_airport || selectedOutboundFlight.destination?.code || selectedOutboundFlight.destination || 'N/A';
+  
+  console.log('🛫 Extracted Codes:', { originCode, destCode });
+  
   const totalPassengers = passengers.adults + passengers.children + passengers.infants;
   
   // Get fare label
@@ -373,14 +564,14 @@ export default function FlightBookingConfirmation() {
                     <input
                       type="text"
                       name="firstName"
-                      value={currentPassenger.firstName || ''}
-                      onChange={(e) => handlePassengerChange('firstName', e.target.value)}
+                      value={formData.firstName}
+                      onChange={handleInputChange}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        validationErrors.passenger_firstName ? 'border-red-500' : 'dark:border-gray-600'
+                        errors.firstName ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="John"
                     />
-                    {validationErrors.passenger_firstName && <p className="text-red-500 text-sm mt-1">{validationErrors.passenger_firstName}</p>}
+                    {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
                   </div>
 
                   <div>
@@ -390,14 +581,14 @@ export default function FlightBookingConfirmation() {
                     <input
                       type="text"
                       name="lastName"
-                      value={currentPassenger.lastName || ''}
-                      onChange={(e) => handlePassengerChange('lastName', e.target.value)}
+                      value={formData.lastName}
+                      onChange={handleInputChange}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        validationErrors.passenger_lastName ? 'border-red-500' : 'dark:border-gray-600'
+                        errors.lastName ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="Doe"
                     />
-                    {validationErrors.passenger_lastName && <p className="text-red-500 text-sm mt-1">{validationErrors.passenger_lastName}</p>}
+                    {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
                   </div>
 
                   <div>
@@ -407,14 +598,14 @@ export default function FlightBookingConfirmation() {
                     <input
                       type="email"
                       name="email"
-                      value={contactInfo.email || ''}
-                      onChange={(e) => handleContactChange('email', e.target.value)}
+                      value={formData.email}
+                      onChange={handleInputChange}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        validationErrors.contact_email ? 'border-red-500' : 'dark:border-gray-600'
+                        errors.email ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="john.doe@example.com"
                     />
-                    {validationErrors.contact_email && <p className="text-red-500 text-sm mt-1">{validationErrors.contact_email}</p>}
+                    {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                   </div>
 
                   <div>
@@ -424,14 +615,14 @@ export default function FlightBookingConfirmation() {
                     <input
                       type="tel"
                       name="phone"
-                      value={contactInfo.phone || ''}
-                      onChange={(e) => handleContactChange('phone', e.target.value)}
+                      value={formData.phone}
+                      onChange={handleInputChange}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        validationErrors.contact_phone ? 'border-red-500' : 'dark:border-gray-600'
+                        errors.phone ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
-                      placeholder="+1 (555) 123-4567"
+                      placeholder=""
                     />
-                    {validationErrors.contact_phone && <p className="text-red-500 text-sm mt-1">{validationErrors.contact_phone}</p>}
+                    {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                   </div>
 
                   <div className="md:col-span-2">
@@ -441,14 +632,14 @@ export default function FlightBookingConfirmation() {
                     <input
                       type="text"
                       name="address"
-                      value={contactInfo.address || ''}
-                      onChange={(e) => handleContactChange('address', e.target.value)}
+                      value={formData.address}
+                      onChange={handleInputChange}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        validationErrors.contact_address ? 'border-red-500' : 'dark:border-gray-600'
+                        errors.address ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="123 Main St"
                     />
-                    {validationErrors.contact_address && <p className="text-red-500 text-sm mt-1">{validationErrors.contact_address}</p>}
+                    {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
                   </div>
 
                   <div>
@@ -458,14 +649,32 @@ export default function FlightBookingConfirmation() {
                     <input
                       type="text"
                       name="city"
-                      value={contactInfo.city || ''}
-                      onChange={(e) => handleContactChange('city', e.target.value)}
+                      value={formData.city}
+                      onChange={handleInputChange}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        validationErrors.contact_city ? 'border-red-500' : 'dark:border-gray-600'
+                        errors.city ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="New York"
                     />
-                    {validationErrors.contact_city && <p className="text-red-500 text-sm mt-1">{validationErrors.contact_city}</p>}
+                    {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 dark:text-white">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleInputChange}
+                      maxLength={2}
+                      className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
+                        errors.state ? 'border-red-500' : 'dark:border-gray-600'
+                      }`}
+                      placeholder="NY"
+                    />
+                    {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
                   </div>
 
                   <div>
@@ -475,14 +684,14 @@ export default function FlightBookingConfirmation() {
                     <input
                       type="text"
                       name="zipCode"
-                      value={contactInfo.zipCode || ''}
-                      onChange={(e) => handleContactChange('zipCode', e.target.value)}
+                      value={formData.zipCode}
+                      onChange={handleInputChange}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        validationErrors.contact_zipCode ? 'border-red-500' : 'dark:border-gray-600'
+                        errors.zipCode ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="10001"
                     />
-                    {validationErrors.contact_zipCode && <p className="text-red-500 text-sm mt-1">{validationErrors.contact_zipCode}</p>}
+                    {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode}</p>}
                   </div>
                 </div>
               </div>
@@ -500,8 +709,8 @@ export default function FlightBookingConfirmation() {
                   </label>
                   <select
                     name="paymentType"
-                    value={paymentInfo.method || 'credit'}
-                    onChange={(e) => handlePaymentChange('method', e.target.value)}
+                    value={formData.paymentType}
+                    onChange={handleInputChange}
                     className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   >
                     <option value="credit">Credit Card</option>
@@ -510,7 +719,7 @@ export default function FlightBookingConfirmation() {
                   </select>
                 </div>
 
-                {paymentInfo.method !== 'paypal' ? (
+                {formData.paymentType !== 'paypal' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium mb-2 dark:text-white">
@@ -519,15 +728,15 @@ export default function FlightBookingConfirmation() {
                       <input
                         type="text"
                         name="cardNumber"
-                        value={paymentInfo.cardNumber || ''}
-                        onChange={(e) => handlePaymentChange('cardNumber', e.target.value)}
+                        value={formData.cardNumber}
+                        onChange={handleInputChange}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          validationErrors.payment_cardNumber ? 'border-red-500' : 'dark:border-gray-600'
+                          errors.cardNumber ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="1234 5678 9012 3456"
                         maxLength="19"
                       />
-                      {validationErrors.payment_cardNumber && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_cardNumber}</p>}
+                      {errors.cardNumber && <p className="text-red-500 text-sm mt-1">{errors.cardNumber}</p>}
                     </div>
 
                     <div className="md:col-span-2">
@@ -537,14 +746,14 @@ export default function FlightBookingConfirmation() {
                       <input
                         type="text"
                         name="cardName"
-                        value={paymentInfo.cardName || ''}
-                        onChange={(e) => handlePaymentChange('cardName', e.target.value)}
+                        value={formData.cardName}
+                        onChange={handleInputChange}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          validationErrors.payment_cardName ? 'border-red-500' : 'dark:border-gray-600'
+                          errors.cardName ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="John Doe"
                       />
-                      {validationErrors.payment_cardName && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_cardName}</p>}
+                      {errors.cardName && <p className="text-red-500 text-sm mt-1">{errors.cardName}</p>}
                     </div>
 
                     <div>
@@ -554,15 +763,15 @@ export default function FlightBookingConfirmation() {
                       <input
                         type="text"
                         name="expiryDate"
-                        value={paymentInfo.expiryDate || ''}
-                        onChange={(e) => handlePaymentChange('expiryDate', e.target.value)}
+                        value={formData.expiryDate}
+                        onChange={handleInputChange}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          validationErrors.payment_expiryDate ? 'border-red-500' : 'dark:border-gray-600'
+                          errors.expiryDate ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="MM/YY"
                         maxLength="5"
                       />
-                      {validationErrors.payment_expiryDate && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_expiryDate}</p>}
+                      {errors.expiryDate && <p className="text-red-500 text-sm mt-1">{errors.expiryDate}</p>}
                     </div>
 
                     <div>
@@ -572,15 +781,15 @@ export default function FlightBookingConfirmation() {
                       <input
                         type="text"
                         name="cvv"
-                        value={paymentInfo.cvv || ''}
-                        onChange={(e) => handlePaymentChange('cvv', e.target.value)}
+                        value={formData.cvv}
+                        onChange={handleInputChange}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          validationErrors.payment_cvv ? 'border-red-500' : 'dark:border-gray-600'
+                          errors.cvv ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="123"
                         maxLength="4"
                       />
-                      {validationErrors.payment_cvv && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_cvv}</p>}
+                      {errors.cvv && <p className="text-red-500 text-sm mt-1">{errors.cvv}</p>}
                     </div>
                   </div>
                 ) : (

@@ -15,6 +15,7 @@ import Stays from './pages/Stays';
 import StaysSearch from './pages/StaysSearch';
 import HotelDetail from './pages/HotelDetail';
 import BookingConfirmation from './pages/BookingConfirmation';
+import BookingSuccess from './pages/BookingSuccess';
 import FlightBookingConfirmation from './pages/FlightBookingConfirmation';
 import MyTrips from './pages/MyTrips';
 import Favorites from './pages/Favorites';
@@ -23,8 +24,7 @@ import UserReviews from './pages/UserReviews';
 import Cars from './pages/Cars';
 import CarResults from './pages/CarResults';
 import CarDetail from './pages/CarDetail';
-import CarBookingConfirmation from './pages/CarBookingConfirmation';
-import CarBookingSuccess from './pages/CarBookingSuccess';
+import CarBooking from './pages/CarBooking';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
 import Listings from './pages/Listings';
@@ -115,6 +115,14 @@ function AppRoutes() {
           } 
         />
         <Route 
+          path="/booking/success" 
+          element={
+            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
+              <SharedLayout><BookingSuccess /></SharedLayout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/trips" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
@@ -170,21 +178,9 @@ function AppRoutes() {
           path="/cars/booking/confirm" 
           element={
             <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><CarBookingConfirmation /></SharedLayout>
+              <SharedLayout><CarBooking /></SharedLayout>
             </ProtectedRoute>
           } 
-        />
-        <Route 
-          path="/booking/car/success" 
-          element={
-            <ProtectedRoute allowedRoles={['traveller', 'owner']}>
-              <SharedLayout><CarBookingSuccess /></SharedLayout>
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/packages" 
-          element={<SharedLayout><Packages /></SharedLayout>} 
         />
         <Route 
           path="/ai-mode" 

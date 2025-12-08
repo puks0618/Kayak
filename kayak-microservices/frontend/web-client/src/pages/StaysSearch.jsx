@@ -35,6 +35,11 @@ export default function StaysSearch() {
   
   // Client-side filtering to ensure only searched location properties are shown
   const filteredResults = results.filter(hotel => {
+    // Debug logging
+    if (!hotel.hotel_id) {
+      console.error('Hotel missing hotel_id:', hotel);
+    }
+    
     // Filter by location - check if the hotel's city matches any of the searched cities
     if (searchedCities.length > 0) {
       const hotelLocation = (hotel.city || hotel.address || '').toLowerCase();
@@ -50,6 +55,17 @@ export default function StaysSearch() {
     
     // Filter by rating
     if (selectedRating && hotel.star_rating < selectedRating) return false;
+    
+    // Filter by amenities
+    if (selectedAmenities.length > 0) {
+      const hotelAmenities = Array.isArray(hotel.amenities) ? hotel.amenities : [];
+      const hasAllAmenities = selectedAmenities.every(selectedAmenity => 
+        hotelAmenities.some(amenity => 
+          amenity.toLowerCase().includes(selectedAmenity.toLowerCase())
+        )
+      );
+      if (!hasAllAmenities) return false;
+    }
     
     return true;
   });
@@ -131,6 +147,11 @@ export default function StaysSearch() {
 
   // Navigate to hotel detail
   const handleHotelClick = (hotelId) => {
+    console.log('Navigating to hotel:', hotelId, typeof hotelId);
+    if (!hotelId) {
+      console.error('ERROR: hotelId is undefined!');
+      return;
+    }
     navigate(`/stays/hotel/${hotelId}`);
   };
 
@@ -293,7 +314,7 @@ export default function StaysSearch() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredResults.map((hotel) => (
-                    <HotelCard key={hotel.hotel_id} hotel={hotel} onClick={() => handleHotelClick(hotel.hotel_id)} />
+                    <HotelCard key={hotel.id} hotel={hotel} onClick={() => handleHotelClick(hotel.id)} />
                   ))}
                 </div>
 
@@ -332,14 +353,22 @@ export default function StaysSearch() {
 
 // Hotel Card Component
 function HotelCard({ hotel, onClick }) {
-  // Extract image URL from images array
-  const imageUrl = hotel.images && hotel.images.length > 0 
-    ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images)[0] : hotel.images[0])
-    : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
+  // Debug: Log hotel data
+  console.log('HotelCard received:', {
+    hotel_id: hotel.hotel_id,
+    id: hotel.id,
+    name: hotel.hotel_name,
+    hasHotelId: !!hotel.hotel_id
+  });
   
-  // Parse amenities if string
-  const amenitiesList = hotel.amenities 
-    ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities)
+  // Extract image URL from images array or use picture_url
+  const imageUrl = hotel.images && hotel.images.length > 0 
+    ? hotel.images[0]
+    : (hotel.picture_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400');
+  
+  // Parse amenities - already an array from backend
+  const amenitiesList = Array.isArray(hotel.amenities) 
+    ? hotel.amenities 
     : [];
   
   return (
@@ -395,7 +424,7 @@ function HotelCard({ hotel, onClick }) {
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
           <span className="font-medium">{hotel.room_type}</span>
           <span className="text-gray-400">•</span>
-          <span>{hotel.num_rooms} {hotel.num_rooms === 1 ? 'room' : 'rooms'}</span>
+          <span>{hotel.accommodates} {hotel.accommodates === 1 ? 'guest' : 'guests'}</span>
         </div>
 
         {/* Amenities Preview */}

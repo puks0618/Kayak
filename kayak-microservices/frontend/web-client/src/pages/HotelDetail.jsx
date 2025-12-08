@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import LoginPromptModal from '../components/LoginPromptModal';
+import DateRangeCalendar from '../components/DateRangeCalendar';
 import {
   MapPin,
   Star,
@@ -73,6 +74,8 @@ export default function HotelDetail() {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState(1);
+  const [isLiked, setIsLiked] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   // Calculate number of nights
   const calculateNights = () => {
@@ -87,7 +90,38 @@ export default function HotelDetail() {
 
   useEffect(() => {
     dispatch(getStayDetailsAsync(id));
+    checkIfLiked();
   }, [id, dispatch]);
+
+  const checkIfLiked = () => {
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"hotels": []}');
+    setIsLiked(favorites.hotels?.some(h => h.id === id) || false);
+  };
+
+  const toggleLike = () => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"flights": [], "hotels": [], "cars": []}');
+    
+    if (isLiked) {
+      // Remove from favorites
+      favorites.hotels = favorites.hotels.filter(h => h.id !== id);
+      setIsLiked(false);
+    } else {
+      // Add to favorites
+      if (!favorites.hotels) favorites.hotels = [];
+      favorites.hotels.push({
+        ...selectedStay,
+        savedAt: new Date().toISOString()
+      });
+      setIsLiked(true);
+    }
+    
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+  };
 
   // Handle loading and error states
   if (loading) {
@@ -150,58 +184,27 @@ export default function HotelDetail() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Hotel Info Grid - Moved up to include image */}
+        {/* Single Hero Image */}
+        <div className="mb-6">
+          <div
+            className="relative cursor-pointer overflow-hidden rounded-lg h-[450px] w-full"
+            onClick={() => setShowGallery(true)}
+          >
+            <img
+              src={allImages[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'}
+              alt={hotel.hotel_name}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800';
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Hotel Info Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Image Gallery - Now part of left column */}
+          {/* Left Column */}
           <div className="lg:col-span-2">
-            <div className="mb-6">
-              <div className="grid grid-cols-4 gap-2 h-[450px]">
-                {/* Main Image - Taller */}
-                <div
-                  className="col-span-2 row-span-2 relative cursor-pointer overflow-hidden rounded-lg"
-                  onClick={() => setShowGallery(true)}
-                >
-                  <img
-                    src={allImages[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'}
-                    alt={hotel.hotel_name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800';
-                    }}
-                  />
-                </div>
-
-                {/* Thumbnail Grid */}
-                {allImages.slice(1, 5).map((img, idx) => (
-                  <div
-                    key={idx}
-                    className="relative cursor-pointer overflow-hidden rounded-lg"
-                    onClick={() => {
-                      setSelectedImage(idx + 1);
-                      setShowGallery(true);
-                    }}
-                  >
-                    <img
-                      src={img}
-                      alt={`${hotel.hotel_name} ${idx + 2}`}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
-                      }}
-                    />
-                  </div>
-                ))}
-
-                {allImages.length > 5 && (
-                  <div
-                    className="relative cursor-pointer overflow-hidden rounded-lg bg-gray-900 flex items-center justify-center"
-                    onClick={() => setShowGallery(true)}
-                  >
-                    <span className="text-white text-lg font-bold">+{allImages.length - 5} more</span>
-                  </div>
-                )}
-              </div>
-            </div>
 
             {/* Main Info */}
             <div className="space-y-6">
@@ -219,8 +222,13 @@ export default function HotelDetail() {
                   <button className="p-2 border rounded-full hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">
                     <Share2 className="w-5 h-5 dark:text-white" />
                   </button>
-                  <button className="p-2 border rounded-full hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">
-                    <Heart className="w-5 h-5 dark:text-white" />
+                  <button 
+                    onClick={toggleLike}
+                    className="p-2 border rounded-full hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    <Heart 
+                      className={`w-5 h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'dark:text-white'}`}
+                    />
                   </button>
                 </div>
               </div>
@@ -271,7 +279,7 @@ export default function HotelDetail() {
                 <h2 className="text-xl font-bold mb-6 dark:text-white">What this place offers</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {hotel.amenities.slice(0, 10).map((amenity, idx) => {
-                    const amenityName = amenity.amenity || amenity.amenity_name || 'Unknown';
+                    const amenityName = typeof amenity === 'string' ? amenity : (amenity.amenity || amenity.amenity_name || 'Unknown');
                     const IconComponent = getAmenityIcon(amenityName);
                     return (
                       <div key={idx} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -332,25 +340,49 @@ export default function HotelDetail() {
               </div>
 
               <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2 dark:text-white">Check-in</label>
-                  <input
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 dark:text-white">Check-out</label>
-                  <input
-                    type="date"
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    min={checkIn || new Date().toISOString().split('T')[0]}
-                  />
+                <div className="relative">
+                  <label className="block text-sm font-medium mb-2 dark:text-white">Dates</label>
+                  <button
+                    onClick={() => setShowCalendar(true)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-[#FF690F] dark:hover:border-[#FF690F] transition-colors text-left bg-white dark:bg-gray-700 dark:text-white flex items-center gap-2"
+                  >
+                    <Calendar className="w-5 h-5 text-gray-400" />
+                    <span className="flex-1">
+                      {checkIn && checkOut
+                        ? (() => {
+                            // Parse dates as local dates to avoid timezone issues
+                            const [startYear, startMonth, startDay] = checkIn.split('-').map(Number);
+                            const [endYear, endMonth, endDay] = checkOut.split('-').map(Number);
+                            const startDate = new Date(startYear, startMonth - 1, startDay);
+                            const endDate = new Date(endYear, endMonth - 1, endDay);
+                            return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                          })()
+                        : 'Select check-in and check-out'}
+                    </span>
+                  </button>
+                  {showCalendar && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                      <div className="relative">
+                        <DateRangeCalendar
+                          checkIn={checkIn}
+                          checkOut={checkOut}
+                          onSelect={(start, end) => {
+                            // Format dates as YYYY-MM-DD for consistency
+                            const formatDate = (date) => {
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              return `${year}-${month}-${day}`;
+                            };
+                            setCheckIn(formatDate(start));
+                            setCheckOut(formatDate(end));
+                            setShowCalendar(false);
+                          }}
+                          onClose={() => setShowCalendar(false)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 dark:text-white">Guests</label>

@@ -335,6 +335,18 @@ services:
     networks:
       - kayak-network
 
+  owner-portal:
+    build:
+      context: ../../frontend/owner-portal
+      dockerfile: Dockerfile
+    container_name: kayak-owner-portal
+    ports:
+      - "5180:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - kayak-network
+
 volumes:
   mysql_data:
   mongodb_data:

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kayak AI Assistant - Test Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .message { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .typing-indicator { display: inline-flex; }
+        .typing-indicator span { height: 8px; width: 8px; margin: 0 2px; background-color: #9ca3af; border-radius: 50%; display: inline-block; animation: typing 1.4s infinite; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-10px); } }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto max-w-6xl p-4">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-blue-600">🤖 Kayak AI Assistant</h1>
+                    <p class="text-gray-600 mt-1">Test Page - Phase 7 WebSocket & Real-Time Features</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <div id="ws-status" class="w-3 h-3 rounded-full bg-gray-400"></div>
+                        <span id="ws-text" class="text-sm text-gray-600">Disconnected</span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        AI Agent: <span id="api-status" class="font-semibold">Checking...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+            <!-- Chat Section -->
+            <div class="col-span-2 bg-white rounded-lg shadow-lg flex flex-col h-[600px]">
+                <div class="p-4 border-b">
+                    <h2 class="text-xl font-semibold">AI Chat</h2>
+                    <p class="text-sm text-gray-600">Try: "Find me cheap flights to Miami" or "I need a hotel in Tokyo"</p>
+                </div>
+                
+                <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <!-- Messages will appear here -->
+                </div>
+
+                <div class="p-4 border-t">
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="message-input" 
+                            placeholder="Ask me anything about travel..." 
+                            class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onkeypress="if(event.key==='Enter') sendMessage()"
+                        />
+                        <button 
+                            onclick="sendMessage()" 
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                        >
+                            Send
+                        </button>
+                    </div>
+                    <div class="mt-2 flex gap-2 flex-wrap">
+                        <button onclick="quickMessage('Find me cheap flights to Miami')" class="text-xs px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200">🛫 Cheap flights to Miami</button>
+                        <button onclick="quickMessage('I need a hotel in Tokyo for 3 nights')" class="text-xs px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200">🏨 Hotel in Tokyo</button>
+                        <button onclick="quickMessage('Plan a weekend trip to LA under $1000')" class="text-xs px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200">🌴 Weekend trip to LA</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deals & Notifications -->
+            <div class="space-y-4">
+                <!-- Hot Deals -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h3 class="font-semibold mb-3 flex items-center gap-2">
+                        <span>🔥</span> Hot Deals
+                    </h3>
+                    <div id="deals-container" class="space-y-2">
+                        <p class="text-sm text-gray-500">Loading deals...</p>
+                    </div>
+                </div>
+
+                <!-- Real-Time Notifications -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h3 class="font-semibold mb-3 flex items-center gap-2">
+                        <span>🔔</span> Live Notifications
+                    </h3>
+                    <div id="notifications-container" class="space-y-2">
+                        <p class="text-sm text-gray-500">Waiting for updates...</p>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h3 class="font-semibold mb-3">📊 Statistics</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Messages Sent:</span>
+                            <span id="msg-count" class="font-semibold">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Deals Found:</span>
+                            <span id="deals-count" class="font-semibold">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Notifications:</span>
+                            <span id="notif-count" class="font-semibold">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        const WS_URL = 'ws://localhost:8000';
+        let ws = null;
+        let userId = 'test_user_' + Date.now();
+        let messageCount = 0;
+        let notifCount = 0;
+
+        // Check API status
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                document.getElementById('api-status').textContent = data.status === 'OK' ? '✅ Online' : '⚠️ ' + data.status;
+                document.getElementById('api-status').className = 'font-semibold text-green-600';
+                return true;
+            } catch (error) {
+                document.getElementById('api-status').textContent = '❌ Offline';
+                document.getElementById('api-status').className = 'font-semibold text-red-600';
+                addMessage('system', 'Cannot connect to AI Agent. Please ensure the service is running on port 8000.');
+                return false;
+            }
+        }
+
+        // Connect WebSocket
+        function connectWebSocket() {
+            ws = new WebSocket(`${WS_URL}/ws/events?user_id=${userId}`);
+            
+            ws.onopen = () => {
+                console.log('🔌 WebSocket connected');
+                document.getElementById('ws-status').className = 'w-3 h-3 rounded-full bg-green-500';
+                document.getElementById('ws-text').textContent = 'Connected';
+                addNotification('success', 'WebSocket connected! You\'ll receive real-time updates.');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('📨 WebSocket message:', data);
+                handleWebSocketMessage(data);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('❌ WebSocket error:', error);
+                document.getElementById('ws-status').className = 'w-3 h-3 rounded-full bg-red-500';
+                document.getElementById('ws-text').textContent = 'Error';
+            };
+            
+            ws.onclose = () => {
+                console.log('🔌 WebSocket disconnected');
+                document.getElementById('ws-status').className = 'w-3 h-3 rounded-full bg-gray-400';
+                document.getElementById('ws-text').textContent = 'Disconnected';
+                // Reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'connection_established':
+                    console.log('✅ Connection established');
+                    break;
+                case 'deal_alert':
+                    addNotification('deal', `🔥 Hot Deal: ${data.title} - $${data.price}`);
+                    break;
+                case 'price_alert':
+                    addNotification('price', `💰 Price Drop: ${data.title} - Now $${data.current_price}`);
+                    break;
+                case 'trip_update':
+                    addNotification('info', `✈️ ${data.data?.message || data.message}`);
+                    break;
+                case 'notification':
+                    addNotification('info', data.message);
+                    break;
+            }
+        }
+
+        function addNotification(type, message) {
+            notifCount++;
+            document.getElementById('notif-count').textContent = notifCount;
+            
+            const container = document.getElementById('notifications-container');
+            if (container.children[0]?.textContent === 'Waiting for updates...') {
+                container.innerHTML = '';
+            }
+            
+            const colors = {
+                success: 'bg-green-100 text-green-800 border-green-300',
+                deal: 'bg-orange-100 text-orange-800 border-orange-300',
+                price: 'bg-blue-100 text-blue-800 border-blue-300',
+                info: 'bg-gray-100 text-gray-800 border-gray-300'
+            };
+            
+            const notif = document.createElement('div');
+            notif.className = `p-2 rounded border text-xs ${colors[type] || colors.info} message`;
+            notif.textContent = message;
+            container.insertBefore(notif, container.firstChild);
+            
+            // Keep only last 5 notifications
+            while (container.children.length > 5) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function addMessage(role, content, data = {}) {
+            const container = document.getElementById('chat-container');
+            const message = document.createElement('div');
+            message.className = `message flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-[80%] rounded-lg p-3 ${
+                role === 'user' 
+                    ? 'bg-blue-600 text-white' 
+                    : role === 'system' 
+                    ? 'bg-red-100 text-red-800 border border-red-300'
+                    : 'bg-gray-200 text-gray-800'
+            }`;
+            
+            if (role === 'assistant' && data.intent) {
+                const badge = document.createElement('div');
+                badge.className = 'text-xs text-blue-600 mb-1 font-semibold';
+                badge.textContent = `Intent: ${data.intent} (${Math.round(data.confidence * 100)}%)`;
+                bubble.appendChild(badge);
+            }
+            
+            const text = document.createElement('p');
+            text.className = 'text-sm';
+            text.textContent = content;
+            bubble.appendChild(text);
+            
+            if (data.entities && Object.keys(data.entities).length > 0) {
+                const entities = document.createElement('div');
+                entities.className = 'mt-2 text-xs opacity-75';
+                entities.textContent = 'Entities: ' + JSON.stringify(data.entities);
+                bubble.appendChild(entities);
+            }
+            
+            message.appendChild(bubble);
+            container.appendChild(message);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showTyping() {
+            const container = document.getElementById('chat-container');
+            const typing = document.createElement('div');
+            typing.id = 'typing-indicator';
+            typing.className = 'message flex justify-start';
+            typing.innerHTML = `
+                <div class="bg-gray-200 rounded-lg p-3">
+                    <div class="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(typing);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage('user', message);
+            input.value = '';
+            messageCount++;
+            document.getElementById('msg-count').textContent = messageCount;
+
+            showTyping();
+
+            try {
+                const response = await fetch(`${API_URL}/api/ai/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        message: message
+                    })
+                });
+
+                const data = await response.json();
+                hideTyping();
+                
+                addMessage('assistant', data.response, {
+                    intent: data.intent,
+                    confidence: data.confidence,
+                    entities: data.entities
+                });
+
+                // Refresh deals if search intent
+                if (data.intent && data.intent.includes('search')) {
+                    loadDeals();
+                }
+            } catch (error) {
+                hideTyping();
+                addMessage('system', 'Error: ' + error.message);
+            }
+        }
+
+        function quickMessage(text) {
+            document.getElementById('message-input').value = text;
+            sendMessage();
+        }
+
+        async function loadDeals() {
+            try {
+                const response = await fetch(`${API_URL}/api/ai/deals?limit=5`);
+                const deals = await response.json();
+                
+                const container = document.getElementById('deals-container');
+                container.innerHTML = '';
+                
+                document.getElementById('deals-count').textContent = deals.length;
+                
+                deals.slice(0, 5).forEach(deal => {
+                    const dealDiv = document.createElement('div');
+                    dealDiv.className = 'p-2 bg-gray-50 rounded border border-gray-200 text-xs message';
+                    dealDiv.innerHTML = `
+                        <div class="font-semibold text-blue-600 truncate">${deal.title}</div>
+                        <div class="flex justify-between mt-1">
+                            <span class="text-green-600 font-bold">$${deal.price}</span>
+                            <span class="text-gray-500">${deal.type}</span>
+                        </div>
+                    `;
+                    container.appendChild(dealDiv);
+                });
+            } catch (error) {
+                console.error('Error loading deals:', error);
+            }
+        }
+
+        // Initialize
+        window.onload = async () => {
+            addMessage('assistant', "Hi! I'm your AI travel assistant. I can help you find flights, hotels, and plan trips. Try asking me something!");
+            
+            const apiOK = await checkAPIStatus();
+            if (apiOK) {
+                connectWebSocket();
+                loadDeals();
+                
+                // Refresh deals every 30 seconds
+                setInterval(loadDeals, 30000);
+            }
+        };
+    </script>
+</body>
+</html>

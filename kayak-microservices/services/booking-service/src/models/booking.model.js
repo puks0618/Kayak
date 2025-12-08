@@ -64,6 +64,12 @@ const BookingModel = {
       sortOrder = 'desc'
     } = options;
 
+    // Ensure page and limit are integers
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    
+    console.log('DEBUG findAll params:', { page, limit, pageNum, limitNum, typeOfLimit: typeof limit, typeOfLimitNum: typeof limitNum });
+
     let query = 'SELECT * FROM bookings WHERE 1=1';
     const params = [];
 
@@ -82,9 +88,11 @@ const BookingModel = {
       params.push(listing_type);
     }
 
-    query += ` ORDER BY ${sortBy} ${sortOrder}`;
-    query += ' LIMIT ? OFFSET ?';
-    params.push(limit, (page - 1) * limit);
+    const offset = (pageNum - 1) * limitNum;
+    query += ` ORDER BY ${sortBy} ${sortOrder} LIMIT ${limitNum} OFFSET ${offset}`;
+    
+    console.log('DEBUG final query:', query);
+    console.log('DEBUG params:', params);
 
     const [rows] = await pool.execute(query, params);
 
@@ -110,10 +118,10 @@ const BookingModel = {
     return {
       bookings: rows,
       pagination: {
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limitNum)
       }
     };
   },

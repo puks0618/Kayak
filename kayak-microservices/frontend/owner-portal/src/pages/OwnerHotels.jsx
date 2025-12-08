@@ -164,7 +164,7 @@ const OwnerHotels = () => {
                           : hotel.images[0]
                         : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'
                     }
-                    alt={hotel.name}
+                    alt={hotel.hotel_name || hotel.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400';
@@ -189,7 +189,7 @@ const OwnerHotels = () => {
                 {/* Content */}
                 <div className="p-4">
                   <h3 className="font-bold text-lg mb-2 dark:text-white line-clamp-2">
-                    {hotel.name}
+                    {hotel.hotel_name || hotel.name}
                   </h3>
 
                   <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -224,6 +224,23 @@ const OwnerHotels = () => {
                         /night
                       </span>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mb-4 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Bookings</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">
+                        {hotel.booking_count || 0}
+                      </p>
+                    </div>
+                    {hotel.booking_revenue && (
+                      <div className="text-center">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Revenue</p>
+                        <p className="text-lg font-bold text-green-600">
+                          ${parseFloat(hotel.booking_revenue).toFixed(0)}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}

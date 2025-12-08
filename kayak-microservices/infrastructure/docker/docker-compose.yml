@@ -303,8 +303,17 @@ services:
       - "8000:8000"
     environment:
       - KAFKA_BROKERS=kafka:29092
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Somalwar1!
+      - DB_NAME=kayak_listings
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       - kafka
+      - mysql
+      - redis
     networks:
       - kayak-network
 

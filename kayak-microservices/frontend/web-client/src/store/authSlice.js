@@ -46,9 +46,22 @@ export const validateSession = createAsyncThunk(
 export const logoutUser = createAsyncThunk(
   'auth/logout',
   async (_, { dispatch }) => {
-    // Clear token from storage
+    // ONLY clear authentication data, NOT user profile data like trips, favorites, etc.
+    console.log('🔄 Clearing authentication data on logout (keeping profile data)...');
+    
+    // Only clear auth-related tokens
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('persist:kayak-auth');
+    localStorage.removeItem('kayak-auth');
+    
+    // Do NOT clear these - user wants to keep them after logout:
+    // - persist:kayak-bookings (My Trips)
+    // - persist:kayak-stay-booking (Favorites/hotel data)
+    // - persist:kayak-flight-booking (Flight bookings)
+    // - persist:kayak-car-booking (Car bookings)
+    // - user details (profile, address, preferences)
+    
+    console.log('✅ Auth data cleared. Profile data (trips, favorites) preserved.');
     return null;
   }
 );
@@ -113,6 +126,16 @@ const authSlice = createSlice({
       } catch (error) {
         console.error('❌ Failed to save user to localStorage:', error);
       }
+    },
+    clearAllUserData: (state) => {
+      // Only clear authentication credentials, NOT user profile/trips/favorites
+      // which should persist even after logout
+      state.user = null;
+      state.token = null;
+      state.isAuthenticated = false;
+      state.sessionValid = false;
+      state.loading = false;
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
@@ -188,5 +211,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, setCredentials, clearCredentials, updateUser } = authSlice.actions;
+export const { clearError, setCredentials, clearCredentials, updateUser, clearAllUserData } = authSlice.actions;
 export default authSlice.reducer;

@@ -25,7 +25,6 @@ import Cars from './pages/Cars';
 import CarResults from './pages/CarResults';
 import CarDetail from './pages/CarDetail';
 import CarBooking from './pages/CarBooking';
-import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
 import Listings from './pages/Listings';
 import Login from './pages/Login';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { logoutUser } from '../store/authSlice';
+import { logoutUser, clearAllUserData } from '../store/authSlice';
 import { Menu, Heart, Calendar } from 'lucide-react';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { ImUserPlus } from 'react-icons/im';
@@ -28,6 +28,7 @@ export default function SharedLayout({ children }) {
 
   const handleSignOut = async () => {
     await dispatch(logoutUser());
+    dispatch(clearAllUserData());
     setIsUserMenuOpen(false);
     navigate('/login');
   };
@@ -53,7 +54,6 @@ export default function SharedLayout({ children }) {
                 <SidebarMenuItem icon={<PiAirplaneTiltFill />} label="Flights" active={location.pathname === '/'} onClick={() => { navigate('/'); setIsMenuOpen(false); }} />
                 <SidebarMenuItem icon={<IoIosBed />} label="Stays" active={location.pathname === '/stays'} onClick={() => { navigate('/stays'); setIsMenuOpen(false); }} />
                 <SidebarMenuItem icon={<IoCarSharp />} label="Cars" active={location.pathname === '/cars'} onClick={() => { navigate('/cars'); setIsMenuOpen(false); }} />
-                <SidebarMenuItem icon={<FaUmbrellaBeach />} label="Packages" active={location.pathname === '/packages'} onClick={() => { navigate('/packages'); setIsMenuOpen(false); }} />
                 <SidebarMenuItem icon={<HiSparkles />} label="AI Mode" isNew active={location.pathname === '/ai-mode'} onClick={() => { navigate('/ai-mode'); setIsMenuOpen(false); }} />
               </div>
 

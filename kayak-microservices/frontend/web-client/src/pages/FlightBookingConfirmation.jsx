@@ -17,7 +17,8 @@ import {
   setValidationErrors,
   clearValidationErrors,
   setFieldError,
-  clearFieldError
+  clearFieldError,
+  setConfirmedBooking
 } from '../store/slices/flightBookingSlice';
 import {
   validateContactInfo,
@@ -428,7 +429,7 @@ export default function FlightBookingConfirmation() {
       const billingResponse = await billingService.create(billingData);
       console.log('✅ Billing record created:', billingResponse);
 
-      // Update Redux state with confirmed booking
+      // Create confirmed booking data
       const confirmedBookingData = {
         booking_id: finalBookingId,
         id: finalBookingId,
@@ -439,8 +440,8 @@ export default function FlightBookingConfirmation() {
         paymentStatus: 'paid'
       };
 
-      // Dispatch action to save confirmed booking in Redux
-      dispatch(createFlightBooking.fulfilled(confirmedBookingData));
+      // Save to Redux state
+      dispatch(setConfirmedBooking(confirmedBookingData));
 
       // Save to user-specific localStorage for My Trips
       const userId = user?.id || user?.user_id;
@@ -451,7 +452,7 @@ export default function FlightBookingConfirmation() {
         console.warn('⚠️ No user ID found, cannot save to localStorage');
       }
 
-      // Navigate to success page with booking data as backup (dispatch may not complete before navigation)
+      // Navigate to success page
       console.log('🎯 Navigating to success page');
       navigate('/booking/success', { state: { booking: confirmedBookingData, type: 'flight' } });
       console.log('✅ Navigation initiated to /booking/success');

@@ -93,38 +93,21 @@ router.get('/bookings', async (req, res) => {
 
     const pool = mysql.createPool(dbConfig);
 
-    // Get bookings for cars
-    const [carBookings] = await pool.execute(`
+    // Get all bookings for owner - only cars and hotels, not flights
+    // Owners should only manage car and hotel bookings, flights are admin-only
+    const [allBookings] = await pool.execute(`
       SELECT 
         b.*,
-        c.model as listing_name,
-        c.location as listing_city,
+        COALESCE(c.model, h.hotel_name, 'Unlisted') as listing_name,
+        COALESCE(c.location, h.city, 'Unknown Location') as listing_city,
         u.email as user_email
       FROM kayak_bookings.bookings b
-      INNER JOIN kayak_listings.cars c ON b.listing_id = c.id AND b.listing_type = 'car'
-      LEFT JOIN kayak_users.users u ON b.user_id = u.id
-      WHERE c.owner_id = ?
+      LEFT JOIN kayak_listings.cars c ON b.listing_id = c.id AND b.listing_type = 'car'
+      LEFT JOIN kayak_listings.hotels h ON b.listing_id = h.listing_id AND b.listing_type = 'hotel'
+      LEFT JOIN kayak_auth.users u ON b.user_id = u.id
+      WHERE b.owner_id = ? AND b.listing_type IN ('car', 'hotel')
       ORDER BY b.created_at DESC
     `, [owner_id]);
-
-    // Get bookings for hotels
-    const [hotelBookings] = await pool.execute(`
-      SELECT 
-        b.*,
-        h.hotel_name as listing_name,
-        h.city as listing_city,
-        u.email as user_email
-      FROM kayak_bookings.bookings b
-      INNER JOIN kayak_listings.hotels h ON b.listing_id = h.listing_id AND b.listing_type = 'hotel'
-      LEFT JOIN kayak_users.users u ON b.user_id = u.id
-      WHERE h.owner_id = ?
-      ORDER BY b.created_at DESC
-    `, [owner_id]);
-
-    // Combine and sort by date
-    const allBookings = [...carBookings, ...hotelBookings].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
 
     res.json(allBookings);
   } catch (error) {
@@ -132,14 +115,6 @@ router.get('/bookings', async (req, res) => {
     res.status(500).json({ error: 'Failed to get bookings' });
   }
 });
-
-// ===== OWNER DASHBOARD STATS =====
-
-/**
- * GET /api/owner/stats
- * Get owner's dashboard statistics
- * Returns: total listings, approved count, pending count, rejected count, total bookings, total revenue
- */
 router.get('/stats', async (req, res) => {
   try {
     const mysql = require('mysql2/promise');

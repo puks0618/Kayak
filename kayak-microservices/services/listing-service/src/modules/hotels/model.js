@@ -376,7 +376,14 @@ const HotelModel = {
 
   async findByOwner(owner_id) {
     const [rows] = await pool.execute(
-      'SELECT * FROM hotels WHERE owner_id = ? ORDER BY created_at DESC',
+      `SELECT h.*, 
+              COALESCE(COUNT(b.id), 0) as booking_count,
+              COALESCE(SUM(b.total_amount), 0) as booking_revenue
+       FROM hotels h
+       LEFT JOIN kayak_bookings.bookings b ON h.listing_id = b.listing_id AND b.listing_type = 'hotel' AND b.owner_id = h.owner_id
+       WHERE h.owner_id = ?
+       GROUP BY h.listing_id
+       ORDER BY h.created_at DESC`,
       [owner_id]
     );
     return rows;

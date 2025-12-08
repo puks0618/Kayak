@@ -351,7 +351,7 @@ export default function BookingConfirmation() {
         const billingResponse = await billingService.create(billingData);
         console.log('✅ Billing record created:', billingResponse);
 
-        // Update Redux state with confirmed booking
+        // Create confirmed booking data
         const confirmedBookingData = {
           booking_id: finalBookingId,
           id: finalBookingId,
@@ -362,10 +362,7 @@ export default function BookingConfirmation() {
           paymentStatus: 'paid'
         };
 
-        // Dispatch action to save confirmed booking in Redux
-        dispatch(createStayBooking.fulfilled(confirmedBookingData));
-
-        // Save to user-specific localStorage for My Trips (use confirmedBookingData with proper IDs)
+        // Save to user-specific localStorage for My Trips
         const userId = user?.id || user?.user_id;
         if (userId) {
           console.log('💾 Saving hotel booking to localStorage:', { userId, bookingId: finalBookingId });
@@ -374,7 +371,7 @@ export default function BookingConfirmation() {
           console.warn('⚠️ No user ID found, cannot save to localStorage');
         }
 
-        // Navigate to success page with booking data as backup (dispatch may not complete before navigation)
+        // Navigate to success page
         navigate('/booking/success', { state: { booking: confirmedBookingData, type: 'hotel' } });
       } catch (error) {
         console.error('❌ Booking creation failed:', error);

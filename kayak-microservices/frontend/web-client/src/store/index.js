@@ -19,18 +19,42 @@ import stayBookingReducer from './slices/stayBookingSlice';
 const authPersistConfig = {
   key: 'kayak-auth',
   storage,
-  whitelist: ['user', 'token', 'isAuthenticated'], // Persist all user data including profile changes
+  whitelist: ['user', 'token', 'isAuthenticated'], // Persist user data including profile changes
 };
 
 // Persist configuration for flight booking (draft persistence)
 const flightBookingPersistConfig = {
   key: 'kayak-flight-booking',
   storage,
-  whitelist: ['selectedOutboundFlight', 'selectedReturnFlight', 'selectedFare', 'passengers', 'passengerDetails', 'contactInfo', 'additionalServices', 'pricing'],
+  whitelist: ['selectedOutboundFlight', 'selectedReturnFlight', 'selectedFare', 'passengers', 'passengerDetails', 'contactInfo', 'additionalServices', 'pricing', 'bookedFlights'],
+};
+
+// Persist configuration for stay booking
+const stayBookingPersistConfig = {
+  key: 'kayak-stay-booking',
+  storage,
+  whitelist: ['selectedHotel', 'stayDetails', 'bookedHotels', 'favorites'],
+};
+
+// Persist configuration for car booking
+const carBookingPersistConfig = {
+  key: 'kayak-car-booking',
+  storage,
+  whitelist: ['selectedCar', 'carDetails', 'bookedCars'],
+};
+
+// Persist configuration for bookings/trips
+const bookingPersistConfig = {
+  key: 'kayak-bookings',
+  storage,
+  whitelist: ['trips', 'myTrips'],
 };
 
 const persistedAuthReducer = persistReducer(authPersistConfig, authReducer);
 const persistedFlightBookingReducer = persistReducer(flightBookingPersistConfig, flightBookingReducer);
+const persistedStayBookingReducer = persistReducer(stayBookingPersistConfig, stayBookingReducer);
+const persistedCarBookingReducer = persistReducer(carBookingPersistConfig, carBookingReducer);
+const persistedBookingReducer = persistReducer(bookingPersistConfig, bookingReducer);
 
 export const store = configureStore({
   reducer: {
@@ -38,10 +62,10 @@ export const store = configureStore({
     flights: flightsReducer,
     stays: staysReducer,
     cars: carsReducer,
-    booking: bookingReducer,
+    booking: persistedBookingReducer,
     flightBooking: persistedFlightBookingReducer,
-    carBooking: carBookingReducer,
-    stayBooking: stayBookingReducer,
+    carBooking: persistedCarBookingReducer,
+    stayBooking: persistedStayBookingReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

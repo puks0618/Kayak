@@ -13,6 +13,7 @@ import uuid
 import json
 import logging
 import re
+import aiomysql
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +44,67 @@ from config import config
 from workers.kafka_workers import start_kafka_workers, start_periodic_ingestion
 from workers.watch_monitor import start_watch_monitor
 from workers.hot_deal_monitor import start_hot_deal_monitor
+
+# Helper function to fetch flights/hotels directly from MySQL
+async def fetch_deals_from_mysql(origin=None, destination=None, limit=6):
+    """Fallback: Fetch deals directly from MySQL when SQLite is empty"""
+    try:
+        conn = await aiomysql.connect(
+            host=config.MYSQL_HOST,
+            port=config.MYSQL_PORT,
+            user=config.MYSQL_USER,
+            password=config.MYSQL_PASSWORD,
+            db=config.MYSQL_DATABASE
+        )
+        
+        deals = []
+        async with conn.cursor(aiomysql.DictCursor) as cursor:
+            # Fetch flights
+            flight_query = "SELECT * FROM flights WHERE 1=1"
+            params = []
+            if origin:
+                flight_query += " AND departure_airport = %s"
+                params.append(origin.upper())
+            if destination:
+                flight_query += " AND arrival_airport = %s"
+                params.append(destination.upper())
+            flight_query += " ORDER BY price ASC LIMIT %s"
+            params.append(limit // 2)
+            
+            await cursor.execute(flight_query, params)
+            flights = await cursor.fetchall()
+            
+            for f in flights:
+                price = float(f["price"])
+                original_price = float(f.get("base_price", price * 1.2))
+                discount = float(f.get("discount_percent", 0))
+                
+                deals.append(DealSchema(
+                    deal_id=f'flight_{f["id"]}',
+                    type='flight',
+                    title=f'{f["airline"]} {f["departure_airport"]} to {f["arrival_airport"]}',
+                    description=f'Flight {f["flight_code"]} - {f["cabin_class"]}',
+                    price=price,
+                    original_price=original_price,
+                    discount_percent=discount,
+                    score=85,
+                    tags=['flight', 'deal'],
+                    metadata={
+                        'origin': f["departure_airport"],
+                        'destination': f["arrival_airport"],
+                        'airline': f["airline"],
+                        'duration': f["duration"],
+                        'seats_left': f["seats_left"]
+                    },
+                    expires_at=None,
+                    created_at=datetime.now()
+                ))
+        
+        conn.close()
+        return deals
+    except Exception as e:
+        logger.error(f"Error fetching from MySQL: {e}")
+        return []
 
 # Lifecycle management
 @asynccontextmanager
@@ -193,6 +255,15 @@ async def get_deals(
     """Get current active deals with optional filtering by origin/destination"""
     session = get_session()
     
+    # Check if we have any deals in SQLite
+    total_deals = session.query(Deal).filter(Deal.active == True).count()
+    
+    # If SQLite is empty, fetch from MySQL as fallback
+    if total_deals == 0:
+        logger.info("SQLite empty, fetching from MySQL...")
+        mysql_deals = await fetch_deals_from_mysql(origin, destination, limit)
+        return mysql_deals
+    
     # Build base queries
     if deal_type == "all" or not deal_type:
         flights_query = session.query(Deal).filter(Deal.active == True, Deal.type == 'flight')
@@ -328,6 +399,17 @@ async def explain_deal(deal_id: str):
     
     if not deal:
         session.close()
+        # If not in SQLite, return a generic explanation for MySQL deals
+        if deal_id.startswith('flight_'):
+            try:
+                flight_id = deal_id.split('_', 1)[1]
+                # Generate generic explanation for flight deals
+                return {
+                    "deal_id": deal_id,
+                    "explanation": "🔥 Amazing deal on this flight! 💰 Significant savings compared to typical prices. ⏰ Limited availability at this price - book soon! ⭐ Quality Score: 85/100"
+                }
+            except:
+                pass
         raise HTTPException(status_code=404, detail="Deal not found")
     
     # Check cache first

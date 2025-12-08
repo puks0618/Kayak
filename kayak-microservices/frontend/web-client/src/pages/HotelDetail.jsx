@@ -434,7 +434,21 @@ export default function HotelDetail() {
                   dispatch(calculatePricing());
 
                   console.log('User is logged in, navigating to booking confirmation');
-                  navigate('/stays/booking/confirm');
+                  // Also pass via navigate state as backup
+                  const nightsCount = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+                  const pricePerNight = hotel?.price_per_night || 0;
+                  const calculatedTotal = nightsCount * pricePerNight;
+                  
+                  navigate('/stays/booking/confirm', {
+                    state: {
+                      hotel,
+                      checkIn,
+                      checkOut,
+                      guests,
+                      nights: nightsCount,
+                      totalPrice: calculatedTotal
+                    }
+                  });
                 }}
                 className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-3 rounded-md font-bold text-lg mb-4"
               >

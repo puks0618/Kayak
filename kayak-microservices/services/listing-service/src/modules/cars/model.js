@@ -98,7 +98,14 @@ const CarModel = {
    */
   async findByOwner(owner_id) {
     const [rows] = await pool.execute(
-      'SELECT * FROM cars WHERE owner_id = ? ORDER BY created_at DESC',
+      `SELECT c.*, 
+              COALESCE(COUNT(b.id), 0) as booking_count,
+              COALESCE(SUM(b.total_amount), 0) as booking_revenue
+       FROM cars c
+       LEFT JOIN kayak_bookings.bookings b ON c.id = b.listing_id AND b.listing_type = 'car' AND b.owner_id = c.owner_id
+       WHERE c.owner_id = ?
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`,
       [owner_id]
     );
     return rows;

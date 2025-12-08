@@ -581,6 +581,15 @@ const flightBookingSlice = createSlice({
       delete state.validationErrors[field];
     },
     
+    // ===== Confirmed Booking =====
+    setConfirmedBooking: (state, action) => {
+      state.confirmedBooking = action.payload;
+      state.bookingId = action.payload.booking_id || action.payload.id;
+      state.isProcessing = false;
+      // Add to history
+      state.bookingHistory.unshift(action.payload);
+    },
+    
     // ===== Booking Management =====
     clearBookingData: (state) => {
       Object.assign(state, initialState);
@@ -767,6 +776,7 @@ export const {
   clearValidationErrors,
   setFieldError,
   clearFieldError,
+  setConfirmedBooking,
   clearBookingData,
   resetBooking,
   setBookingError,

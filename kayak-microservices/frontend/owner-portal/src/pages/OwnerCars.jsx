@@ -145,6 +145,19 @@ const OwnerCars = () => {
                     <span className="rating">⭐ {parseFloat(car.rating).toFixed(1)}</span>
                   )}
                 </div>
+
+                <div className="car-booking-stats">
+                  <div className="stat">
+                    <span className="stat-label">Bookings:</span>
+                    <span className="stat-value">{car.booking_count || 0}</span>
+                  </div>
+                  {car.booking_revenue && (
+                    <div className="stat">
+                      <span className="stat-label">Revenue:</span>
+                      <span className="stat-value">${parseFloat(car.booking_revenue).toFixed(0)}</span>
+                    </div>
+                  )}
+                </div>
                 
                 <div className="car-actions">
                   {/* Edit functionality not yet implemented */}

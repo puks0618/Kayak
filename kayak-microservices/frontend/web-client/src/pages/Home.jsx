@@ -429,7 +429,6 @@ export default function Home() {
                   <NavTab icon={<PiAirplaneTiltFill />} label="Flights" active />
                   <NavTab icon={<IoIosBed />} label="Stays" onClick={() => navigate('/stays')} />
                   <NavTab icon={<IoCarSharp />} label="Cars" onClick={() => navigate('/cars')} />
-                  <NavTab icon={<FaUmbrellaBeach />} label="Packages" onClick={() => navigate('/packages')} />
                   <NavTab icon={<HiSparkles />} label="AI Mode" onClick={() => navigate('/ai-mode')} />
                 </div>
 

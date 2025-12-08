@@ -137,7 +137,6 @@ export default function Stays() {
                 <NavTab icon={<PiAirplaneTiltFill />} label="Flights" active={routerLocation.pathname === '/'} link="/" />
                 <NavTab icon={<IoIosBed />} label="Stays" active={routerLocation.pathname === '/stays'} link="/stays" />
                 <NavTab icon={<IoCarSharp />} label="Cars" active={routerLocation.pathname === '/cars'} link="/cars" />
-                <NavTab icon={<FaUmbrellaBeach />} label="Packages" active={routerLocation.pathname === '/packages'} link="/packages" />
                 <NavTab icon={<HiSparkles />} label="AI Mode" active={routerLocation.pathname === '/ai-mode'} link="/ai-mode" />
               </div>
 

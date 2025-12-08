@@ -21,13 +21,7 @@ export default function DateRangeCalendar({ checkIn, checkOut, onSelect, onClose
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
-  // Get price category for a date (simulated)
-  const getPriceCategory = (date) => {
-    const day = date.getDate();
-    if (day < 10 || day > 25) return 'cheaper';
-    if (day >= 10 && day <= 15) return 'average';
-    return 'higher';
-  };
+  // Removed price category coloring - keeping calendar simple and consistent
 
   // Check if date is in selected range
   const isInRange = (date) => {
@@ -88,23 +82,16 @@ export default function DateRangeCalendar({ checkIn, checkOut, onSelect, onClose
     for (let day = 1; day <= daysInMonth; day++) {
       const cellDate = new Date(year, month, day);
       const isPast = cellDate < today;
-      const priceCategory = getPriceCategory(cellDate);
       const inRange = isInRange(cellDate);
       const selected = isSelected(cellDate);
       
-      let bgColor = 'bg-white dark:bg-gray-700';
+      let bgColor = 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600';
       if (isPast) {
-        bgColor = 'bg-gray-800 text-gray-600';
+        bgColor = 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600';
       } else if (selected) {
-        bgColor = 'bg-gray-800 text-white';
+        bgColor = 'bg-[#FF690F] text-white hover:bg-[#d6570c]';
       } else if (inRange) {
-        bgColor = 'bg-gray-700 text-white';
-      } else if (priceCategory === 'cheaper') {
-        bgColor = 'bg-emerald-300 text-gray-900';
-      } else if (priceCategory === 'average') {
-        bgColor = 'bg-amber-300 text-gray-900';
-      } else if (priceCategory === 'higher') {
-        bgColor = 'bg-rose-300 text-gray-900';
+        bgColor = 'bg-orange-100 dark:bg-orange-900/30 text-gray-900 dark:text-white';
       }
 
       days.push(
@@ -171,25 +158,6 @@ export default function DateRangeCalendar({ checkIn, checkOut, onSelect, onClose
           <div className="flex gap-8 mb-6">
             {renderMonth(0)}
             {renderMonth(1)}
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center justify-center gap-4 pt-4 border-t dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-8 bg-emerald-300 rounded"></div>
-              <span className="text-sm font-medium dark:text-white">Cheaper</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-8 bg-amber-300 rounded"></div>
-              <span className="text-sm font-medium dark:text-white">Average</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-8 bg-rose-300 rounded"></div>
-              <span className="text-sm font-medium dark:text-white">Higher</span>
-            </div>
-            <span className="text-xs text-gray-600 dark:text-gray-400 ml-2">
-              Based on average prices of 3-star hotels.
-            </span>
           </div>
 
           {/* Action Buttons */}

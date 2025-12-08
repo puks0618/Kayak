@@ -98,6 +98,7 @@ export const ownerAPI = {
   getStats: () => 
     apiClient.get('/owner/stats'),
   
+  // Cars
   getCars: () => 
     apiClient.get('/owner/cars'),
   
@@ -112,6 +113,29 @@ export const ownerAPI = {
   
   deleteCar: (id) => 
     apiClient.delete(`/owner/cars/${id}`),
+  
+  // Hotels
+  getHotels: () => 
+    apiClient.get('/owner/hotels'),
+  
+  getHotel: (id) => 
+    apiClient.get(`/owner/hotels/${id}`),
+  
+  createHotel: (hotelData) => 
+    apiClient.post('/owner/hotels', hotelData),
+  
+  updateHotel: (id, hotelData) => 
+    apiClient.put(`/owner/hotels/${id}`, hotelData),
+  
+  deleteHotel: (id) => 
+    apiClient.delete(`/owner/hotels/${id}`),
+  
+  // Bookings
+  getBookings: () => 
+    apiClient.get('/owner/bookings'),
+  
+  getBooking: (id) => 
+    apiClient.get(`/owner/bookings/${id}`),
 };
 
 export default apiClient;

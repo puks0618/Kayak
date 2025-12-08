@@ -37,22 +37,22 @@ async function initMongo() {
 const HotelModel = {
   async create(hotelData) {
     const {
-      hotel_name, address, city, state, star_rating,
+      name, address, city, state, star_rating,
       price_per_night, room_type, listing_id, owner_id
     } = hotelData;
 
     const query = `
       INSERT INTO hotels 
-      (listing_id, owner_id, hotel_name, address, city, state, star_rating, price_per_night, room_type) 
+      (listing_id, owner_id, name, address, city, state, star_rating, price_per_night, room_type) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await pool.execute(query, [
-      listing_id || uuidv4(), owner_id, hotel_name, address, city, state, star_rating,
+      listing_id || uuidv4(), owner_id, name, address, city, state, star_rating,
       price_per_night, room_type
     ]);
 
-    return { hotel_id: result.insertId, ...hotelData };
+    return { id: result.insertId, ...hotelData };
   },
 
   async findAll(filters = {}) {
@@ -131,10 +131,11 @@ const HotelModel = {
       });
     }
 
-    // Guest capacity - using accommodates field
+    // Guest capacity - using num_rooms as proxy (each room ~2-4 guests)
     if (guests) {
-      query += ' AND h.accommodates >= ?';
-      params.push(guests);
+      const minRooms = Math.ceil(guests / 2);
+      query += ' AND h.num_rooms >= ?';
+      params.push(minRooms);
     }
 
     // Price range
@@ -193,7 +194,7 @@ const HotelModel = {
     const [rows] = await pool.query(query, params);
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(DISTINCT h.hotel_id) as total FROM hotels h WHERE 1=1';
+    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE 1=1';
     const countParams = [];
     
     if (cities.length > 0) {
@@ -207,8 +208,9 @@ const HotelModel = {
       });
     }
     if (guests) {
-      countQuery += ' AND h.accommodates >= ?';
-      countParams.push(guests);
+      const minRooms = Math.ceil(guests / 2);
+      countQuery += ' AND h.num_rooms >= ?';
+      countParams.push(minRooms);
     }
     if (priceMin) {
       countQuery += ' AND h.price_per_night >= ?';
@@ -318,7 +320,7 @@ const HotelModel = {
   },
 
   async findById(id) {
-    const [rows] = await pool.execute('SELECT * FROM hotels WHERE hotel_id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM hotels WHERE id = ?', [id]);
     return rows[0];
   },
 
@@ -327,15 +329,17 @@ const HotelModel = {
     const hotel = await this.findById(id);
     if (!hotel) return null;
 
-    // Get amenities from hotel_amenities join table
-    const [amenitiesRows] = await pool.execute(`
-      SELECT a.amenity_name, a.amenity_category, a.icon
-      FROM hotel_amenities ha
-      JOIN amenities a ON ha.amenity_id = a.amenity_id
-      WHERE ha.hotel_id = ?
-    `, [hotel.hotel_id]);
-    
-    const amenitiesList = amenitiesRows.map(row => row.amenity_name);
+    // Parse amenities from JSON column (no separate amenities table)
+    let amenitiesList = [];
+    try {
+      if (hotel.amenities) {
+        amenitiesList = typeof hotel.amenities === 'string' 
+          ? JSON.parse(hotel.amenities) 
+          : hotel.amenities;
+      }
+    } catch (e) {
+      console.warn('Failed to parse amenities:', e);
+    }
 
     // Get reviews and images from MongoDB
     try {

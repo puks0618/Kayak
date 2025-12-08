@@ -70,7 +70,7 @@ export default function MyTrips() {
       if (userId) {
         console.log('📂 Fetching bookings for user:', userId);
         try {
-          const response = await fetch(`${API_BASE_URL}/bookings/user/${userId}`, {
+          const response = await fetch(`${API_BASE_URL}/api/bookings/user/${userId}`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`,
               'Content-Type': 'application/json'
@@ -80,35 +80,81 @@ export default function MyTrips() {
           if (response.ok) {
             const data = await response.json();
             console.log('✅ Fetched bookings from API:', data.length);
-            // Transform backend data to match frontend format
-            const transformedBookings = data.map(booking => ({
-              id: booking.id,
-              type: booking.listing_type,
-              travel_date: booking.travel_date,
-              return_date: booking.return_date,
-              status: booking.status,
-              total_amount: booking.total_amount,
-              listing_id: booking.listing_id,
-              rental_days: booking.rental_days,
-              // Set dates for compatibility
-              pickupDate: booking.travel_date,
-              dropoffDate: booking.return_date,
-              checkIn: booking.travel_date,
-              checkOut: booking.return_date,
-              // Will need to fetch listing details separately if needed
-              outboundFlight: booking.listing_type === 'flight' ? { 
-                departure_time: booking.travel_date 
-              } : null,
-              car: booking.listing_type === 'car' ? { 
-                brand: 'Car', 
-                model: booking.listing_id 
-              } : null,
-              hotel: booking.listing_type === 'hotel' ? { 
-                hotel_name: 'Hotel', 
-                city: 'City' 
-              } : null
+            
+            // Fetch listing details for each booking
+            const enrichedBookings = await Promise.all(data.map(async (booking) => {
+              const baseBooking = {
+                id: booking.id,
+                type: booking.listing_type,
+                travel_date: booking.travel_date,
+                return_date: booking.return_date,
+                status: booking.status,
+                total_amount: booking.total_amount,
+                listing_id: booking.listing_id,
+                rental_days: booking.rental_days,
+                pickupDate: booking.travel_date,
+                dropoffDate: booking.return_date,
+                checkIn: booking.travel_date,
+                checkOut: booking.return_date,
+              };
+              
+              // Fetch listing details based on type
+              try {
+                if (booking.listing_type === 'hotel' && booking.listing_id) {
+                  const hotelRes = await fetch(`${API_BASE_URL}/api/listings/hotels/${booking.listing_id}`);
+                  if (hotelRes.ok) {
+                    const hotel = await hotelRes.json();
+                    baseBooking.hotel = {
+                      hotel_name: hotel.name || 'Hotel',
+                      city: hotel.city || 'City',
+                      address: hotel.address,
+                      image: hotel.images?.[0]
+                    };
+                  } else {
+                    // Fallback for missing hotel data
+                    baseBooking.hotel = {
+                      hotel_name: 'Hotel',
+                      city: 'City'
+                    };
+                  }
+                } else if (booking.listing_type === 'car' && booking.listing_id) {
+                  const carRes = await fetch(`${API_BASE_URL}/api/listings/cars/${booking.listing_id}`);
+                  if (carRes.ok) {
+                    const car = await carRes.json();
+                    baseBooking.car = {
+                      brand: car.brand || 'Car',
+                      model: car.model || car.car_type,
+                      image: car.image
+                    };
+                  } else {
+                    // Fallback for missing car data
+                    baseBooking.car = {
+                      brand: 'Car',
+                      model: 'Rental'
+                    };
+                  }
+                } else if (booking.listing_type === 'flight') {
+                  baseBooking.outboundFlight = {
+                    departure_time: booking.travel_date,
+                    origin: booking.origin,
+                    destination: booking.destination
+                  };
+                }
+              } catch (err) {
+                console.warn('Failed to fetch listing details for', booking.listing_id, err);
+                // Set fallback data based on type
+                if (booking.listing_type === 'hotel') {
+                  baseBooking.hotel = { hotel_name: 'Hotel', city: 'City' };
+                } else if (booking.listing_type === 'car') {
+                  baseBooking.car = { brand: 'Car', model: 'Rental' };
+                }
+              }
+              
+              return baseBooking;
             }));
-            setBookings(transformedBookings);
+            
+            console.log('✅ Enriched bookings with listing details');
+            setBookings(enrichedBookings);
           } else {
             console.error('Failed to fetch bookings:', response.statusText);
             // Fallback to localStorage if API fails
@@ -251,7 +297,7 @@ export default function MyTrips() {
                      origin.toLowerCase().includes(searchQuery.toLowerCase()) ||
                      destination.toLowerCase().includes(searchQuery.toLowerCase());
     } else if (booking.type === 'car') {
-      const carName = `${booking.car.brand} ${booking.car.model}`;
+      const carName = booking.car ? `${booking.car.brand} ${booking.car.model}` : 'Car Rental';
       const location = booking.pickupLocation || '';
       matchesSearch = carName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                      location.toLowerCase().includes(searchQuery.toLowerCase());

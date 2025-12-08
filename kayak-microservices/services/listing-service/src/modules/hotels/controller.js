@@ -180,7 +180,11 @@ class HotelController {
    */
   async getMyListings(req, res) {
     try {
-      const owner_id = req.user.id;
+      // Get owner_id from query params or req.user
+      const owner_id = req.query.ownerId || req.user?.id;
+      if (!owner_id) {
+        return res.status(400).json({ error: 'Owner ID required' });
+      }
       const hotels = await HotelModel.findByOwner(owner_id);
 
       res.json({

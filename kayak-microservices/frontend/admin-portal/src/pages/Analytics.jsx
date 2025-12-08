@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, Cell 
 } from 'recharts';
-import axios from 'axios';
+import api from '../services/api';
 import '../styles/Analytics.css';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B', '#4ECDC4', '#45B7D1'];
@@ -27,8 +27,6 @@ const Analytics = () => {
   const [topProviders, setTopProviders] = useState([]);
   const [error, setError] = useState(null);
 
-  const API_BASE = 'http://localhost:3007/api/admin/analytics';
-
   useEffect(() => {
     fetchAllAnalytics();
   }, [selectedYear, period]);
@@ -38,10 +36,10 @@ const Analytics = () => {
     setError(null);
     try {
       const [overviewRes, propertiesRes, cityRes, providersRes] = await Promise.all([
-        axios.get(`${API_BASE}/overview?year=${selectedYear}`),
-        axios.get(`${API_BASE}/top-properties?year=${selectedYear}`),
-        axios.get(`${API_BASE}/city-revenue?year=${selectedYear}`),
-        axios.get(`${API_BASE}/top-providers?period=${period}`)
+        api.get(`/admin/analytics/overview?year=${selectedYear}`),
+        api.get(`/admin/analytics/top-properties?year=${selectedYear}`),
+        api.get(`/admin/analytics/city-revenue?year=${selectedYear}`),
+        api.get(`/admin/analytics/top-providers?period=${period}`)
       ]);
 
       setOverview(overviewRes.data);
@@ -132,14 +130,26 @@ const Analytics = () => {
           {/* Monthly Trend */}
           <div className="chart-container">
             <h3>Monthly Revenue Trend</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={overview.monthly_trend}>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={overview.monthly_trend} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month_name" />
-                <YAxis />
+                <YAxis 
+                  domain={['auto', 'auto']}
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
+                  padding={{ top: 20, bottom: 20 }}
+                />
                 <Tooltip formatter={(value) => formatCurrency(value)} />
                 <Legend />
-                <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} name="Revenue" />
+                <Line 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#8884d8" 
+                  strokeWidth={3} 
+                  name="Revenue"
+                  dot={{ r: 5 }}
+                  activeDot={{ r: 7 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>

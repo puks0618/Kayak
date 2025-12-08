@@ -80,7 +80,11 @@ router.delete('/hotels/:id', hotelsController.deleteMyListing);
 router.get('/bookings', async (req, res) => {
   try {
     const mysql = require('mysql2/promise');
-    const owner_id = req.user.id;
+    const owner_id = req.query.ownerId || req.user?.id;
+    
+    if (!owner_id) {
+      return res.status(400).json({ error: 'Owner ID required' });
+    }
 
     const dbConfig = {
       host: process.env.DB_HOST || 'localhost',
@@ -111,11 +115,11 @@ router.get('/bookings', async (req, res) => {
     const [hotelBookings] = await pool.execute(`
       SELECT 
         b.*,
-        h.hotel_name as listing_name,
+        h.name as listing_name,
         h.city as listing_city,
         u.email as user_email
       FROM kayak_bookings.bookings b
-      INNER JOIN kayak_listings.hotels h ON b.listing_id = h.listing_id AND b.listing_type = 'hotel'
+      INNER JOIN kayak_listings.hotels h ON b.listing_id = h.id AND b.listing_type = 'hotel'
       LEFT JOIN kayak_users.users u ON b.user_id = u.id
       WHERE h.owner_id = ?
       ORDER BY b.created_at DESC

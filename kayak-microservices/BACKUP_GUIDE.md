@@ -6,11 +6,13 @@
 **Tag:** `dec-8-2025`
 
 ### Backup Images Available:
+
 - ✅ `kayak-mysql-with-data:dec-8-2025` (1.05 GB)
 - ✅ `kayak-mongodb-with-data:dec-8-2025` (1.07 GB)
 - ✅ `kayak-redis-with-data:dec-8-2025` (61.5 MB)
 
 ### Data Included in Backup:
+
 - **13,339 bookings** ($11.29M revenue)
 - **12,501 users** (10K travellers, 2.5K owners, 1 admin)
 - **13,339 billing records** (100% coverage)
@@ -26,11 +28,14 @@
 ## 🔄 How to Use Backups
 
 ### Option 1: Quick Restore (Automated)
+
 ```bash
 cd /Users/spartan/Desktop/Projects/KayakMerge/kayak-microservices
 ./restore-from-backup.sh
 ```
+
 This will:
+
 1. Stop all containers
 2. Remove old volumes
 3. Restore data from backup images
@@ -39,10 +44,12 @@ This will:
 ---
 
 ### Option 2: Create New Backup
+
 ```bash
 cd /Users/spartan/Desktop/Projects/KayakMerge/kayak-microservices
 ./create-backup.sh
 ```
+
 This creates a new backup with today's date tag.
 
 ---
@@ -50,11 +57,13 @@ This creates a new backup with today's date tag.
 ## 📋 Manual Commands
 
 ### View All Backup Images:
+
 ```bash
 docker images | grep "with-data"
 ```
 
 ### Create Manual Backup:
+
 ```bash
 docker commit kayak-mysql kayak-mysql-with-data:my-backup-tag
 docker commit kayak-mongodb kayak-mongodb-with-data:my-backup-tag
@@ -62,6 +71,7 @@ docker commit kayak-redis kayak-redis-with-data:my-backup-tag
 ```
 
 ### Export Backup to File (for transfer/archival):
+
 ```bash
 # Export MySQL backup
 docker save kayak-mysql-with-data:dec-8-2025 | gzip > kayak-mysql-backup.tar.gz
@@ -74,6 +84,7 @@ docker save kayak-redis-with-data:dec-8-2025 | gzip > kayak-redis-backup.tar.gz
 ```
 
 ### Import Backup from File:
+
 ```bash
 # Load MySQL backup
 docker load < kayak-mysql-backup.tar.gz
@@ -86,6 +97,7 @@ docker load < kayak-redis-backup.tar.gz
 ```
 
 ### Delete Old Backup Images:
+
 ```bash
 # Delete specific backup
 docker rmi kayak-mysql-with-data:old-tag
@@ -99,17 +111,20 @@ docker images | grep "with-data" | awk '{print $1":"$2}' | xargs docker rmi
 ## 🛡️ Protection Strategy
 
 ### What's Protected:
+
 ✅ **Docker Images**: Saved in Docker Desktop, won't be deleted unless you explicitly delete them
 ✅ **Database Volumes**: Persist even after `docker-compose down`
 ✅ **All Data**: Fully contained in the committed images
 
 ### What Will Delete Your Data:
+
 ❌ `docker-compose down -v` (with -v flag removes volumes)
 ❌ `docker volume rm docker_mysql_data`
 ❌ `docker system prune --volumes`
 ❌ `docker rmi kayak-mysql-with-data:dec-8-2025` (deletes backup image)
 
 ### What's Safe:
+
 ✅ `docker-compose down` (without -v flag)
 ✅ `docker-compose stop`
 ✅ `docker-compose restart`
@@ -120,6 +135,7 @@ docker images | grep "with-data" | awk '{print $1":"$2}' | xargs docker rmi
 ## 🚀 Common Scenarios
 
 ### Scenario 1: Want to restart fresh but keep backup
+
 ```bash
 # 1. Create backup first (if not done)
 ./create-backup.sh
@@ -134,12 +150,14 @@ cd ../..
 ```
 
 ### Scenario 2: Accidentally deleted volumes
+
 ```bash
 # Just run restore script
 ./restore-from-backup.sh
 ```
 
 ### Scenario 3: Want to test something risky
+
 ```bash
 # 1. Create backup with specific tag
 docker commit kayak-mysql kayak-mysql-with-data:before-experiment
@@ -153,6 +171,7 @@ docker rm kayak-mysql
 ```
 
 ### Scenario 4: Moving to another machine
+
 ```bash
 # On current machine - export
 docker save kayak-mysql-with-data:dec-8-2025 | gzip > mysql-backup.tar.gz
@@ -173,6 +192,7 @@ docker load < redis-backup.tar.gz
 ## 📊 Verify Backup Data
 
 After restore, verify data is intact:
+
 ```bash
 # Check booking count
 docker exec kayak-mysql mysql -uroot -pSomalwar1! kayak_bookings \
@@ -188,6 +208,7 @@ docker exec kayak-mysql mysql -uroot -pSomalwar1! kayak_bookings \
 ```
 
 Expected results:
+
 - Total bookings: 13,339
 - Total users: 12,501 (10,000 travellers, 2,500 owners, 1 admin)
 - Total revenue: $11,290,385.38
@@ -197,11 +218,13 @@ Expected results:
 ## 💡 Best Practices
 
 1. **Create backups before major changes**
+
    ```bash
    ./create-backup.sh
    ```
 
 2. **Tag backups meaningfully**
+
    ```bash
    docker commit kayak-mysql kayak-mysql-with-data:before-production-migration
    ```
@@ -209,8 +232,8 @@ Expected results:
 3. **Export important backups to files**
    - Store outside Docker for safety
    - Easy to transfer between machines
-   
 4. **Test restore periodically**
+
    - Verify backups actually work
    - Practice restore process
 
@@ -223,6 +246,7 @@ Expected results:
 ## 🆘 Emergency Recovery
 
 If everything is broken:
+
 ```bash
 # 1. Check if backup images still exist
 docker images | grep "with-data"
@@ -245,14 +269,14 @@ docker exec -i kayak-mysql mysql -uroot -pSomalwar1! < infrastructure/databases/
 
 ## 📞 Quick Reference
 
-| Task | Command |
-|------|---------|
-| Create backup | `./create-backup.sh` |
-| Restore backup | `./restore-from-backup.sh` |
-| List backups | `docker images \| grep with-data` |
-| Export backup | `docker save IMAGE \| gzip > file.tar.gz` |
-| Import backup | `docker load < file.tar.gz` |
-| Check data | See "Verify Backup Data" section |
+| Task           | Command                                   |
+| -------------- | ----------------------------------------- |
+| Create backup  | `./create-backup.sh`                      |
+| Restore backup | `./restore-from-backup.sh`                |
+| List backups   | `docker images \| grep with-data`         |
+| Export backup  | `docker save IMAGE \| gzip > file.tar.gz` |
+| Import backup  | `docker load < file.tar.gz`               |
+| Check data     | See "Verify Backup Data" section          |
 
 ---
 

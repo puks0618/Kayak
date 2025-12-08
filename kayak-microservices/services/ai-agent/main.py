@@ -344,18 +344,18 @@ async def explain_deal(deal_id: str):
     
     # Price comparison
     if deal.discount_percent > 50:
-        explanation_parts.append(f"🔥 **Amazing {deal.discount_percent:.0f}% discount** - You're saving ${deal.original_price - deal.price:.0f}!")
+        explanation_parts.append(f"🔥 Amazing {deal.discount_percent:.0f}% discount - You're saving ${deal.original_price - deal.price:.0f}!")
     elif deal.discount_percent > 30:
-        explanation_parts.append(f"💰 **Great {deal.discount_percent:.0f}% savings** - ${deal.original_price - deal.price:.0f} off!")
+        explanation_parts.append(f"💰 Great {deal.discount_percent:.0f}% savings - ${deal.original_price - deal.price:.0f} off!")
     elif deal.discount_percent > 0:
-        explanation_parts.append(f"✨ **{deal.discount_percent:.0f}% discount** - Save ${deal.original_price - deal.price:.0f}")
+        explanation_parts.append(f"✨ {deal.discount_percent:.0f}% discount - Save ${deal.original_price - deal.price:.0f}")
     
     # Price vs 30-day average
     price_vs_avg = metadata.get('price_vs_30d_avg', 0)
     if price_vs_avg > 40:
-        explanation_parts.append(f"📊 **{price_vs_avg:.0f}% below 30-day average** - Best price in a month!")
+        explanation_parts.append(f"📊 {price_vs_avg:.0f}% below 30-day average - Best price in a month!")
     elif price_vs_avg > 20:
-        explanation_parts.append(f"📉 **{price_vs_avg:.0f}% below recent average** - Good timing!")
+        explanation_parts.append(f"📉 {price_vs_avg:.0f}% below recent average - Good timing!")
     elif price_vs_avg < -20:
         explanation_parts.append(f"⚠️ Price is {abs(price_vs_avg):.0f}% above average - Consider waiting")
     
@@ -363,37 +363,37 @@ async def explain_deal(deal_id: str):
     if deal.type == 'flight':
         stops = metadata.get('stops', 0)
         if stops == 0:
-            explanation_parts.append("✈️ **Direct flight** - No layovers, fastest route")
+            explanation_parts.append("✈️ Direct flight - No layovers, fastest route")
         elif stops == 1:
-            explanation_parts.append("🔄 **1 stop** - Good balance of price and travel time")
+            explanation_parts.append("🔄 1 stop - Good balance of price and travel time")
         
         seats = metadata.get('seats_left')
         if seats and seats < 5:
-            explanation_parts.append(f"⏰ **Only {seats} seats left** - Book soon!")
+            explanation_parts.append(f"⏰ Only {seats} seats left - Book soon!")
         elif seats and seats < 10:
-            explanation_parts.append(f"⚡ **{seats} seats remaining** - Popular flight")
+            explanation_parts.append(f"⚡ {seats} seats remaining - Popular flight")
     
     elif deal.type == 'hotel':
         room_type = metadata.get('room_type', '')
         if 'entire home' in room_type.lower():
-            explanation_parts.append("🏠 **Entire home/apt** - Complete privacy and space")
+            explanation_parts.append("🏠 Entire home/apt - Complete privacy and space")
         elif 'private room' in room_type.lower():
-            explanation_parts.append("🚪 **Private room** - Your own space with shared amenities")
+            explanation_parts.append("🚪 Private room - Your own space with shared amenities")
         
         amenities = metadata.get('amenities', [])
         if amenities:
             top_amenities = amenities[:3]
-            explanation_parts.append(f"🎯 **Amenities:** {', '.join(top_amenities)}")
+            explanation_parts.append(f"🎯 Amenities: {', '.join(top_amenities)}")
         
         availability = metadata.get('availability_365')
         if availability and availability < 30:
-            explanation_parts.append(f"⏳ **High demand** - Only available {availability} days/year")
+            explanation_parts.append(f"⏳ High demand - Only available {availability} days/year")
     
     # Score explanation
     if deal.score >= 90:
-        explanation_parts.append(f"⭐ **Score: {deal.score}/100** - Excellent value, highly recommended!")
+        explanation_parts.append(f"⭐ Score: {deal.score}/100 - Excellent value, highly recommended!")
     elif deal.score >= 70:
-        explanation_parts.append(f"👍 **Score: {deal.score}/100** - Good deal, solid choice")
+        explanation_parts.append(f"👍 Score: {deal.score}/100 - Good deal, solid choice")
     
     explanation = "\n\n".join(explanation_parts)
     
@@ -728,7 +728,7 @@ async def chat(query: UserQuery):
     
     # Handle multi-city trips
     if is_multi_city and len(cities) >= 3:
-        response_text = f"🌍 **Multi-City Trip: {' → '.join(cities)}**\n\n"
+        response_text = f"🌍 Multi-City Trip: {' → '.join(cities)}\n\n"
         response_text += f"I found your {len(cities)}-city itinerary! Here's what I can do:\n\n"
         
         # Calculate legs
@@ -740,12 +740,12 @@ async def chat(query: UserQuery):
             # Estimate cost per leg (rough estimate)
             total_estimated_cost += 400  # Average flight cost
         
-        response_text += "✈️ **Flight Legs:**\n"
+        response_text += "✈️ Flight Legs:\n"
         for i, leg in enumerate(legs, 1):
             response_text += f"   {i}. {leg}\n"
         
-        response_text += f"\n💰 **Estimated Total:** ~${total_estimated_cost}\n"
-        response_text += f"\n📊 **What's Next:**\n"
+        response_text += f"\n💰 Estimated Total: ~${total_estimated_cost}\n"
+        response_text += f"\n📊 What's Next:\n"
         response_text += "• I'm searching for the best prices for each leg\n"
         response_text += "• You can see individual flights in the sidebar\n"
         response_text += "• Tell me your dates for exact pricing\n"
@@ -767,15 +767,15 @@ async def chat(query: UserQuery):
     
     # Handle flexible dates
     if is_flexible_dates and has_destination:
-        response_text = f"📅 **Flexible Dates Search for {entities.get('destination')}**\n\n"
+        response_text = f"📅 Flexible Dates Search for {entities.get('destination')}\n\n"
         response_text += "Great! I'll find you the cheapest dates to travel.\n\n"
-        response_text += "💡 **Here's my strategy:**\n"
+        response_text += "💡 Here's my strategy:\n"
         response_text += "• I'm checking prices across multiple weeks\n"
         response_text += "• Looking for mid-week departures (usually cheaper)\n"
         response_text += "• Avoiding peak travel times\n"
         response_text += "• Finding deals with flexible stay durations\n\n"
-        response_text += "📊 **Check the sidebar** for the best deals I found!\n"
-        response_text += "💬 **Next:** Tell me specific dates once you decide, and I'll track them for you!"
+        response_text += "📊 Check the sidebar for the best deals I found!\n"
+        response_text += "💬 Next: Tell me specific dates once you decide, and I'll track them for you!"
         
         # Still fetch deals but don't filter by specific dates
         entities.pop('start_date', None)
@@ -793,12 +793,12 @@ async def chat(query: UserQuery):
     if any(phrase in message_lower for phrase in ['compare', 'comparison', 'which is better', 'vs', 'versus']):
         # Check if comparing deals
         if 'deal' in message_lower or 'flight' in message_lower or 'hotel' in message_lower:
-            response_text = "📊 **Deal Comparison**\n\n"
+            response_text = "📊 Deal Comparison\n\n"
             response_text += "To compare deals, I need you to:\n"
             response_text += "1. Select 2-5 deals you're interested in\n"
             response_text += "2. Click the 'Compare' button (coming soon!)\n"
             response_text += "3. Or tell me: 'Compare deal ABC with deal XYZ'\n\n"
-            response_text += "💡 **I'll show you:**\n"
+            response_text += "💡 I'll show you:\n"
             response_text += "• Side-by-side price comparison\n"
             response_text += "• Key differences in features\n"
             response_text += "• Which offers better value\n"
@@ -864,13 +864,13 @@ async def chat(query: UserQuery):
                 
                 dest_text = entities.get('destination')
                 
-                response_text = f"✨ **Perfect! I found {len(plans)} trip package(s) to {dest_text}!**\n\n"
-                response_text += f"🏆 **BEST MATCH** (Score: {fit_score:.0f}/100)\n"
-                response_text += f"💰 **Total Package Price: ${total_cost:.0f}**\n\n"
+                response_text = f"✨ Perfect! I found {len(plans)} trip package(s) to {dest_text}!\n\n"
+                response_text += f"🏆 BEST MATCH (Score: {fit_score:.0f}/100)\n"
+                response_text += f"💰 Total Package Price: ${total_cost:.0f}\n\n"
                 
                 # Flight details
                 flight_savings = ((flight.get('original_price', flight.get('price', 0)) - flight.get('price', 0)) / flight.get('original_price', 1) * 100) if flight.get('original_price') else 0
-                response_text += f"✈️ **Flight:**\n"
+                response_text += f"✈️ Flight:\n"
                 response_text += f"   • {flight.get('title', 'Available flight')}\n"
                 response_text += f"   • ${flight.get('price', 0):.0f}"
                 if flight_savings > 0:
@@ -879,15 +879,15 @@ async def chat(query: UserQuery):
                     response_text += "\n"
                 
                 # Hotel details
-                response_text += f"\n🏨 **Hotel:**\n"
+                response_text += f"\n🏨 Hotel:\n"
                 response_text += f"   • {hotel.get('title', 'Available hotel')}\n"
                 response_text += f"   • ${hotel.get('price_per_night', 0):.0f}/night\n"
                 
-                response_text += f"\n📊 **Package includes {len(plans)} option(s)** - see all in the deals sidebar!\n"
-                response_text += f"\n💡 **AI Tips:** Ask me to 'explain this price' or 'track this deal' for alerts!"
+                response_text += f"\n📊 Package includes {len(plans)} option(s) - see all in the deals sidebar!\n"
+                response_text += f"\n💡 AI Tips: Ask me to 'explain this price' or 'track this deal' for alerts!"
             else:
                 response_text = f"🔍 I searched for trip packages to {entities.get('destination')}, but couldn't find perfect matches within your budget right now.\n\n"
-                response_text += f"💡 **Try:** Increasing your budget or check the sidebar for individual deals!"
+                response_text += f"💡 Try: Increasing your budget or check the sidebar for individual deals!"
         except Exception as e:
             print(f"Error planning trip: {e}")
             response_text = "I understand you want to plan a trip! Check the 'Top Deals' sidebar while I search for the best options."
@@ -929,16 +929,16 @@ async def chat(query: UserQuery):
             
             session.close()
             
-            response_text = f"✈️ **Searching for flights to {dest_name}!**\n\n"
+            response_text = f"✈️ Searching for flights to {dest_name}!\n\n"
             if has_origin:
-                response_text = f"✈️ **Flights from {entities.get('origin')} to {dest_name}**\n\n"
+                response_text = f"✈️ Flights from {entities.get('origin')} to {dest_name}\n\n"
             
             if top_deals:
-                response_text += "🔥 **Top Flight Deals:**\n"
+                response_text += "🔥 Top Flight Deals:\n"
                 for i, deal in enumerate(top_deals[:3], 1):
                     savings = deal.discount_percent
-                    response_text += f"{i}. {deal.title} - **${deal.price:.0f}** (Save {savings:.0f}%)\n"
-                response_text += "\n💡 **AI Features:**\n"
+                    response_text += f"{i}. {deal.title} - ${deal.price:.0f} (Save {savings:.0f}%)\n"
+                response_text += "\n💡 AI Features:\n"
                 response_text += "• Click any deal for full details\n"
                 response_text += "• Ask 'explain this price' for insights\n"
                 response_text += "• Try 'track this deal' for alerts!\n"
@@ -946,16 +946,16 @@ async def chat(query: UserQuery):
                 response_text += "I'm searching... Check the 'Top Deals' sidebar!\n"
             
             if not has_dates:
-                response_text += "\n📅 **Pro tip:** Tell me your travel dates for better matches!"
+                response_text += "\n📅 Pro tip: Tell me your travel dates for better matches!"
             else:
                 response_text += f"\n📅 Travel: {entities.get('start_date')}"
         else:
-            response_text = "✈️ **Let's find your perfect flight!**\n\n" \
+            response_text = "✈️ Let's find your perfect flight!\n\n" \
                            "Tell me:\n" \
                            "• 📍 From where?\n" \
                            "• 🎯 To where?\n" \
                            "• 📅 When?\n\n" \
-                           "💡 **I can also:**\n" \
+                           "💡 I can also:\n" \
                            "• Explain prices\n" \
                            "• Bundle flights + hotels\n" \
                            "• Track price drops\n\n" \
@@ -1012,14 +1012,14 @@ async def chat(query: UserQuery):
             
             session.close()
             
-            response_text = f"🏨 **Searching for hotels in {dest_name}!**\n\n"
+            response_text = f"🏨 Searching for hotels in {dest_name}!\n\n"
             
             if top_deals:
-                response_text += "🔥 **Top Hotel Deals:**\n"
+                response_text += "🔥 Top Hotel Deals:\n"
                 for i, deal in enumerate(top_deals[:3], 1):
                     savings = deal.discount_percent
-                    response_text += f"{i}. {deal.title} - **${deal.price:.0f}/night** (Save {savings:.0f}%)\n"
-                response_text += "\n💡 **AI Features:**\n"
+                    response_text += f"{i}. {deal.title} - ${deal.price:.0f}/night (Save {savings:.0f}%)\n"
+                response_text += "\n💡 AI Features:\n"
                 response_text += "• Click any deal for full details\n"
                 response_text += "• Ask 'explain this price' for insights\n"
                 response_text += "• Try 'track this deal' for alerts!\n"
@@ -1027,7 +1027,7 @@ async def chat(query: UserQuery):
                 response_text += "I'm searching... Check the 'Top Deals' sidebar!\n"
             
             if not has_dates:
-                response_text += "\n📅 **Pro tip:** Tell me your check-in/check-out dates for better matches!"
+                response_text += "\n📅 Pro tip: Tell me your check-in/check-out dates for better matches!"
             else:
                 response_text += f"\n📅 Check-in: {entities.get('start_date')}"
         else:
@@ -1081,14 +1081,14 @@ async def chat(query: UserQuery):
         hot_deals = session.query(Deal).filter(Deal.active == True, Deal.score >= 90).count()
         session.close()
         
-        response_text = f"🔥 **I'm tracking {total_deals:,} active deals!**\n\n"
-        response_text += f"⚡ **{hot_deals} HOT DEALS** with 50%+ savings\n\n"
-        response_text += "✨ **AI Features:**\n"
+        response_text = f"🔥 I'm tracking {total_deals:,} active deals!\n\n"
+        response_text += f"⚡ {hot_deals} HOT DEALS with 50%+ savings\n\n"
+        response_text += "✨ AI Features:\n"
         response_text += "• 📊 'Explain why this price is good'\n"
         response_text += "• 🎯 'Find flights to Miami under $300'\n"
         response_text += "• 💼 'Plan a trip to Paris for $2000'\n"
         response_text += "• 🔔 'Track this deal' for price alerts\n\n"
-        response_text += "👉 **Check the sidebar** for top deals →"
+        response_text += "👉 Check the sidebar for top deals →"
     
     elif intent == 'general_inquiry' or intent == 'policy_question' or intent == 'question':
         # Handle policy and general questions
@@ -1130,16 +1130,16 @@ async def chat(query: UserQuery):
         hot_deal_count = session.query(Deal).filter(Deal.active == True, Deal.score >= 90).count()
         session.close()
         
-        response_text = f"👋 **Hi! I'm your AI-powered travel assistant!**\n\n"
-        response_text += f"Right now tracking **{hot_deal_count} HOT DEALS** with amazing savings!\n\n"
-        response_text += "🤖 **My AI Superpowers:**\n"
-        response_text += "✈️ **Smart Search** - 'Find cheap flights to Miami'\n"
-        response_text += "🏨 **Hotel Deals** - 'Hotels in NYC under $200'\n"
-        response_text += "🎒 **Trip Planning** - 'Plan a trip to Paris for 2 people'\n"
-        response_text += "📊 **Price Analysis** - 'Why is this flight expensive?'\n"
-        response_text += "🔔 **Price Tracking** - 'Alert me when prices drop'\n"
-        response_text += "❓ **Policy Q&A** - 'What's your cancellation policy?'\n\n"
-        response_text += "💡 **Try:** 'from JFK to LAX on December 20th'"
+        response_text = f"👋 Hi! I'm your AI-powered travel assistant!\n\n"
+        response_text += f"Right now tracking {hot_deal_count} HOT DEALS with amazing savings!\n\n"
+        response_text += "🤖 My AI Superpowers:\n"
+        response_text += "✈️ Smart Search - 'Find cheap flights to Miami'\n"
+        response_text += "🏨 Hotel Deals - 'Hotels in NYC under $200'\n"
+        response_text += "🎒 Trip Planning - 'Plan a trip to Paris for 2 people'\n"
+        response_text += "📊 Price Analysis - 'Why is this flight expensive?'\n"
+        response_text += "🔔 Price Tracking - 'Alert me when prices drop'\n"
+        response_text += "❓ Policy Q&A - 'What's your cancellation policy?'\n\n"
+        response_text += "💡 Try: 'from JFK to LAX on December 20th'"
     
     # Store conversation context for future refinements
     if entities or plans:
@@ -1550,4 +1550,5 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str = Query(...)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=config.HOST, port=config.PORT)
+
 

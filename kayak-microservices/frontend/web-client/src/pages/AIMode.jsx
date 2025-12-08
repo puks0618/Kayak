@@ -465,7 +465,7 @@ export default function AIMode() {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg">Kayak AI Assistant</h3>
-                    <p className="text-sm opacity-90">Powered by GPT-4</p>
+                    <p className="text-sm opacity-90">Powered by Ollama AI</p>
                   </div>
                 </div>
 

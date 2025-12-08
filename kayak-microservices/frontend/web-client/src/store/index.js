@@ -10,6 +10,7 @@ import authReducer from './authSlice';
 import flightsReducer from './slices/flightsSlice';
 import staysReducer from './slices/staysSlice';
 import carsReducer from './slices/carsSlice';
+import bookingReducer from './slices/bookingSlice';
 
 // Persist configuration
 const persistConfig = {
@@ -26,6 +27,7 @@ export const store = configureStore({
     flights: flightsReducer,
     stays: staysReducer,
     cars: carsReducer,
+    booking: bookingReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

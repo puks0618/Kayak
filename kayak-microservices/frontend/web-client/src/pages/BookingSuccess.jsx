@@ -1,11 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2 } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2, Car } from 'lucide-react';
+import { addBooking } from '../store/slices/bookingSlice';
 
 export default function BookingSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { booking } = location.state || {};
+  const dispatch = useDispatch();
+  const { booking, type } = location.state || {};
+  
+  // Save booking to Redux when component mounts (only once)
+  useEffect(() => {
+    if (booking && booking.id) {
+      // Ensure booking has type
+      const bookingWithType = {
+        ...booking,
+        type: type || booking.type || 'hotel' // Default to hotel if not specified
+      };
+      // Only add if not already in Redux (prevent duplicates on re-render)
+      dispatch(addBooking(bookingWithType));
+    }
+  }, [booking?.id, type, dispatch]); // Only depend on booking.id to prevent re-adding
 
   if (!booking) {
     return (
@@ -53,10 +69,10 @@ export default function BookingSuccess() {
           </div>
         </div>
 
-        {/* Booking Details - Hotel or Flight */}
+        {/* Booking Details - Hotel, Flight, or Car */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold mb-4 dark:text-white">
-            {booking.type === 'flight' ? 'Flight Details' : 'Hotel Details'}
+            {booking.type === 'flight' ? 'Flight Details' : booking.type === 'car' ? 'Car Rental Details' : 'Hotel Details'}
           </h2>
           
           {booking.type === 'flight' ? (
@@ -127,7 +143,7 @@ export default function BookingSuccess() {
             </div>
           )}
 
-          {booking.type !== 'flight' && (
+          {booking.type !== 'flight' && booking.type !== 'car' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t dark:border-gray-700 pt-4">
               <div>
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
@@ -154,13 +170,13 @@ export default function BookingSuccess() {
           )}
         </div>
 
-        {/* Guest/Passenger Information */}
+        {/* Guest/Passenger/Driver Information */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold mb-4 dark:text-white">
-            {booking.type === 'flight' ? 'Passenger Information' : 'Guest Information'}
+            {booking.type === 'flight' ? 'Passenger Information' : booking.type === 'car' ? 'Driver Information' : 'Guest Information'}
           </h2>
           {(() => {
-            const info = booking.passengerInfo || booking.guestInfo;
+            const info = booking.passengerInfo || booking.guestInfo || booking.driverInfo;
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -183,6 +199,12 @@ export default function BookingSuccess() {
                     {info?.address}, {info?.city} {info?.zipCode}
                   </p>
                 </div>
+                {booking.type === 'car' && info?.licenseNumber && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">License Number</p>
+                    <p className="font-semibold dark:text-white">{info.licenseNumber}</p>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -207,6 +229,20 @@ export default function BookingSuccess() {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Service fee (10%)</span>
                   <span className="dark:text-white">${((booking.fare?.price || booking.totalPrice) * 0.1).toFixed(2)}</span>
+                </div>
+              </>
+            ) : booking.type === 'car' ? (
+              // Car payment breakdown
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    ${booking.car?.price_per_day} × {booking.days} day{booking.days !== 1 ? 's' : ''}
+                  </span>
+                  <span className="dark:text-white">${(booking.car?.price_per_day * booking.days).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Taxes & Fees</span>
+                  <span className="dark:text-white">${(booking.car?.price_per_day * booking.days * 0.15).toFixed(2)}</span>
                 </div>
               </>
             ) : (
@@ -255,9 +291,14 @@ export default function BookingSuccess() {
           <button
             onClick={() => {
               if (navigator.share) {
+                const shareText = booking.type === 'flight' 
+                  ? `Flight booking confirmed: ${booking.outboundFlight?.departure_airport || booking.outboundFlight?.origin} → ${booking.outboundFlight?.arrival_airport || booking.outboundFlight?.destination}`
+                  : booking.type === 'car'
+                  ? `Car rental confirmed: ${booking.car?.brand} ${booking.car?.model}`
+                  : `Booking confirmed at ${booking.hotel?.hotel_name}`;
                 navigator.share({
                   title: 'My Booking Confirmation',
-                  text: `Booking confirmed at ${booking.hotel.hotel_name}`,
+                  text: shareText,
                 });
               }
             }}
@@ -270,7 +311,7 @@ export default function BookingSuccess() {
         {/* Confirmation Email Notice */}
         <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <p className="text-sm text-blue-800 dark:text-blue-200">
-            📧 A confirmation email has been sent to <strong>{(booking.passengerInfo || booking.guestInfo)?.email}</strong> with your booking details and receipt.
+            📧 A confirmation email has been sent to <strong>{(booking.passengerInfo || booking.guestInfo || booking.driverInfo)?.email}</strong> with your booking details and receipt.
           </p>
         </div>
       </div>

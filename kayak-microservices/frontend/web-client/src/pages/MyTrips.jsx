@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Calendar, MapPin, Users, ChevronRight, Search, Car, Hotel } from 'lucide-react';
+import { loadBookings } from '../store/slices/bookingSlice';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export default function MyTrips() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const authState = useSelector((state) => state.auth || {});
   const user = authState.user;
-  const [bookings, setBookings] = useState([]);
+  
+  // Get bookings from Redux
+  const reduxBookings = useSelector((state) => state.booking?.bookings || []);
+  
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, upcoming, past
   const [bookingType, setBookingType] = useState('all'); // all, flight, hotel, car
@@ -19,19 +24,27 @@ export default function MyTrips() {
     fetchBookings();
   }, []);
 
+  // Sync loading state when Redux bookings change
+  useEffect(() => {
+    if (reduxBookings !== undefined) {
+      setLoading(false);
+    }
+  }, [reduxBookings]);
+
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      // Get bookings from localStorage for now (MVP)
-      const storedBookings = localStorage.getItem('bookings');
-      if (storedBookings) {
-        setBookings(JSON.parse(storedBookings));
-      }
+      
+      // Load bookings from Redux (syncs with localStorage)
+      dispatch(loadBookings());
+      
+      // Redux bookings will be used directly via selector
+      // The bookings variable below uses reduxBookings
       
       // TODO: Fetch from backend when API is ready
       // if (user) {
       //   const response = await axios.get(`${API_BASE_URL}/bookings/user/${user.id}`);
-      //   setBookings(response.data);
+      //   dispatch({ type: 'booking/setBookings', payload: response.data });
       // }
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -39,6 +52,9 @@ export default function MyTrips() {
       setLoading(false);
     }
   };
+  
+  // Use Redux bookings directly
+  const bookings = reduxBookings || [];
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -195,7 +211,7 @@ export default function MyTrips() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by hotel or city..."
+                placeholder="Search by hotel, flight, car, or city..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"

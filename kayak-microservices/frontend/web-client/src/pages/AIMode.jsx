@@ -144,19 +144,44 @@ export default function AIMode() {
     fetchDeals();
   }, []);
 
-  const fetchDeals = async (origin = null, destination = null) => {
+  const fetchDeals = async (origin = null, destination = null, bidirectional = false) => {
     try {
       setLoadingDeals(true);
-      let url = `${AI_AGENT_URL}/api/ai/deals?limit=6`;
+      console.log('🔄 Fetching deals from:', `${AI_AGENT_URL}/api/ai/deals`);
+      let url = `${AI_AGENT_URL}/api/ai/deals?limit=12`;
       
       // Add filters if available
       if (origin) url += `&origin=${encodeURIComponent(origin)}`;
       if (destination) url += `&destination=${encodeURIComponent(destination)}`;
       
+      console.log('📡 Full URL:', url, bidirectional ? '(bidirectional)' : '');
       const response = await axios.get(url);
-      setDeals(response.data);
+      console.log('✅ Deals received:', response.data.length, 'deals');
+      
+      // If filtered search returns few results and bidirectional, try reverse
+      if (bidirectional && response.data.length < 3 && destination) {
+        console.log('🔄 Trying reverse direction for more deals...');
+        const reverseUrl = `${AI_AGENT_URL}/api/ai/deals?limit=12&origin=${encodeURIComponent(destination)}`;
+        const reverseResponse = await axios.get(reverseUrl);
+        const combined = [...response.data, ...reverseResponse.data];
+        const unique = combined.filter((deal, index, self) => 
+          index === self.findIndex(d => d.deal_id === deal.deal_id)
+        );
+        console.log('✅ Combined deals:', unique.length);
+        setDeals(unique.slice(0, 6));
+      } else if (response.data.length === 0 && (origin || destination)) {
+        console.log('⚠️ No filtered deals found, fetching all deals...');
+        const fallbackResponse = await axios.get(`${AI_AGENT_URL}/api/ai/deals?limit=6`);
+        console.log('✅ Fallback deals:', fallbackResponse.data.length);
+        setDeals(fallbackResponse.data);
+      } else {
+        setDeals(response.data.slice(0, 6));
+      }
     } catch (error) {
-      console.error('Error fetching deals:', error);
+      console.error('❌ Error fetching deals:', error);
+      console.error('Error details:', error.response || error.message);
+      // Set empty array on error so UI shows "no deals"
+      setDeals([]);
     } finally {
       setLoadingDeals(false);
     }
@@ -201,10 +226,21 @@ export default function AIMode() {
 
       // If we have origin/destination entities, update deals with filters
       const entities = response.data.entities || {};
+      const intent = response.data.intent || '';
+      
+      // Expand NY airports to include all (JFK, LGA, EWR)
+      const NY_AIRPORTS = ['JFK', 'LGA', 'EWR'];
+      const expandedDestination = entities.destination && NY_AIRPORTS.includes(entities.destination) 
+        ? null  // Don't filter by specific airport, just fetch all deals
+        : entities.destination;
+      
+      // Fetch deals for search, find, or plan_trip intents with entities
       if (entities.origin || entities.destination) {
         setSearchContext({ origin: entities.origin, destination: entities.destination });
-        fetchDeals(entities.origin, entities.destination);
-      } else if (response.data.intent?.includes('search') || response.data.intent?.includes('find')) {
+        // Use bidirectional search for trip planning to find flights both TO and FROM destination
+        const isTripPlanning = intent.includes('plan_trip');
+        fetchDeals(entities.origin, expandedDestination, isTripPlanning);
+      } else if (intent.includes('search') || intent.includes('find') || intent.includes('plan_trip')) {
         // Fallback: refresh deals without filters
         fetchDeals();
       }

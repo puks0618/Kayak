@@ -30,9 +30,12 @@ class IntentParser:
                 'confidence': float
             }
         """
+        print(f"🔍 Parsing intent for message: {message}")
         try:
             # Use OpenAI/Ollama to parse intent
+            print(f"📞 Calling parse_intent function...")
             result = await parse_intent(message, conversation_history)
+            print(f"✅ parse_intent returned: {result}")
             
             # Validate the result - if origin/destination looks wrong, use fallback
             entities = result.get('entities', {})
@@ -40,14 +43,33 @@ class IntentParser:
             destination = entities.get('destination', '')
             
             # Check if origin/destination contains invalid patterns (e.g., whole sentences)
-            invalid_patterns = ['FIND', 'FLIGHT', 'FROM', 'NEED', 'TRIP', 'PLEASE']
+            invalid_patterns = ['FIND', 'FLIGHT', 'FROM', 'NEED', 'TRIP', 'PLEASE', 'PLAN', 'VACATION']
+            
+            # Check if extracted destination is NOT in the original message (hallucination)
+            message_upper = message.upper()
+            dest_in_message = False
+            if destination:
+                # Check if destination or common city names appear in message
+                city_variants = {
+                    'DXB': ['DUBAI', 'DXB'],
+                    'CDG': ['PARIS', 'CDG'],
+                    'NRT': ['TOKYO', 'NRT'],
+                    'LHR': ['LONDON', 'LHR'],
+                    'JFK': ['NEW YORK', 'NYC', 'JFK', 'NY'],
+                }
+                dest_variants = city_variants.get(destination, [destination])
+                dest_in_message = any(variant in message_upper for variant in dest_variants)
+            
             if any(pattern in origin.upper() for pattern in invalid_patterns) or \
                any(pattern in destination.upper() for pattern in invalid_patterns) or \
-               len(origin) > 20 or len(destination) > 20:
-                print(f"⚠️ Ollama returned invalid entities (origin={origin}, dest={destination}), using fallback")
+               len(origin) > 20 or len(destination) > 20 or \
+               (destination and not dest_in_message):
+                print(f"⚠️ Ollama returned invalid/hallucinated entities (origin={origin}, dest={destination}), using fallback")
                 result = self._fallback_parse(message)
         except Exception as e:
             print(f"⚠️ OpenAI/Ollama parsing failed: {e}, using fallback")
+            import traceback
+            traceback.print_exc()
             # Fallback: Simple keyword-based parsing
             result = self._fallback_parse(message)
         
@@ -72,32 +94,50 @@ class IntentParser:
         message_lower = message.lower()
         entities = {}
         
+        # Enhanced city/airport mapping
+        city_map = {
+            'san jose': 'SJC', 'sanjose': 'SJC', 
+            'la': 'LAX', 'los angeles': 'LAX', 'losangeles': 'LAX',
+            'new york': 'JFK', 'newyork': 'JFK', 'ny': 'JFK', 'nyc': 'JFK',
+            'san francisco': 'SFO', 'sanfrancisco': 'SFO', 'sf': 'SFO',
+            'miami': 'MIA', 'boston': 'BOS', 'chicago': 'ORD',
+            'seattle': 'SEA', 'portland': 'PDX', 'denver': 'DEN',
+            'paris': 'CDG', 'london': 'LHR', 'tokyo': 'NRT',
+            'dubai': 'DXB', 'singapore': 'SIN', 'bangkok': 'BKK',
+            'hong kong': 'HKG', 'barcelona': 'BCN', 'rome': 'FCO',
+            'amsterdam': 'AMS', 'frankfurt': 'FRA', 'sydney': 'SYD',
+            'las vegas': 'LAS', 'vegas': 'LAS', 'atlanta': 'ATL'
+        }
+        
         # Extract origin and destination: "from X to Y" or "X to Y"
-        # Updated to handle both "from X to Y" and just "X to Y"
-        # Try with "from" first
         from_to_pattern = r'from\s+([a-z\s]+?)\s+to\s+([a-z\s]+?)(?:\s+on|\s+for|\s+december|\s+dec|\.|$)'
         match = re.search(from_to_pattern, message_lower)
         
         # If no match, try without "from" - match "X to Y" pattern
         if not match:
-            # Match airport codes or city names followed by "to"
             simple_pattern = r'([a-z]{2,})\s+to\s+([a-z\s]+?)(?:\s+on|\s+for|\s+december|\s+dec|\s+in|\.|$)'
             match = re.search(simple_pattern, message_lower)
         
         if match:
             origin = match.group(1).strip()
             destination = match.group(2).strip()
-            # Handle common city abbreviations
-            city_map = {
-                'san jose': 'SJC', 'sanjose': 'SJC', 
-                'la': 'LAX', 'los angeles': 'LAX', 'losangeles': 'LAX',
-                'new york': 'NYC', 'newyork': 'NYC', 'ny': 'NYC',
-                'san francisco': 'SFO', 'sanfrancisco': 'SFO', 'sf': 'SFO',
-                'miami': 'MIA', 'boston': 'BOS', 'chicago': 'CHI',
-                'seattle': 'SEA', 'portland': 'PDX', 'denver': 'DEN'
-            }
             entities['origin'] = city_map.get(origin.lower(), origin.upper())
             entities['destination'] = city_map.get(destination.lower(), destination.upper())
+        else:
+            # Try to extract destination from common patterns
+            # "flights to CITY", "trip to CITY", "going to CITY"
+            dest_patterns = [
+                r'(?:flight|fly|trip|go|going|travel)\s+to\s+([a-z\s]+?)(?:\s|$|for|on|,)',
+                r'(?:in|visit|visiting)\s+([a-z\s]+?)(?:\s|$|for|on|,)',
+            ]
+            for pattern in dest_patterns:
+                dest_match = re.search(pattern, message_lower)
+                if dest_match:
+                    dest = dest_match.group(1).strip()
+                    # Check if it's a known city
+                    if dest in city_map or len(dest) == 3:
+                        entities['destination'] = city_map.get(dest, dest.upper())
+                        break
         
         # Extract dates: "december 23rd to 25th", "dec 23 to dec 25"
         # First try to find date range pattern
@@ -120,10 +160,25 @@ class IntentParser:
         if party_match:
             entities['party_size'] = int(party_match.group(1))
         
-        # Extract budget: "budget 5000", "for 1000 dollars", "$500"
-        budget_match = re.search(r'(?:budget\s+(?:of\s+)?|for\s+)\$?(\d+)\s*(?:dollars?|usd)?', message_lower)
-        if budget_match:
-            entities['budget'] = float(budget_match.group(1))
+        # Extract budget: "budget 5000", "for 1000 dollars", "$500", "under $1000"
+        budget_patterns = [
+            r'(?:budget\s+(?:of\s+)?|for\s+)\$?(\d+)\s*(?:dollars?|usd)?',
+            r'under\s+\$?(\d+)',
+            r'\$(\d+)',
+        ]
+        for pattern in budget_patterns:
+            budget_match = re.search(pattern, message_lower)
+            if budget_match:
+                entities['budget'] = float(budget_match.group(1))
+                break
+        
+        # Trip planning - CHECK FIRST (higher priority than other intents)
+        if any(word in message_lower for word in ['trip', 'vacation', 'getaway', 'visit']) and entities.get('budget'):
+            return {
+                'intent': 'plan_trip',
+                'entities': entities,
+                'confidence': 0.8
+            }
         
         # Search for flights
         if any(word in message_lower for word in ['flight', 'fly', 'airline', 'plane']):

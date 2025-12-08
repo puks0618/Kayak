@@ -223,7 +223,6 @@ export default function StaysSearch() {
       page: 1,
       limit: 20
     }));
->>>>>>> origin/feature/ui-edits
   };
 
   if (loading && results.length === 0) {

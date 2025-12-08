@@ -23,7 +23,7 @@ class DealSchema(BaseModel):
 
 class UserQuery(BaseModel):
     """User chat query"""
-    user_id: str
+    user_id: Optional[str] = None
     message: str
     conversation_history: Optional[List[Dict[str, str]]] = []
 

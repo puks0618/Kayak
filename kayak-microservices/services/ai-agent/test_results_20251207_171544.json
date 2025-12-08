@@ -1,0 +1,182 @@
+{
+  "load_test_10_users": {
+    "total_requests": 100,
+    "successful": 100,
+    "failed": 0,
+    "success_rate": 100.0,
+    "error_rate": 0.0,
+    "duration_seconds": 71.61161494255066,
+    "requests_per_second": 1.3964215173784797,
+    "response_times": {
+      "min": 0.020538806915283203,
+      "max": 30.114135026931763,
+      "mean": 7.058375234603882,
+      "median": 0.13858366012573242,
+      "p95": 30.105773437023164,
+      "p99": 30.114135026931763
+    },
+    "errors": [],
+    "service_metrics": {
+      "service": "ai-agent",
+      "database": {
+        "status": "healthy",
+        "deals_count": 30007,
+        "trips_count": 9,
+        "watches_count": 0,
+        "queries": {
+          "total": 58,
+          "avg_time_ms": 0.68,
+          "slow_queries": 0
+        }
+      },
+      "cache": {
+        "connected": true,
+        "hits": 65,
+        "misses": 5,
+        "hit_rate": 92.86,
+        "intent_keys": 7,
+        "policy_keys": 8,
+        "trip_keys": 0
+      },
+      "performance": {
+        "total_db_time_s": 0.04,
+        "cache_efficiency": "92.9%"
+      }
+    }
+  },
+  "load_test_50_users": {
+    "total_requests": 500,
+    "successful": 500,
+    "failed": 0,
+    "success_rate": 100.0,
+    "error_rate": 0.0,
+    "duration_seconds": 2.363281726837158,
+    "requests_per_second": 211.57020524555196,
+    "response_times": {
+      "min": 0.0008940696716308594,
+      "max": 0.37895917892456055,
+      "mean": 0.1088467869758606,
+      "median": 0.0801619291305542,
+      "p95": 0.36470388174057006,
+      "p99": 0.3769457197189331
+    },
+    "errors": [],
+    "service_metrics": {
+      "service": "ai-agent",
+      "database": {
+        "status": "healthy",
+        "deals_count": 30007,
+        "trips_count": 9,
+        "watches_count": 0,
+        "queries": {
+          "total": 62,
+          "avg_time_ms": 0.65,
+          "slow_queries": 0
+        }
+      },
+      "cache": {
+        "connected": true,
+        "hits": 415,
+        "misses": 5,
+        "hit_rate": 98.81,
+        "intent_keys": 7,
+        "policy_keys": 8,
+        "trip_keys": 0
+      },
+      "performance": {
+        "total_db_time_s": 0.04,
+        "cache_efficiency": "98.8%"
+      }
+    }
+  },
+  "load_test_100_users": {
+    "total_requests": 1000,
+    "successful": 1000,
+    "failed": 0,
+    "success_rate": 100.0,
+    "error_rate": 0.0,
+    "duration_seconds": 3.099329948425293,
+    "requests_per_second": 322.65038464461645,
+    "response_times": {
+      "min": 0.003178119659423828,
+      "max": 0.4289989471435547,
+      "mean": 0.16107721853256227,
+      "median": 0.12983763217926025,
+      "p95": 0.4219654083251953,
+      "p99": 0.42747835159301756
+    },
+    "errors": [],
+    "service_metrics": {
+      "service": "ai-agent",
+      "database": {
+        "status": "healthy",
+        "deals_count": 30007,
+        "trips_count": 9,
+        "watches_count": 0,
+        "queries": {
+          "total": 66,
+          "avg_time_ms": 0.62,
+          "slow_queries": 0
+        }
+      },
+      "cache": {
+        "connected": true,
+        "hits": 1115,
+        "misses": 5,
+        "hit_rate": 99.55,
+        "intent_keys": 7,
+        "policy_keys": 8,
+        "trip_keys": 0
+      },
+      "performance": {
+        "total_db_time_s": 0.04,
+        "cache_efficiency": "99.6%"
+      }
+    }
+  },
+  "cache_test": {
+    "repeated_requests": 100,
+    "successful": 100,
+    "cache_hits_gained": 200,
+    "cache_misses_gained": 0,
+    "cache_hit_rate": 100.0,
+    "final_cache_stats": {
+      "connected": true,
+      "hits": 1315,
+      "misses": 5,
+      "hit_rate": 99.62,
+      "intent_keys": 7,
+      "policy_keys": 8,
+      "trip_keys": 0
+    }
+  },
+  "database_queries": {
+    "limit_10": {
+      "avg_time": 0.0047196149826049805,
+      "min_time": 0.0035598278045654297,
+      "max_time": 0.011394023895263672,
+      "median_time": 0.0038840770721435547
+    },
+    "limit_50": {
+      "avg_time": 0.008836722373962403,
+      "min_time": 0.005827188491821289,
+      "max_time": 0.03227519989013672,
+      "median_time": 0.0063599348068237305
+    },
+    "limit_100": {
+      "avg_time": 0.008902621269226075,
+      "min_time": 0.00743412971496582,
+      "max_time": 0.010923147201538086,
+      "median_time": 0.008530020713806152
+    }
+  },
+  "stress_test": {
+    "total_requests": 200,
+    "successful": 200,
+    "failed": 0,
+    "duration_seconds": 0.9278829097747803,
+    "requests_per_second": 215.54443765813605,
+    "avg_response_time": 0.501440761089325,
+    "max_response_time": 0.9250020980834961
+  }
+}

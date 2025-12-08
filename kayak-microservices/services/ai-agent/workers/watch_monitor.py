@@ -56,19 +56,15 @@ async def check_price_watches():
                 
                 # Send alert if triggered
                 if alert_triggered:
-                    alert_message = f"🔔 ALERT: {deal.title}\\n" + "\\n".join(f"• {reason}" for reason in alert_reasons)
-                    
-                    # Send WebSocket notification
-                    await ws_service.send_to_user(watch.user_id, {
-                        'type': 'watch_alert',
-                        'watch_id': watch.watch_id,
-                        'deal_id': watch.deal_id,
-                        'deal_title': deal.title,
-                        'current_price': deal.price,
-                        'reasons': alert_reasons,
-                        'message': alert_message,
-                        'timestamp': datetime.utcnow().isoformat()
-                    })
+                    # Send WebSocket price alert using enhanced service
+                    await ws_service.send_price_alert(
+                        watch.user_id,
+                        deal.deal_id,
+                        deal.title,
+                        deal.price,
+                        watch.price_threshold if watch.price_threshold else 0,
+                        alert_reasons
+                    )
                     
                     print(f"   🔔 Alert sent to {watch.user_id} for {deal.title}")
                     alerts_sent += 1

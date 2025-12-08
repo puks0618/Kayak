@@ -11,6 +11,7 @@ import json
 def call_ollama(prompt: str, temperature: float = 0.7, max_tokens: int = 500) -> str:
     """Helper function to call Ollama API"""
     try:
+        print(f"🤖 Calling Ollama at {config.OLLAMA_BASE_URL} with model {config.OLLAMA_MODEL}")
         response = requests.post(
             f"{config.OLLAMA_BASE_URL}/api/generate",
             json={
@@ -26,11 +27,14 @@ def call_ollama(prompt: str, temperature: float = 0.7, max_tokens: int = 500) ->
         )
         
         if response.status_code != 200:
+            print(f"❌ Ollama returned status {response.status_code}")
             raise Exception(f"Ollama API error: {response.status_code}")
         
-        return response.json().get("response", "").strip()
+        result = response.json().get("response", "").strip()
+        print(f"✅ Ollama responded: {result[:100]}...")
+        return result
     except Exception as e:
-        print(f"Error calling Ollama: {e}")
+        print(f"❌ Error calling Ollama: {e}")
         raise
 
 
@@ -56,10 +60,16 @@ async def parse_intent(user_query: str, conversation_history: Optional[List[Dict
     
     system_prompt = """You are a travel intent parser. Return ONLY valid JSON, no other text.
 
-Extract travel information from queries:
-- Extract ONLY city names or airport codes for origin/destination (e.g., "San Jose" -> "San Jose", "SFO" -> "SFO")
-- Remove filler words like "Find me a flight from"
-- Convert city names to common airport codes when possible: San Jose -> SJC, Los Angeles -> LAX, New York -> JFK
+Extract travel information from queries and convert cities to airport codes.
+
+City to Airport Code mappings (use these):
+- San Francisco/SF -> SFO, Los Angeles/LA -> LAX, New York/NYC -> JFK
+- Miami -> MIA, Chicago -> ORD, Boston -> BOS, Seattle -> SEA
+- Las Vegas -> LAS, Denver -> DEN, Atlanta -> ATL, Dallas -> DFW
+- London -> LHR, Paris -> CDG, Tokyo -> NRT, Dubai -> DXB
+- Singapore -> SIN, Sydney -> SYD, Bangkok -> BKK, Hong Kong -> HKG
+- Barcelona -> BCN, Rome -> FCO, Amsterdam -> AMS, Frankfurt -> FRA
+- Mexico City -> MEX, Toronto -> YYZ, Montreal -> YUL
 
 Examples:
 Query: "Find me a flight from San Jose to LA"
@@ -77,16 +87,31 @@ Query: "I need a weekend trip to Miami under $500"
   "intent": "search",
   "entities": {
     "destination": "MIA",
-    "duration_type": "weekend",
     "budget": 500
   },
   "confidence": 0.9
 }
 
+Query: "Plan a trip to Tokyo for 2 people under $3000"
+{
+  "intent": "plan_trip",
+  "entities": {
+    "destination": "NRT",
+    "passengers": 2,
+    "budget": 3000
+  },
+  "confidence": 0.95
+}
+
 Rules:
-- intent must be one of: search, book, refine, track, question
-- origin/destination should be airport codes (3 letters) when possible
-- Return ONLY the JSON object"""
+- intent must be one of: search, plan_trip, book, refine, track, question
+- origin/destination should be ONLY airport codes (3 letters), never city names or other words
+- budget must be the full numeric amount (e.g., 3000 not 3)
+- passengers/party_size should be extracted from "for X people"
+- CRITICAL: If NO destination is mentioned in the query, DO NOT include destination in entities
+- If query is just "plan a trip for $X" with NO city/destination, return empty entities except budget
+- IGNORE words like "plan", "trip", "find", "vacation" - they are NOT locations
+- Return ONLY the JSON object, no other text"""
 
     messages = [{"role": "system", "content": system_prompt}]
     
@@ -114,6 +139,13 @@ Rules:
             response_text = response_text[3:]
         if response_text.endswith("```"):
             response_text = response_text[:-3]
+        
+        # Extract only the JSON part - find first { and last }
+        response_text = response_text.strip()
+        first_brace = response_text.find('{')
+        last_brace = response_text.rfind('}')
+        if first_brace != -1 and last_brace != -1:
+            response_text = response_text[first_brace:last_brace+1]
         
         result = json.loads(response_text.strip())
         return result
@@ -191,19 +223,50 @@ Be urgent and specific. Focus on the key change."""
         return "Deal updated"
 
 
-async def answer_policy_question(question: str, listing_metadata: Dict) -> str:
+async def answer_policy_question(question: str, listing_metadata: Dict = None) -> str:
     """
-    Answer policy-related questions about a listing
+    Answer policy-related questions using knowledge base
     
     Args:
-        question: User's question
-        listing_metadata: Listing information
+        question: User's question about policies
+        listing_metadata: Optional listing information for context
     
     Returns:
-        Answer based on available metadata
+        Answer from policy knowledge base or AI-generated response
     """
     
-    prompt = f"""Answer the user's question about this travel listing based ONLY on the provided information.
+    # Try to get answer from policy knowledge base first
+    try:
+        from knowledge.policies import get_policy_answer, get_airline_policy
+        
+        # Check for airline-specific question FIRST (higher priority)
+        question_lower = question.lower()
+        for airline in ['Delta', 'United', 'American', 'Southwest', 'Spirit', 'JetBlue']:
+            if airline.lower() in question_lower:
+                if 'baggage' in question_lower or 'bag' in question_lower:
+                    answer = get_airline_policy(airline, 'baggage')
+                    if answer:
+                        return answer
+                elif 'change' in question_lower:
+                    answer = get_airline_policy(airline, 'change')
+                    if answer:
+                        return answer
+                elif 'cancel' in question_lower:
+                    answer = get_airline_policy(airline, 'cancellation')
+                    if answer:
+                        return answer
+        
+        # Fall back to general policy answer
+        policy_answer = get_policy_answer(question)
+        if policy_answer:
+            return policy_answer.strip()
+    
+    except Exception as e:
+        print(f"Error accessing policy knowledge base: {e}")
+    
+    # Fall back to AI if no policy found
+    if listing_metadata:
+        prompt = f"""Answer the user's question about this travel listing based ONLY on the provided information.
 If the information isn't available, say so clearly.
 
 Listing Information:
@@ -212,6 +275,12 @@ Listing Information:
 User Question: {question}
 
 Provide a clear, factual answer (2-3 sentences max)."""
+    else:
+        prompt = f"""Answer this travel policy question clearly and concisely.
+
+Question: {question}
+
+Provide a helpful answer based on common travel industry practices (2-3 sentences)."""
 
     try:
         answer = call_ollama(prompt, temperature=0.3, max_tokens=150)
@@ -219,7 +288,7 @@ Provide a clear, factual answer (2-3 sentences max)."""
     
     except Exception as e:
         print(f"Error answering question: {e}")
-        return "I'm unable to answer that question at the moment. Please check the listing details."
+        return "I'm unable to answer that question at the moment. Please try rephrasing or check with the provider directly."
 
 
 async def refine_search(original_query: str, refinement: str, previous_entities: Dict) -> Dict:

@@ -12,6 +12,7 @@ COPY agents ./agents
 COPY models ./models
 COPY services ./services
 COPY workers ./workers
+COPY knowledge ./knowledge
 COPY main.py .
 
 # Expose port

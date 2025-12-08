@@ -54,10 +54,52 @@ class TripPlannerAgent:
         deals = session.query(Deal).filter(Deal.active == True).all()
         flights = [d for d in deals if d.type == 'flight']
         hotels = [d for d in deals if d.type == 'hotel']
-        destination = user_context.get('destination', '').upper()
+        
+        # Handle None destination safely
+        destination_raw = user_context.get('destination')
+        destination = destination_raw.upper() if destination_raw else None
+        
+        # Handle cities with multiple airports
+        AIRPORT_GROUPS = {
+            'NRT': ['NRT', 'HND'],  # Tokyo
+            'HND': ['NRT', 'HND'],
+            'JFK': ['JFK', 'LGA', 'EWR'],  # New York
+            'LGA': ['JFK', 'LGA', 'EWR'],
+            'EWR': ['JFK', 'LGA', 'EWR'],
+            'ORD': ['ORD', 'MDW'],  # Chicago
+            'MDW': ['ORD', 'MDW'],
+        }
+        
+        # Get all valid airport codes for destination (handle None)
+        dest_codes = AIRPORT_GROUPS.get(destination, [destination]) if destination else []
+        
+        # Map airport codes to city names for hotel search
+        AIRPORT_TO_CITY = {
+            'NRT': 'TOKYO', 'HND': 'TOKYO',
+            'JFK': 'NEW YORK', 'LGA': 'NEW YORK', 'EWR': 'NEW YORK',
+            'ORD': 'CHICAGO', 'MDW': 'CHICAGO',
+            'LAX': 'LOS ANGELES', 'SFO': 'SAN FRANCISCO',
+            'MIA': 'MIAMI', 'BOS': 'BOSTON', 'SEA': 'SEATTLE',
+            'LAS': 'LAS VEGAS', 'DEN': 'DENVER', 'ATL': 'ATLANTA',
+            'LHR': 'LONDON', 'CDG': 'PARIS', 'FRA': 'FRANKFURT',
+            'FCO': 'ROME', 'BCN': 'BARCELONA', 'AMS': 'AMSTERDAM',
+            'DXB': 'DUBAI', 'SIN': 'SINGAPORE', 'SYD': 'SYDNEY',
+            'BKK': 'BANGKOK', 'HKG': 'HONG KONG',
+        }
+        
+        # Get city name for hotel search (handle None destination)
+        city_name = AIRPORT_TO_CITY.get(destination, destination) if destination else None
+        
+        print(f"🔍 Trip Planner: Looking for destination={destination}, codes={dest_codes}, city={city_name}")
+        print(f"📊 Total deals: {len(deals)}, flights: {len(flights)}, hotels: {len(hotels)}")
+        
         if destination:
-            flights = [f for f in flights if destination in f.get_metadata().get('destination', '').upper()]
-            hotels = [h for h in hotels if destination in h.get_metadata().get('city', '').upper()]
+            flights = [f for f in flights if f.get_metadata().get('destination', '').upper() in dest_codes]
+            # For hotels, search by city name
+            if city_name:
+                hotels = [h for h in hotels if city_name in h.get_metadata().get('city', '').upper()]
+        
+        print(f"✈️  After filtering: {len(flights)} flights, {len(hotels)} hotels to {destination}")
         bundles = []
         for flight in flights[:10]:
             for hotel in hotels[:5]:

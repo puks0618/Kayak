@@ -1,11 +1,119 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { CheckCircle, Calendar, MapPin, Users, CreditCard, Download, Share2 } from 'lucide-react';
 
 export default function BookingSuccess() {
+
   const navigate = useNavigate();
   const location = useLocation();
-  const { booking } = location.state || {};
+  
+  // Get Redux state for flight, stay, and car bookings
+  const flightState = useSelector(state => state.flightBooking);
+  const stayState = useSelector(state => state.stayBooking);
+  const carState = useSelector(state => state.carBooking);
+
+  // Helper function to get passenger/guest count
+  const getCount = (value) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'object' && value !== null) {
+      // Handle {adults: 1, children: 0, infants: 0} structure
+      return (value.adults || 0) + (value.children || 0) + (value.infants || 0);
+    }
+    return 0;
+  };
+
+  // Check if booking was passed via location.state (for hotels without Redux)
+  const locationBooking = location.state?.booking;
+
+  // PRIORITY: location.state booking (passed during navigation) takes precedence
+  // This ensures we show the correct booking type that was just completed
+  let booking = null;
+  if (locationBooking && locationBooking.type) {
+    // Use the booking passed via location.state (has type and correct data)
+    booking = locationBooking;
+  } else if (flightState.confirmedBooking) {
+    booking = flightState.confirmedBooking;
+  } else if (flightState.selectedOutboundFlight) {
+    booking = {
+      id: flightState.bookingId,
+      type: 'flight',
+      outboundFlight: flightState.selectedOutboundFlight,
+      returnFlight: flightState.selectedReturnFlight,
+      fare: {
+        label: flightState.selectedFare === 'flexible' ? 'Flexible' : flightState.selectedFare === 'standard' ? 'Standard' : 'Basic',
+        price: flightState.pricing.totalPrice
+      },
+      passengers: flightState.passengers.adults + flightState.passengers.children + flightState.passengers.infants,
+      totalPrice: flightState.pricing.totalPrice,
+      paymentType: flightState.paymentInfo.method === 'credit' ? 'Credit Card' : flightState.paymentInfo.method === 'debit' ? 'Debit Card' : 'PayPal',
+      passengerInfo: {
+        firstName: flightState.passengerDetails[0]?.firstName,
+        lastName: flightState.passengerDetails[0]?.lastName,
+        email: flightState.contactInfo.email,
+        phone: flightState.contactInfo.phone,
+        address: flightState.contactInfo.address,
+        city: flightState.contactInfo.city,
+        zipCode: flightState.contactInfo.zipCode
+      },
+      bookingDate: new Date().toISOString(),
+      status: 'confirmed'
+    };
+  } else if (stayState.confirmedBooking) {
+    booking = {
+      ...stayState.confirmedBooking,
+      type: 'hotel',
+    };
+  } else if (stayState.selectedHotel) {
+    booking = {
+      id: stayState.bookingId,
+      type: 'hotel',
+      hotel: stayState.selectedHotel,
+      checkIn: stayState.checkInDate,
+      checkOut: stayState.checkOutDate,
+      guests: stayState.guests,
+      rooms: stayState.rooms,
+      nights: stayState.nights,
+      totalPrice: stayState.pricing.totalPrice,
+      paymentType: stayState.paymentInfo.method === 'credit' ? 'Credit Card' : stayState.paymentInfo.method === 'debit' ? 'Debit Card' : 'PayPal',
+      guestInfo: {
+        firstName: stayState.contactInfo.firstName,
+        lastName: stayState.contactInfo.lastName,
+        email: stayState.contactInfo.email,
+        phone: stayState.contactInfo.phone,
+        address: stayState.contactInfo.address,
+        city: stayState.contactInfo.city,
+        zipCode: stayState.contactInfo.zipCode
+      },
+      bookingDate: new Date().toISOString(),
+      status: 'confirmed'
+    };
+  } else if (carState.confirmedBooking) {
+    booking = {
+      ...carState.confirmedBooking,
+      type: 'car',
+    };
+  } else if (carState.selectedCar) {
+    booking = {
+      id: carState.bookingId,
+      type: 'car',
+      car: carState.selectedCar,
+      pickupDate: carState.pickupDate,
+      dropoffDate: carState.dropoffDate,
+      pickupTime: carState.pickupTime,
+      dropoffTime: carState.dropoffTime,
+      pickupLocation: carState.pickupLocation,
+      days: carState.days,
+      totalPrice: carState.pricing?.totalPrice || 0,
+      paymentType: carState.paymentInfo?.method === 'credit' ? 'Credit Card' : carState.paymentInfo?.method === 'debit' ? 'Debit Card' : 'PayPal',
+      driverInfo: carState.driverInfo,
+      bookingDate: new Date().toISOString(),
+      status: 'confirmed'
+    };
+  } else if (locationBooking) {
+    // Use booking passed via location.state (hotels without Redux)
+    booking = locationBooking;
+  }
 
   if (!booking) {
     return (
@@ -49,14 +157,14 @@ export default function BookingSuccess() {
           </p>
           <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 inline-block">
             <p className="text-sm text-gray-600 dark:text-gray-400">Booking ID</p>
-            <p className="text-2xl font-bold text-[#FF690F]">{booking.id}</p>
+            <p className="text-2xl font-bold text-[#FF690F]">{booking.id || booking.booking_id || 'N/A'}</p>
           </div>
         </div>
 
-        {/* Booking Details - Hotel or Flight */}
+        {/* Booking Details - Flight, Hotel, or Car */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold mb-4 dark:text-white">
-            {booking.type === 'flight' ? 'Flight Details' : 'Hotel Details'}
+            {booking.type === 'flight' ? 'Flight Details' : booking.type === 'car' ? 'Car Details' : 'Hotel Details'}
           </h2>
           
           {booking.type === 'flight' ? (
@@ -92,7 +200,28 @@ export default function BookingSuccess() {
               <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
                 <p className="font-semibold text-blue-900 dark:text-blue-200">{booking.fare.label} Fare</p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  {booking.passengers} passenger{booking.passengers !== 1 ? 's' : ''}
+                  {getCount(booking.passengers)} passenger{getCount(booking.passengers) !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+          ) : booking.type === 'car' ? (
+            // Car Booking Details
+            <div className="flex gap-4 mb-6">
+              <img
+                src={booking.car?.image_url || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400'}
+                alt={booking.car?.make || 'Car'}
+                className="w-32 h-32 object-cover rounded-lg"
+              />
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-2 dark:text-white">
+                  {booking.car?.make} {booking.car?.model} ({booking.car?.year})
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-2">
+                  {booking.car?.category} • {booking.car?.transmission}
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Pickup: {booking.pickupLocation}
                 </p>
               </div>
             </div>
@@ -127,7 +256,7 @@ export default function BookingSuccess() {
             </div>
           )}
 
-          {booking.type !== 'flight' && (
+          {booking.type !== 'flight' && booking.type !== 'car' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t dark:border-gray-700 pt-4">
               <div>
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
@@ -148,7 +277,7 @@ export default function BookingSuccess() {
                   <Users className="w-4 h-4" />
                   <span className="text-sm">Guests</span>
                 </div>
-                <p className="font-semibold dark:text-white">{booking.guests} {booking.guests === 1 ? 'guest' : 'guests'}</p>
+                <p className="font-semibold dark:text-white">{getCount(booking.guests)} {getCount(booking.guests) === 1 ? 'guest' : 'guests'}</p>
               </div>
             </div>
           )}
@@ -157,10 +286,10 @@ export default function BookingSuccess() {
         {/* Guest/Passenger Information */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-xl font-bold mb-4 dark:text-white">
-            {booking.type === 'flight' ? 'Passenger Information' : 'Guest Information'}
+            {booking.type === 'flight' ? 'Passenger Information' : booking.type === 'car' ? 'Driver Information' : 'Guest Information'}
           </h2>
           {(() => {
-            const info = booking.passengerInfo || booking.guestInfo;
+            const info = booking.passengerInfo || booking.guestInfo || booking.driverInfo;
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -177,6 +306,12 @@ export default function BookingSuccess() {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
                   <p className="font-semibold dark:text-white">{info?.phone}</p>
                 </div>
+                {booking.type === 'car' && info?.licenseNumber && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Driver License</p>
+                    <p className="font-semibold dark:text-white">{info.licenseNumber}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Address</p>
                   <p className="font-semibold dark:text-white">
@@ -200,13 +335,27 @@ export default function BookingSuccess() {
               <>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    {booking.fare?.label} fare × {booking.passengers} passenger{booking.passengers !== 1 ? 's' : ''}
+                    {booking.fare?.label} fare × {getCount(booking.passengers)} passenger{getCount(booking.passengers) !== 1 ? 's' : ''}
                   </span>
-                  <span className="dark:text-white">${booking.fare?.price || booking.totalPrice}</span>
+                  <span className="dark:text-white">${parseFloat(booking.fare?.price || booking.totalPrice).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Service fee (10%)</span>
                   <span className="dark:text-white">${((booking.fare?.price || booking.totalPrice) * 0.1).toFixed(2)}</span>
+                </div>
+              </>
+            ) : booking.type === 'car' ? (
+              // Car payment breakdown
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    ${booking.car?.daily_rental_price} × {booking.days} day{booking.days !== 1 ? 's' : ''}
+                  </span>
+                  <span className="dark:text-white">${(booking.car?.daily_rental_price * booking.days).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Service fee</span>
+                  <span className="dark:text-white">${(booking.car?.daily_rental_price * booking.days * 0.1).toFixed(2)}</span>
                 </div>
               </>
             ) : (
@@ -226,7 +375,7 @@ export default function BookingSuccess() {
             )}
             <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-3">
               <span className="dark:text-white">Total Paid</span>
-              <span className="text-[#FF690F]">${booking.totalPrice}</span>
+              <span className="text-[#FF690F]">${parseFloat(booking.totalPrice).toFixed(2)}</span>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-3">
               <p className="text-sm text-green-800 dark:text-green-200 font-semibold">

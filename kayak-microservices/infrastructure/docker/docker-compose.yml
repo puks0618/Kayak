@@ -39,6 +39,19 @@ services:
     networks:
       - kayak-network
 
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: kayak-redis-ui
+    restart: unless-stopped
+    environment:
+      - REDIS_HOSTS=local:kayak-redis:6379:0,local:kayak-redis:6379:1,local:kayak-redis:6379:2,local:kayak-redis:6379:4
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - kayak-network
+
   # Kafka
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0

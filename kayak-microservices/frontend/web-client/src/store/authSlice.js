@@ -53,14 +53,37 @@ export const logoutUser = createAsyncThunk(
   }
 );
 
-const initialState = {
-  user: null,
-  token: null,
-  isAuthenticated: false,
-  loading: false,
-  error: null,
-  sessionValid: null, // null = not checked, true = valid, false = invalid
+// Initialize from localStorage if available
+const loadInitialState = () => {
+  try {
+    const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUser && savedToken) {
+      return {
+        user: JSON.parse(savedUser),
+        token: savedToken,
+        isAuthenticated: true,
+        loading: false,
+        error: null,
+        sessionValid: true,
+      };
+    }
+  } catch (error) {
+    console.error('Error loading auth state from localStorage:', error);
+  }
+  
+  return {
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    loading: false,
+    error: null,
+    sessionValid: null,
+  };
 };
+
+const initialState = loadInitialState();
 
 const authSlice = createSlice({
   name: 'auth',
@@ -80,6 +103,16 @@ const authSlice = createSlice({
       state.token = null;
       state.isAuthenticated = false;
       state.sessionValid = false;
+    },
+    updateUser: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
+      // Update localStorage immediately
+      try {
+        localStorage.setItem('user', JSON.stringify(state.user));
+        console.log('✅ User profile saved to localStorage:', state.user);
+      } catch (error) {
+        console.error('❌ Failed to save user to localStorage:', error);
+      }
     },
   },
   extraReducers: (builder) => {
@@ -155,5 +188,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, setCredentials, clearCredentials } = authSlice.actions;
+export const { clearError, setCredentials, clearCredentials, updateUser } = authSlice.actions;
 export default authSlice.reducer;

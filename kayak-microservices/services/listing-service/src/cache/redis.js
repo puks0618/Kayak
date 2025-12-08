@@ -19,6 +19,7 @@ class RedisCache {
       this.client = redis.createClient({
         url: redisUrl,
         password: process.env.REDIS_PASSWORD,
+        database: 0, // Use DB 0 for car searches only (hotels moved to DB 4)
         socket: {
           family: 4, // Force IPv4
           reconnectStrategy: (retries) => {
@@ -39,7 +40,7 @@ class RedisCache {
 
       this.client.on('connect', () => {
         this.isConnected = true;
-        console.log('Redis connected for listing-service');
+        console.log('Redis connected for car searches (DB 0)');
       });
 
       await this.client.connect();

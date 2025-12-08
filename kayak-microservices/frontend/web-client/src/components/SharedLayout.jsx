@@ -132,9 +132,17 @@ export default function SharedLayout({ children }) {
               className="p-1 relative"
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             >
-              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-300 font-semibold text-sm">
-                {user.firstName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-              </div>
+              {user.profileImage ? (
+                <img 
+                  src={user.profileImage} 
+                  alt="Profile" 
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[#FF690F]"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-[#FF690F] rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  {(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '') || user.email?.charAt(0).toUpperCase()}
+                </div>
+              )}
             </button>
           )}
           
@@ -150,10 +158,21 @@ export default function SharedLayout({ children }) {
               <div className="absolute right-0 top-12 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 overflow-hidden">
                 {/* User Info Section */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 font-semibold">
-                      {user.firstName?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                    </div>
+                  <button 
+                    onClick={() => { navigate('/profile'); setIsUserMenuOpen(false); }}
+                    className="flex items-center gap-3 mb-3 w-full text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg p-2 -m-2 transition-colors"
+                  >
+                    {user.profileImage ? (
+                      <img 
+                        src={user.profileImage} 
+                        alt="Profile" 
+                        className="w-10 h-10 rounded-full object-cover border-2 border-[#FF690F]"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-[#FF690F] rounded-full flex items-center justify-center text-white font-semibold">
+                        {(user.firstName?.charAt(0) || '') + (user.lastName?.charAt(0) || '') || user.email?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="flex-1">
                       <div className="font-semibold text-gray-900 dark:text-white">
                         {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
@@ -163,20 +182,32 @@ export default function SharedLayout({ children }) {
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Add User Button */}
-                  <button className="w-full flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors p-2">
-                    <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                      <ImUserPlus className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="font-semibold text-gray-900 dark:text-white">Add user</span>
                   </button>
                 </div>
                 
                 {/* Navigation Links */}
                 <div className="py-2">
-                  <UserMenuItem label="Trips" />
+                  <UserMenuItem 
+                    label="Your Profile" 
+                    onClick={() => { 
+                      navigate('/profile'); 
+                      setIsUserMenuOpen(false); 
+                    }} 
+                  />
+                  <UserMenuItem 
+                    label="Trips" 
+                    onClick={() => { 
+                      navigate('/trips'); 
+                      setIsUserMenuOpen(false); 
+                    }} 
+                  />
+                  <UserMenuItem 
+                    label="My Reviews" 
+                    onClick={() => { 
+                      navigate('/reviews'); 
+                      setIsUserMenuOpen(false); 
+                    }} 
+                  />
                   <UserMenuItem 
                     label="Billing" 
                     onClick={() => { 
@@ -184,9 +215,6 @@ export default function SharedLayout({ children }) {
                       setIsUserMenuOpen(false); 
                     }} 
                   />
-                  <UserMenuItem label="Join KAYAK for Business" />
-                  <UserMenuItem label="Help/FAQ" />
-                  <UserMenuItem label="Your account" />
                 </div>
                 
                 {/* Sign Out Button */}

@@ -5,7 +5,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, StarHalf, CheckCircle, ThumbsUp, ArrowLeft, Filter } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { Star, StarHalf, CheckCircle, ThumbsUp, ArrowLeft, Filter, Send } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -40,6 +41,7 @@ const StarRating = ({ rating, size = 'sm' }) => {
 export default function AirlineReviews() {
   const { airlineName } = useParams();
   const navigate = useNavigate();
+  const { user } = useSelector(state => state.auth);
   
   const [stats, setStats] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -49,6 +51,14 @@ export default function AirlineReviews() {
   const [pagination, setPagination] = useState(null);
   const [sortBy, setSortBy] = useState('-date');
   const [filterRating, setFilterRating] = useState(null);
+  
+  // Write review state
+  const [showWriteReview, setShowWriteReview] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewForm, setReviewForm] = useState({
+    rating: 5,
+    comment: ''
+  });
 
   useEffect(() => {
     fetchStats();
@@ -156,6 +166,131 @@ export default function AirlineReviews() {
         </div>
       </div>
 
+      {/* Write Review Section */}
+      {showWriteReview && (
+        <div className="bg-white border-b">
+          <div className="max-w-6xl mx-auto px-4 py-6">
+            <div className="max-w-2xl">
+              <h2 className="text-xl font-bold mb-4">Write Your Review</h2>
+              
+              {!user ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                  <p className="text-gray-700 mb-4">Please log in to write a review</p>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Log In
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  
+                  if (reviewForm.comment.trim().length < 10) {
+                    alert('Review must be at least 10 characters long');
+                    return;
+                  }
+                  
+                  try {
+                    setSubmitting(true);
+                    await axios.post(`${API_URL}/api/reviews/flights`, {
+                      listing_id: airlineName,
+                      listing_name: airlineName,
+                      reviewer_id: user.id,
+                      reviewer_name: `${user.first_name || user.firstName || ''} ${user.last_name || user.lastName || ''}`.trim() || user.email,
+                      rating: reviewForm.rating,
+                      comment: reviewForm.comment.trim()
+                    });
+                    
+                    // Reset form
+                    setReviewForm({ rating: 5, comment: '' });
+                    setShowWriteReview(false);
+                    
+                    // Refresh data
+                    await fetchStats();
+                    await fetchReviews();
+                    
+                    alert('Review submitted successfully!');
+                  } catch (err) {
+                    console.error('Error submitting review:', err);
+                    alert(err.response?.data?.error || 'Failed to submit review');
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Your Rating
+                    </label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-8 h-8 cursor-pointer hover:scale-110 transition-transform ${
+                            star <= reviewForm.rating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                          onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Your Review
+                    </label>
+                    <textarea
+                      value={reviewForm.comment}
+                      onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                      placeholder="Share your experience with this airline..."
+                      rows={5}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      {reviewForm.comment.length} characters (minimum 10)
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={submitting || reviewForm.comment.trim().length < 10}
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          Submit Review
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowWriteReview(false);
+                        setReviewForm({ rating: 5, comment: '' });
+                      }}
+                      className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Rating Distribution */}
       {stats && (
         <div className="bg-white border-b">
@@ -200,7 +335,15 @@ export default function AirlineReviews() {
       {/* Filters & Sort */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <button
+              onClick={() => setShowWriteReview(!showWriteReview)}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+            >
+              <Star className="w-4 h-4" />
+              {showWriteReview ? 'Cancel' : 'Write a Review'}
+            </button>
+            
             <div className="flex items-center gap-4">
               <Filter className="w-5 h-5 text-gray-400" />
               <select

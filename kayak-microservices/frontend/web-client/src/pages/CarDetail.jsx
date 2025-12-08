@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   MapPin,
   Star,
@@ -17,12 +17,16 @@ import {
   Shield
 } from 'lucide-react';
 import LoginPromptModal from '../components/LoginPromptModal';
+import ReviewSection from '../components/ReviewSection';
+import { getUserFavorites, addToUserFavorites, removeFromUserFavorites, isUserFavorite } from '../utils/userStorage';
+import { setSelectedCar, setRentalDetails, calculatePricing } from '../store/slices/carBookingSlice';
 
 export default function CarDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   
   const [car, setCar] = useState(null);
@@ -74,33 +78,28 @@ export default function CarDetail() {
   };
 
   const checkIfLiked = () => {
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"cars": []}');
-    setIsLiked(favorites.cars?.some(c => c.id === id) || false);
+    if (user && user.id) {
+      setIsLiked(isUserFavorite(user.id, 'cars', id));
+    } else {
+      setIsLiked(false);
+    }
   };
 
   const toggleLike = () => {
-    if (!user) {
+    if (!user || !user.id) {
       setShowLoginPrompt(true);
       return;
     }
 
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '{"flights": [], "hotels": [], "cars": []}');
-    
     if (isLiked) {
       // Remove from favorites
-      favorites.cars = favorites.cars.filter(c => c.id !== id);
+      removeFromUserFavorites(user.id, 'cars', id);
       setIsLiked(false);
     } else {
       // Add to favorites
-      if (!favorites.cars) favorites.cars = [];
-      favorites.cars.push({
-        ...car,
-        savedAt: new Date().toISOString()
-      });
+      addToUserFavorites(user.id, 'cars', car);
       setIsLiked(true);
     }
-    
-    localStorage.setItem('favorites', JSON.stringify(favorites));
   };
 
   const handleBooking = () => {
@@ -119,22 +118,26 @@ export default function CarDetail() {
     // Ensure car images are passed correctly
     const carImages = Array.isArray(car.images) ? car.images : (typeof car.images === 'string' ? JSON.parse(car.images) : []);
     
-    navigate('/cars/booking', {
-      state: {
-        car: {
-          ...car,
-          price_per_day: car.daily_rental_price,
-          image_url: carImages[0] || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'
-        },
-        pickupDate,
-        dropoffDate,
-        pickupTime,
-        dropoffTime,
-        pickupLocation: pickupLocation || car.location,
-        days,
-        totalPrice
-      }
-    });
+    // Prepare car object with correct field names
+    const carForBooking = {
+      ...car,
+      price_per_day: car.daily_rental_price,
+      image_url: carImages[0] || 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=400'
+    };
+    
+    // Dispatch Redux actions to set up booking state
+    dispatch(setSelectedCar(carForBooking));
+    dispatch(setRentalDetails({
+      pickupDate,
+      dropoffDate,
+      pickupTime: pickupTime || '10:00',
+      dropoffTime: dropoffTime || '10:00',
+      pickupLocation: pickupLocation || car.location
+    }));
+    dispatch(calculatePricing());
+    
+    // Navigate to booking page (Redux state is already set)
+    navigate('/cars/booking/confirm');
   };
 
   if (loading) {
@@ -346,9 +349,9 @@ export default function CarDetail() {
               <div className="border-t dark:border-gray-700 pt-4 mb-6 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    ${car.daily_rental_price} × {days} {days === 1 ? 'day' : 'days'}
+                    ${parseFloat(car.daily_rental_price).toFixed(2)} × {days} {days === 1 ? 'day' : 'days'}
                   </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">${subtotal}</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">${parseFloat(subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Taxes & Fees (15%)</span>
@@ -356,7 +359,7 @@ export default function CarDetail() {
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t dark:border-gray-700 pt-2 mt-2">
                   <span className="text-gray-900 dark:text-white">Total</span>
-                  <span className="text-[#FF690F]">${total}</span>
+                  <span className="text-[#FF690F]">${parseFloat(total).toFixed(2)}</span>
                 </div>
               </div>
 
@@ -373,6 +376,13 @@ export default function CarDetail() {
               </p>
             </div>
           </div>
+
+          {/* Reviews Section */}
+          <ReviewSection 
+            type="cars" 
+            listingId={car.id} 
+            listingName={`${car.make} ${car.model}`}
+          />
         </div>
       </div>
 

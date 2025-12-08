@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Calendar, MapPin, Users, ChevronRight, Search, Car, Hotel } from 'lucide-react';
+import { Calendar, MapPin, Users, ChevronRight, Search, Car, Hotel, X } from 'lucide-react';
+import { getUserBookings, cancelUserBooking } from '../utils/userStorage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -15,78 +16,156 @@ export default function MyTrips() {
   const [bookingType, setBookingType] = useState('all'); // all, flight, hotel, car
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Helper function to get passenger/guest count (handles both number and object formats)
+  const getCount = (value) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'object' && value !== null) {
+      // Handle {adults: 1, children: 0, infants: 0} structure
+      return (value.adults || 0) + (value.children || 0) + (value.infants || 0);
+    }
+    return 0;
+  };
+
+  // Helper function to get airline code from airline name
+  const getAirlineCode = (airlineName) => {
+    if (!airlineName) return 'XX';
+    
+    // Normalize airline name for matching
+    const normalized = airlineName.trim();
+    
+    const airlineMap = {
+      'Delta': 'DL',
+      'Delta Air Lines': 'DL',
+      'American Airlines': 'AA',
+      'American': 'AA',
+      'United': 'UA',
+      'United Airlines': 'UA',
+      'Southwest': 'WN',
+      'Southwest Airlines': 'WN',
+      'JetBlue': 'B6',
+      'JetBlue Airways': 'B6',
+      'Alaska': 'AS',
+      'Alaska Airlines': 'AS',
+      'Spirit': 'NK',
+      'Spirit Airlines': 'NK',
+      'Frontier': 'F9',
+      'Frontier Airlines': 'F9'
+    };
+    
+    return airlineMap[normalized] || normalized.substring(0, 2).toUpperCase();
+  };
+
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [user]);
 
   const fetchBookings = async () => {
     try {
       setLoading(true);
       
-      // Fetch from backend API
-      if (user && user.id) {
-        const response = await fetch(`${API_BASE_URL}/bookings/user/${user.id}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
+      // Handle both user.id and user.user_id formats from auth
+      const userId = user?.id || user?.user_id;
+      
+      // Fetch from backend API first
+      if (userId) {
+        console.log('📂 Fetching bookings for user:', userId);
+        try {
+          const response = await fetch(`${API_BASE_URL}/bookings/user/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Fetched bookings from API:', data.length);
+            // Transform backend data to match frontend format
+            const transformedBookings = data.map(booking => ({
+              id: booking.id,
+              type: booking.listing_type,
+              travel_date: booking.travel_date,
+              return_date: booking.return_date,
+              status: booking.status,
+              total_amount: booking.total_amount,
+              listing_id: booking.listing_id,
+              rental_days: booking.rental_days,
+              // Set dates for compatibility
+              pickupDate: booking.travel_date,
+              dropoffDate: booking.return_date,
+              checkIn: booking.travel_date,
+              checkOut: booking.return_date,
+              // Will need to fetch listing details separately if needed
+              outboundFlight: booking.listing_type === 'flight' ? { 
+                departure_time: booking.travel_date 
+              } : null,
+              car: booking.listing_type === 'car' ? { 
+                brand: 'Car', 
+                model: booking.listing_id 
+              } : null,
+              hotel: booking.listing_type === 'hotel' ? { 
+                hotel_name: 'Hotel', 
+                city: 'City' 
+              } : null
+            }));
+            setBookings(transformedBookings);
+          } else {
+            console.error('Failed to fetch bookings:', response.statusText);
+            // Fallback to localStorage if API fails
+            const userBookings = getUserBookings(userId);
+            console.log('📚 Fallback to localStorage:', userBookings.length);
+            setBookings(userBookings);
           }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          // Transform backend data to match frontend format
-          const transformedBookings = data.map(booking => ({
-            id: booking.id,
-            type: booking.listing_type,
-            travel_date: booking.travel_date,
-            return_date: booking.return_date,
-            status: booking.status,
-            total_amount: booking.total_amount,
-            listing_id: booking.listing_id,
-            rental_days: booking.rental_days,
-            // Set dates for compatibility
-            pickupDate: booking.travel_date,
-            dropoffDate: booking.return_date,
-            checkIn: booking.travel_date,
-            checkOut: booking.return_date,
-            // Will need to fetch listing details separately if needed
-            outboundFlight: booking.listing_type === 'flight' ? { 
-              departure_time: booking.travel_date 
-            } : null,
-            car: booking.listing_type === 'car' ? { 
-              brand: 'Car', 
-              model: booking.listing_id 
-            } : null,
-            hotel: booking.listing_type === 'hotel' ? { 
-              hotel_name: 'Hotel', 
-              city: 'City' 
-            } : null
-          }));
-          setBookings(transformedBookings);
-        } else {
-          console.error('Failed to fetch bookings:', response.statusText);
-          // Fallback to localStorage if API fails
-          const storedBookings = localStorage.getItem('bookings');
-          if (storedBookings) {
-            setBookings(JSON.parse(storedBookings));
-          }
+        } catch (apiError) {
+          console.error('API error, falling back to localStorage:', apiError);
+          const userBookings = getUserBookings(userId);
+          console.log('📚 Fallback to localStorage:', userBookings.length);
+          setBookings(userBookings);
         }
       } else {
-        // Fallback to localStorage for non-logged in users
-        const storedBookings = localStorage.getItem('bookings');
-        if (storedBookings) {
-          setBookings(JSON.parse(storedBookings));
-        }
+        console.warn('⚠️ No user ID found, cannot load bookings');
+        setBookings([]);
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      // Fallback to localStorage on error
-      const storedBookings = localStorage.getItem('bookings');
-      if (storedBookings) {
-        setBookings(JSON.parse(storedBookings));
-      }
+      setBookings([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async (booking) => {
+    if (!booking || booking.status === 'cancelled' || booking.status === 'completed') {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to cancel this ${booking.type} booking?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const userId = user?.id || user?.user_id;
+      if (!userId) {
+        alert('User not found. Please log in again.');
+        return;
+      }
+
+      // Update localStorage
+      const bookingIdToCancel = booking.bookingId || booking.booking_id || booking.id;
+      console.log('🚫 Cancelling booking:', bookingIdToCancel);
+      cancelUserBooking(userId, bookingIdToCancel);
+
+      // TODO: Call backend API to cancel booking when available
+      // await axios.post(`${API_BASE_URL}/bookings/cancel`, { bookingId: bookingIdToCancel });
+
+      // Refresh bookings list
+      fetchBookings();
+      alert('Booking cancelled successfully!');
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      alert('Failed to cancel booking. Please try again.');
     }
   };
 
@@ -101,6 +180,11 @@ export default function MyTrips() {
   };
 
   const getBookingStatus = (booking) => {
+    // Check if booking is cancelled first
+    if (booking.status === 'cancelled') {
+      return { status: 'cancelled', label: 'Cancelled', color: 'bg-red-500' };
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -317,17 +401,22 @@ export default function MyTrips() {
               return (
                 <div
                   key={booking.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
-                  onClick={() => navigate(`/booking/${booking.id}`, { state: { booking } })}
+                  onClick={() => {
+                    // Navigate to booking success page with booking data
+                    navigate('/booking/success', { state: { booking } });
+                  }}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer"
                 >
                   <div className="flex flex-col md:flex-row">
                     {booking.type === 'flight' ? (
                       // Flight Booking Card
                       <>
-                        {/* Flight Icon Placeholder */}
+                        {/* Flight Airline Logo */}
                         <div className="md:w-64 h-48 md:h-auto bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
                           <div className="text-white text-center">
-                            <div className="text-6xl mb-2">✈️</div>
+                            <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-2">
+                              <span className="text-3xl font-bold">{getAirlineCode(booking.outboundFlight?.airline)}</span>
+                            </div>
                             <p className="text-sm font-semibold">{booking.outboundFlight?.airline}</p>
                           </div>
                         </div>
@@ -340,12 +429,14 @@ export default function MyTrips() {
                                 {booking.outboundFlight?.departure_airport || booking.outboundFlight?.origin} → {booking.outboundFlight?.arrival_airport || booking.outboundFlight?.destination}
                               </h3>
                               <p className="text-gray-600 dark:text-gray-400">
-                                {booking.returnFlight ? 'Round-trip' : 'One-way'} • {booking.passengers} passenger{booking.passengers !== 1 ? 's' : ''}
+                                {booking.returnFlight ? 'Round-trip' : 'One-way'} • {getCount(booking.passengers)} passenger{getCount(booking.passengers) !== 1 ? 's' : ''}
                               </p>
                             </div>
-                            <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
-                              {bookingStatus.label}
-                            </span>
+                            {booking.status !== 'cancelled' && (
+                              <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                                {bookingStatus.label}
+                              </span>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -373,10 +464,30 @@ export default function MyTrips() {
                               <p className="font-mono text-sm font-semibold dark:text-white">{booking.id}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-                              <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                              {booking.status === 'cancelled' ? (
+                                <>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                                  <p className="text-xl font-bold text-red-500">Cancelled</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
+                                  <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                                </>
+                              )}
                             </div>
-                            <ChevronRight className="w-6 h-6 text-gray-400" />
+                            {bookingStatus.status === 'upcoming' && booking.status !== 'cancelled' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelBooking(booking);
+                                }}
+                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancel
+                              </button>
+                            )}
                           </div>
                         </div>
                       </>
@@ -413,9 +524,11 @@ export default function MyTrips() {
                                 {booking.car?.company_name} • {booking.car?.type} • {booking.car?.transmission}
                               </p>
                             </div>
-                            <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
-                              {bookingStatus.label}
-                            </span>
+                            {booking.status !== 'cancelled' && (
+                              <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                                {bookingStatus.label}
+                              </span>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -451,10 +564,30 @@ export default function MyTrips() {
                               <p className="font-mono text-sm font-semibold dark:text-white">{booking.id}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-                              <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                              {booking.status === 'cancelled' ? (
+                                <>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                                  <p className="text-xl font-bold text-red-500">Cancelled</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
+                                  <p className="text-xl font-bold text-[#FF690F]">${parseFloat(booking.totalPrice).toFixed(2)}</p>
+                                </>
+                              )}
                             </div>
-                            <ChevronRight className="w-6 h-6 text-gray-400" />
+                            {bookingStatus.status === 'upcoming' && booking.status !== 'cancelled' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelBooking(booking);
+                                }}
+                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancel
+                              </button>
+                            )}
                           </div>
                         </div>
                       </>
@@ -485,9 +618,11 @@ export default function MyTrips() {
                                 {booking.hotel?.neighbourhood_cleansed}, {booking.hotel?.city}
                               </p>
                             </div>
-                            <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
-                              {bookingStatus.label}
-                            </span>
+                            {booking.status !== 'cancelled' && (
+                              <span className={`${bookingStatus.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+                                {bookingStatus.label}
+                              </span>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -511,7 +646,7 @@ export default function MyTrips() {
                                 Guests
                               </p>
                               <p className="font-semibold dark:text-white">
-                                {booking.guests} {booking.guests === 1 ? 'Guest' : 'Guests'}
+                                {getCount(booking.guests)} {getCount(booking.guests) === 1 ? 'Guest' : 'Guests'}
                               </p>
                             </div>
                           </div>
@@ -522,10 +657,30 @@ export default function MyTrips() {
                               <p className="font-mono text-sm font-semibold dark:text-white">{booking.id}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
-                              <p className="text-xl font-bold text-[#FF690F]">${booking.totalPrice}</p>
+                              {booking.status === 'cancelled' ? (
+                                <>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                                  <p className="text-xl font-bold text-red-500">Cancelled</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid</p>
+                                  <p className="text-xl font-bold text-[#FF690F]">${parseFloat(booking.totalPrice).toFixed(2)}</p>
+                                </>
+                              )}
                             </div>
-                            <ChevronRight className="w-6 h-6 text-gray-400" />
+                            {bookingStatus.status === 'upcoming' && booking.status !== 'cancelled' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelBooking(booking);
+                                }}
+                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancel
+                              </button>
+                            )}
                           </div>
                         </div>
                       </>

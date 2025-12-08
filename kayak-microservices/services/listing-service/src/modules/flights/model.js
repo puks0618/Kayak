@@ -4,6 +4,7 @@
 
 const mysql = require('mysql2/promise');
 const { v4: uuidv4 } = require('uuid');
+const mongoAtlas = require('../../database/mongodb-atlas');
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
@@ -17,6 +18,42 @@ const dbConfig = {
 };
 
 const pool = mysql.createPool(dbConfig);
+
+/**
+ * Get airline ratings from MongoDB
+ * Returns a map of airline name to {rating, review_count}
+ */
+async function getAirlineRatings(airlines) {
+  try {
+    const reviewsCollection = mongoAtlas.getCollection('flights_reviews');
+    const ratings = {};
+    
+    // Get aggregated ratings for all airlines
+    const results = await reviewsCollection.aggregate([
+      { $match: { airline: { $in: airlines } } },
+      {
+        $group: {
+          _id: '$airline',
+          avg_rating: { $avg: '$rating' },
+          review_count: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+    
+    results.forEach(r => {
+      ratings[r._id] = {
+        rating: parseFloat(r.avg_rating.toFixed(2)),
+        review_count: r.review_count
+      };
+    });
+    
+    return ratings;
+  } catch (error) {
+    console.error('Error fetching airline ratings:', error);
+    return {};
+  }
+}
+
 
 const FlightModel = {
   /**
@@ -264,6 +301,26 @@ const FlightModel = {
       const [returnResults] = await pool.query(returnQuery, returnParams);
       returnFlights = returnResults;
     }
+
+    // Get airline ratings for all flights
+    const allFlights = [...outboundFlights, ...returnFlights];
+    const uniqueAirlines = [...new Set(allFlights.map(f => f.airline).filter(Boolean))];
+    const airlineRatings = await getAirlineRatings(uniqueAirlines);
+    
+    // Attach ratings to flights
+    outboundFlights.forEach(flight => {
+      if (flight.airline && airlineRatings[flight.airline]) {
+        flight.airline_rating = airlineRatings[flight.airline].rating;
+        flight.airline_review_count = airlineRatings[flight.airline].review_count;
+      }
+    });
+    
+    returnFlights.forEach(flight => {
+      if (flight.airline && airlineRatings[flight.airline]) {
+        flight.airline_rating = airlineRatings[flight.airline].rating;
+        flight.airline_review_count = airlineRatings[flight.airline].review_count;
+      }
+    });
 
     return {
       flights: outboundFlights,

@@ -21,7 +21,6 @@ async function importHotels() {
 
   // Clear existing hotels
   console.log('🧹 Clearing existing hotel data...');
-  await connection.query('DELETE FROM hotel_amenities');
   await connection.query('DELETE FROM hotels');
   console.log('✅ Cleared\n');
 

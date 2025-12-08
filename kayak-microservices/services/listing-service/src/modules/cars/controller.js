@@ -3,6 +3,9 @@
  */
 
 const CarModel = require('./model');
+const cache = require('../../cache/redis');
+const cacheMetrics = require('../../cache/metrics');
+const crypto = require('crypto');
 
 class CarController {
   async search(req, res) {
@@ -23,8 +26,36 @@ class CarController {
         limit: req.query.limit ? parseInt(req.query.limit) : 20
       };
 
+      // Generate cache key from search parameters
+      const cacheKey = `car_search:${crypto
+        .createHash('md5')
+        .update(JSON.stringify(searchParams))
+        .digest('hex')}`;
+
+      // Check cache first
+      const startTime = Date.now();
+      const cachedResult = await cache.get(cacheKey);
+      if (cachedResult) {
+        const responseTime = Date.now() - startTime;
+        cacheMetrics.recordHit('cars', responseTime);
+        return res.json({
+          ...cachedResult,
+          cached: true
+        });
+      }
+
+      // Perform search
       const result = await CarModel.search(searchParams);
-      res.json(result);
+      const responseTime = Date.now() - startTime;
+      cacheMetrics.recordMiss('cars', responseTime);
+
+      // Cache results for 10 minutes (600 seconds)
+      await cache.set(cacheKey, result, 600);
+
+      res.json({
+        ...result,
+        cached: false
+      });
     } catch (error) {
       console.error('Car search error:', error);
       res.status(500).json({ error: 'Failed to search cars' });

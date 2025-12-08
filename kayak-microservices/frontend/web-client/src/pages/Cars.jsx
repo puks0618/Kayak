@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { addRecentSearch } from '../store/slices/carsSlice';
 import { 
   ChevronDown, 
-  Search
+  Search,
+  Clock,
+  X
 } from 'lucide-react';
 import { PiAirplaneTiltFill } from "react-icons/pi";
 import { IoIosBed } from "react-icons/io";
@@ -28,6 +32,8 @@ const DEFAULT_CAR_CITIES = [
 export default function Cars() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  const { recentSearches } = useSelector(state => state.cars);
   
   // Search state
   const [sameDropOff, setSameDropOff] = useState(true);
@@ -86,6 +92,17 @@ export default function Cars() {
       alert('Please select pickup and drop-off dates');
       return;
     }
+    
+    // Save to recent searches
+    dispatch(addRecentSearch({
+      pickupLocation,
+      dropoffLocation: sameDropOff ? pickupLocation : dropoffLocation,
+      pickupDate: pickupDate.toISOString().split('T')[0],
+      dropoffDate: dropoffDate.toISOString().split('T')[0],
+      pickupTime,
+      dropoffTime,
+      suvsOnly
+    }));
     
     // Build search query params
     const searchParams = new URLSearchParams({
@@ -227,6 +244,52 @@ export default function Cars() {
               <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 text-center md:text-left">
                 💡 <span className="font-medium">Pro tip:</span> Prices tend to be lower on weekdays and for longer rental periods
               </p>
+
+              {/* Recent Searches */}
+              {recentSearches.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Recent Searches
+                  </h3>
+                  <div className="space-y-3">
+                    {recentSearches.map((search) => (
+                      <div
+                        key={search.id}
+                        className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => {
+                          setPickupLocation(search.pickupLocation);
+                          setDropoffLocation(search.dropoffLocation);
+                          setPickupDate(new Date(search.pickupDate));
+                          setDropoffDate(new Date(search.dropoffDate));
+                          setPickupTime(search.pickupTime);
+                          setDropoffTime(search.dropoffTime);
+                          setSuvsOnly(search.suvsOnly || false);
+                          setSameDropOff(search.pickupLocation === search.dropoffLocation);
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold text-gray-900 dark:text-white">
+                                {search.pickupLocation}
+                                {search.pickupLocation !== search.dropoffLocation && (
+                                  <> → {search.dropoffLocation}</>
+                                )}
+                              </p>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {new Date(search.pickupDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} -{' '}
+                              {new Date(search.dropoffDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {search.suvsOnly && ' • SUVs only'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Column: Image Grid */}

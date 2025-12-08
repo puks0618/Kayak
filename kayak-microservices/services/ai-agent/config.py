@@ -43,7 +43,7 @@ class Config:
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
     
     # Database
-    DB_PATH = os.getenv("DB_PATH", "./data/kayak_ai.db")
+    DB_PATH = os.getenv("DB_PATH", "/tmp/kayak_ai.db")
     DB_ECHO = os.getenv("DB_ECHO", "false").lower() == "true"
     
     # MySQL (for querying existing listings if needed)
@@ -95,4 +95,4 @@ class Config:
             return f"redis://:{cls.REDIS_PASSWORD}@{cls.REDIS_HOST}:{cls.REDIS_PORT}/{cls.REDIS_DB}"
         return f"redis://{cls.REDIS_HOST}:{cls.REDIS_PORT}/{cls.REDIS_DB}"
 
-config = Config
+config = Config()

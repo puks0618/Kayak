@@ -199,7 +199,7 @@ class PriceAnalyzer:
 class ExplanationEngine:
     """Generates natural language explanations for deals"""
     
-    def __init__(self, db_path: str = "./data/kayak_ai.db"):
+    def __init__(self, db_path: str = "/tmp/kayak_ai.db"):
         self.analyzer = PriceAnalyzer(db_path)
     
     def explain_deal(self, deal: Dict, context: str = "general") -> str:

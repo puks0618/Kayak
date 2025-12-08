@@ -1,0 +1,61 @@
+{
+  "family": "kayak-api-gateway",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "api-gateway",
+      "image": "YOUR_AWS_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/kayak-api-gateway:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "3000"
+        },
+        {
+          "name": "AUTH_SERVICE_URL",
+          "value": "http://localhost:3001"
+        },
+        {
+          "name": "USER_SERVICE_URL",
+          "value": "http://localhost:3002"
+        },
+        {
+          "name": "LISTING_SERVICE_URL",
+          "value": "http://localhost:3003"
+        },
+        {
+          "name": "SEARCH_SERVICE_URL",
+          "value": "http://localhost:3004"
+        },
+        {
+          "name": "BOOKING_SERVICE_URL",
+          "value": "http://localhost:3005"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/kayak-api-gateway",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3
+      }
+    }
+  ]
+}

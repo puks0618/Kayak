@@ -1,0 +1,73 @@
+{
+  "family": "kayak-listing-service",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "listing-service",
+      "image": "YOUR_AWS_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/kayak-listing-service:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3003,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "3003"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "YOUR_RDS_ENDPOINT.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "3306"
+        },
+        {
+          "name": "DB_USER",
+          "value": "admin"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "YOUR_RDS_PASSWORD"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "kayak_listings"
+        },
+        {
+          "name": "MONGO_URI",
+          "value": "mongodb+srv://pprathkanthiwar_db_user:Somalwar1!@cluster1.0ssglwi.mongodb.net/kayak_listings"
+        },
+        {
+          "name": "REDIS_HOST",
+          "value": "YOUR_REDIS_ENDPOINT"
+        },
+        {
+          "name": "KAFKA_BROKERS",
+          "value": "YOUR_KAFKA_BOOTSTRAP_SERVERS"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/kayak-listing-service",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -q --spider http://localhost:3003/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3
+      }
+    }
+  ]
+}

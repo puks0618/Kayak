@@ -18,7 +18,7 @@ const corsConfig = {
     'http://localhost:3000',
     'http://localhost:5175',  // Web client
     'http://localhost:5180',  // Owner portal
-    'http://localhost:5176',  // Admin portal
+    'http://localhost:5174',  // Admin portal
     'http://localhost:8080',
     'http://localhost:8081'
   ],

@@ -20,11 +20,11 @@ const api = axios.create({
 // Request interceptor (for adding auth tokens later)
 api.interceptors.request.use(
   (config) => {
-    // TODO: Add auth token when authentication is implemented
-    // const token = localStorage.getItem('admin-token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Add auth token from localStorage
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {

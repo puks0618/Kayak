@@ -25,15 +25,20 @@ const pool = mysql.createPool(dbConfig);
 class AdminController {
   async getDashboard(req, res) {
     try {
-      const [users] = await pool.execute('SELECT COUNT(*) as count FROM kayak_users.users');
+      // Get user count from kayak_auth database (not kayak_users)
+      const [users] = await pool.execute('SELECT COUNT(*) as count FROM kayak_auth.users');
+      
+      // Get booking count from kayak_bookings
       const [bookings] = await pool.execute('SELECT COUNT(*) as count FROM kayak_bookings.bookings');
-      const [revenue] = await pool.execute('SELECT SUM(total_amount) as total FROM kayak_bookings.bookings WHERE status = "confirmed"');
+      
+      // Get total revenue from COMPLETED bookings only (not pending/cancelled)
+      const [revenue] = await pool.execute('SELECT SUM(total_amount) as total FROM kayak_bookings.bookings WHERE status = "completed"');
 
       res.json({
         dashboard: {
           users: users[0].count,
           bookings: bookings[0].count,
-          revenue: revenue[0].total || 0
+          revenue: parseFloat(revenue[0].total) || 0
         }
       });
     } catch (error) {

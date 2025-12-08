@@ -106,7 +106,7 @@ export default function BookingConfirmation() {
       try {
         // Send to backend API
         const backendBooking = {
-          listing_id: hotel.id || `hotel-${Date.now()}`,
+          listing_id: hotel.listing_id || hotel.hotel_id || hotel.id || `hotel-${Date.now()}`,
           listing_type: 'hotel',
           travel_date: checkIn,
           total_amount: totalPrice,
@@ -116,10 +116,10 @@ export default function BookingConfirmation() {
           },
           booking_details: {
             hotel: {
-              id: hotel.id,
-              name: hotel.hotel_name,
+              id: hotel.hotel_id || hotel.id,
+              name: hotel.hotel_name || hotel.name,
               city: hotel.city,
-              neighbourhood: hotel.neighbourhood_cleansed
+              neighbourhood: hotel.neighbourhood_cleansed || hotel.neighbourhood
             },
             checkIn: checkIn,
             checkOut: checkOut,

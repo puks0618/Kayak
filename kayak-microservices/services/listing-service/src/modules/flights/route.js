@@ -10,6 +10,7 @@ const flightController = require('./controller');
 router.get('/search', flightController.search);      // Advanced search with filters
 router.get('/deals', flightController.getDeals);     // Get flight deals
 router.get('/routes', flightController.getRoutes);   // Get popular routes
+router.get('/airlines', flightController.getAirlines); // Get list of all airlines
 
 // CRUD endpoints
 router.get('/', flightController.getAll);            // Basic list

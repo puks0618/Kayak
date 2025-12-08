@@ -26,7 +26,7 @@ class AdminListingsController {
         SELECT c.*, u.email as owner_email, u.first_name, u.last_name
         FROM kayak_listings.cars c
         LEFT JOIN kayak_users.users u ON c.owner_id = u.id
-        WHERE c.approval_status = 'pending' AND c.deleted_at IS NULL
+        WHERE c.approval_status = 'pending'
         ORDER BY c.created_at DESC
       `);
       
@@ -49,7 +49,7 @@ class AdminListingsController {
         SELECT h.*, u.email as owner_email, u.first_name, u.last_name
         FROM kayak_listings.hotels h
         LEFT JOIN kayak_users.users u ON h.owner_id = u.id
-        WHERE h.approval_status = 'pending' AND h.deleted_at IS NULL
+        WHERE h.approval_status = 'pending'
         ORDER BY h.created_at DESC
       `);
       
@@ -106,7 +106,7 @@ class AdminListingsController {
   async approveCarListing(req, res) {
     try {
       const car_id = req.params.id;
-      const { status, admin_comment } = req.body;
+      const { status } = req.body;
       
       // Validate status
       if (!['approved', 'rejected'].includes(status)) {
@@ -117,7 +117,7 @@ class AdminListingsController {
 
       // Check if car exists
       const [cars] = await pool.execute(
-        'SELECT id, owner_id FROM kayak_listings.cars WHERE id = ? AND deleted_at IS NULL',
+        'SELECT id, owner_id FROM kayak_listings.cars WHERE id = ?',
         [car_id]
       );
 
@@ -128,13 +128,9 @@ class AdminListingsController {
       // Update approval status
       await pool.execute(`
         UPDATE kayak_listings.cars 
-        SET 
-          approval_status = ?,
-          admin_comment = ?,
-          approved_at = NOW(),
-          approved_by = ?
+        SET approval_status = ?
         WHERE id = ?
-      `, [status, admin_comment || null, req.user.id, car_id]);
+      `, [status, car_id]);
 
       res.json({ 
         message: `Car listing ${status} successfully`,
@@ -179,13 +175,9 @@ class AdminListingsController {
       // Update approval status
       await pool.execute(`
         UPDATE kayak_listings.hotels 
-        SET 
-          approval_status = ?,
-          admin_comment = ?,
-          approved_at = NOW(),
-          approved_by = ?
+        SET approval_status = ?
         WHERE id = ?
-      `, [status, admin_comment || null, req.user.id, hotel_id]);
+      `, [status, hotel_id]);
 
       res.json({ 
         message: `Hotel listing ${status} successfully`,

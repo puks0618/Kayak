@@ -358,6 +358,42 @@ export default function AIMode() {
     }
   };
 
+  const handleUntrackDeal = async (deal) => {
+    try {
+      setTrackingDeal(deal.deal_id);
+      
+      // Find the watch for this deal
+      const watch = watches.find(w => w.deal_id === deal.deal_id);
+      if (!watch) return;
+      
+      await axios.delete(
+        `${AI_AGENT_URL}/api/ai/watch/${watch.watch_id}`
+      );
+      
+      // Remove from watches list
+      setWatches(prev => prev.filter(w => w.watch_id !== watch.watch_id));
+      
+      // Add success message to chat
+      const successMessage = {
+        role: 'assistant',
+        content: `✅ Stopped tracking "${deal.title}". You will no longer receive alerts for this deal.`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, successMessage]);
+    } catch (error) {
+      console.error('Error deleting watch:', error);
+      const errorMessage = {
+        role: 'assistant',
+        content: 'Sorry, I couldn\'t stop tracking that deal. Please try again.',
+        error: true,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setTrackingDeal(null);
+    }
+  };
+
   return (
     <main className="mt-4 md:mt-8 mb-8">
       {/* Notification Banner */}
@@ -614,18 +650,27 @@ export default function AIMode() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleTrackDeal(deal);
+                              const isTracked = watches.some(w => w.deal_id === deal.deal_id);
+                              if (isTracked) {
+                                handleUntrackDeal(deal);
+                              } else {
+                                handleTrackDeal(deal);
+                              }
                             }}
-                            disabled={trackingDeal === deal.deal_id || watches.some(w => w.deal_id === deal.deal_id)}
-                            className="text-xs bg-[#FF690F] hover:bg-[#ff5500] text-white px-3 py-1 rounded-full font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-started flex items-center gap-1 flex-1"
+                            disabled={trackingDeal === deal.deal_id}
+                            className={`text-xs px-3 py-1 rounded-full font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 flex-1 ${
+                              watches.some(w => w.deal_id === deal.deal_id)
+                                ? 'bg-green-600 hover:bg-green-700 text-white'
+                                : 'bg-[#FF690F] hover:bg-[#ff5500] text-white'
+                            }`}
                           >
                             {trackingDeal === deal.deal_id ? (
                               <>
                                 <Loader className="w-3 h-3 animate-spin" />
-                                Tracking...
+                                {watches.some(w => w.deal_id === deal.deal_id) ? 'Untracking...' : 'Tracking...'}
                               </>
                             ) : watches.some(w => w.deal_id === deal.deal_id) ? (
-                              '✓ Tracked'
+                              '✓ Untrack'
                             ) : (
                               '🔔 Track'
                             )}

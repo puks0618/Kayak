@@ -694,23 +694,37 @@ async def chat(query: UserQuery):
     # Look for patterns with "to" between multiple cities/airports
     parts = re.split(r'\s+TO\s+', message_upper)
     if len(parts) >= 3:  # At least 3 cities (origin + 2 destinations)
-        is_multi_city = True
+        # Filter out date-related words
+        date_keywords = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 
+                        'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+                        'JAN', 'FEB', 'MAR', 'APR', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+                        'ON', 'IN', 'AT', 'THE', 'AND']
+        
         for part in parts:
             # Extract city/airport code
             words = part.strip().split()
-            # First try to find a 3-letter airport code
+            # First try to find a 3-letter airport code (but not month abbreviations)
             found = False
             for word in words:
-                if len(word) == 3 and word.isalpha():
+                if len(word) == 3 and word.isalpha() and word not in date_keywords:
                     cities.append(normalize_airport_code(word))
                     found = True
                     break
             # If no 3-letter code found, try to map city name
             if not found and words:
-                city_name = words[0] if words else part.strip()
-                airport_code = normalize_airport_code(city_name)
-                cities.append(airport_code)
-        print(f"🌍 Multi-city trip detected: {cities}")
+                # Skip if this part looks like a date
+                first_word = words[0]
+                if first_word not in date_keywords and not first_word.isdigit():
+                    city_name = first_word
+                    airport_code = normalize_airport_code(city_name)
+                    # Only add if it maps to something valid
+                    if airport_code in CITY_TO_AIRPORT.values() or len(airport_code) == 3:
+                        cities.append(airport_code)
+        
+        # Only consider it multi-city if we found 3+ valid cities
+        is_multi_city = len(cities) >= 3
+        if is_multi_city:
+            print(f"🌍 Multi-city trip detected: {cities}")
     
     # Handle multi-city trips
     if is_multi_city and len(cities) >= 3:
@@ -1463,10 +1477,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str = Query(...)):
     
     try:
         # Send welcome message
-        await ws_service.send_notification(user_id, 
-            "Connected to Kayak AI - you'll receive real-time updates!", 
-            "info"
-        )
+        await ws_service.send_notification(user_id, {
+            "message": "Connected to Kayak AI - you'll receive real-time updates!",
+            "type": "info"
+        })
         
         while True:
             data = await websocket.receive_text()
@@ -1488,20 +1502,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str = Query(...)):
                     channel = message.get("channel")
                     if channel:
                         ws_service.add_user_to_room(user_id, channel)
-                        await ws_service.send_notification(user_id, 
-                            f"Subscribed to {channel} updates", 
-                            "success"
-                        )
+                        await ws_service.send_notification(user_id, {
+                            "message": f"Subscribed to {channel} updates",
+                            "type": "success"
+                        })
                         
                 elif message_type == "unsubscribe":
                     # Unsubscribe from channel
                     channel = message.get("channel")
                     if channel:
                         ws_service.remove_user_from_room(user_id, channel)
-                        await ws_service.send_notification(user_id, 
-                            f"Unsubscribed from {channel}", 
-                            "info"
-                        )
+                        await ws_service.send_notification(user_id, {
+                            "message": f"Unsubscribed from {channel}",
+                            "type": "info"
+                        })
                         
                 elif message_type == "get_stats":
                     # Send connection statistics
@@ -1521,10 +1535,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str = Query(...)):
                     
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON from {user_id}: {data}")
-                await ws_service.send_notification(user_id, 
-                    "Invalid message format", 
-                    "error"
-                )
+                await ws_service.send_notification(user_id, {
+                    "message": "Invalid message format",
+                    "type": "error"
+                })
                 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for user: {user_id}")

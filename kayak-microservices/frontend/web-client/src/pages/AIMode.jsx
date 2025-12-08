@@ -282,6 +282,20 @@ export default function AIMode() {
     }
   };
 
+  const handleDealClick = (deal) => {
+    // Navigate to booking page with deal details
+    const metadata = deal.metadata || {};
+    const params = new URLSearchParams({
+      type: deal.type,
+      title: deal.title,
+      price: `$${deal.price}`,
+      origin: metadata.origin || '',
+      destination: metadata.destination || '',
+      date: metadata.departure_date || metadata.check_in_date || ''
+    });
+    navigate(`/book?${params.toString()}`);
+  };
+
   const handleExplainDeal = async (deal) => {
     try {
       const response = await axios.get(
@@ -595,13 +609,7 @@ export default function AIMode() {
                     {deals.map((deal, index) => (
                       <div
                         key={index}
-                        onClick={() => {
-                          if (deal.type === 'flight') {
-                            navigate('/');
-                          } else {
-                            navigate('/stays');
-                          }
-                        }}
+                        onClick={() => handleDealClick(deal)}
                         className="border border-gray-200 dark:border-gray-700 rounded-xl p-3 hover:border-[#FF690F] hover:shadow-lg transition-all cursor-pointer group"
                       >
                         <div className="flex items-start justify-between mb-2">

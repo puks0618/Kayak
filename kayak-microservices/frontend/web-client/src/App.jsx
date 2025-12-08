@@ -27,6 +27,7 @@ import CarBookingConfirmation from './pages/CarBookingConfirmation';
 import CarBookingSuccess from './pages/CarBookingSuccess';
 import Packages from './pages/Packages';
 import AIMode from './pages/AIMode';
+import BookingPage from './pages/BookingPage';
 import Listings from './pages/Listings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -189,6 +190,10 @@ function AppRoutes() {
         <Route 
           path="/ai-mode" 
           element={<SharedLayout><AIMode /></SharedLayout>} 
+        />
+        <Route 
+          path="/book" 
+          element={<BookingPage />} 
         />
         <Route 
           path="/listings" 

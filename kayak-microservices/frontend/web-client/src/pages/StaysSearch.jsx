@@ -14,7 +14,9 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+
 import { searchStaysAsync, updateSearchForm, setPage } from '../store/slices/staysSlice';
+import { setSelectedHotel, setStayDetails, calculatePricing } from '../store/slices/stayBookingSlice';
 
 export default function StaysSearch() {
   const navigate = useNavigate();
@@ -36,8 +38,8 @@ export default function StaysSearch() {
   // Client-side filtering to ensure only searched location properties are shown
   const filteredResults = results.filter(hotel => {
     // Debug logging
-    if (!hotel.id) {
-      console.error('Hotel missing id:', hotel);
+    if (!hotel.hotel_id) {
+      console.error('Hotel missing hotel_id:', hotel);
     }
     
     // Filter by location - check if the hotel's city matches any of the searched cities
@@ -146,12 +148,28 @@ export default function StaysSearch() {
   };
 
   // Navigate to hotel detail
+
   const handleHotelClick = (hotelId) => {
     console.log('Navigating to hotel:', hotelId, typeof hotelId);
     if (!hotelId) {
       console.error('ERROR: hotelId is undefined!');
       return;
     }
+    // Find the hotel object from filteredResults
+    const hotel = filteredResults.find(h => h.hotel_id === hotelId || h.id === hotelId);
+    if (!hotel) {
+      console.error('Hotel not found in filteredResults:', hotelId);
+      return;
+    }
+    // Dispatch Redux actions to set selected hotel and stay details
+    dispatch(setSelectedHotel(hotel));
+    dispatch(setStayDetails({
+      checkInDate: searchForm.checkIn,
+      checkOutDate: searchForm.checkOut,
+      guests: searchForm.guests,
+      rooms: searchForm.rooms
+    }));
+    dispatch(calculatePricing());
     navigate(`/stays/hotel/${hotelId}`);
   };
 
@@ -314,7 +332,7 @@ export default function StaysSearch() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredResults.map((hotel) => (
-                    <HotelCard key={hotel.id} hotel={hotel} onClick={() => handleHotelClick(hotel.id)} />
+                    <HotelCard key={hotel.hotel_id} hotel={hotel} onClick={() => handleHotelClick(hotel.hotel_id)} />
                   ))}
                 </div>
 
@@ -355,9 +373,10 @@ export default function StaysSearch() {
 function HotelCard({ hotel, onClick }) {
   // Debug: Log hotel data
   console.log('HotelCard received:', {
+    hotel_id: hotel.hotel_id,
     id: hotel.id,
-    name: hotel.name,
-    hasId: !!hotel.id
+    name: hotel.hotel_name,
+    hasHotelId: !!hotel.hotel_id
   });
   
   // Extract image URL from images array or use picture_url
@@ -423,7 +442,7 @@ function HotelCard({ hotel, onClick }) {
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
           <span className="font-medium">{hotel.room_type}</span>
           <span className="text-gray-400">•</span>
-          <span>{hotel.num_rooms} {hotel.num_rooms === 1 ? 'room' : 'rooms'}</span>
+          <span>{hotel.accommodates} {hotel.accommodates === 1 ? 'guest' : 'guests'}</span>
         </div>
 
         {/* Amenities Preview */}

@@ -131,9 +131,9 @@ const HotelModel = {
       });
     }
 
-    // Guest capacity - using num_rooms field
+    // Guest capacity - using accommodates field
     if (guests) {
-      query += ' AND h.num_rooms >= ?';
+      query += ' AND h.accommodates >= ?';
       params.push(guests);
     }
 
@@ -193,7 +193,7 @@ const HotelModel = {
     const [rows] = await pool.query(query, params);
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE 1=1';
+    let countQuery = 'SELECT COUNT(DISTINCT h.hotel_id) as total FROM hotels h WHERE 1=1';
     const countParams = [];
     
     if (cities.length > 0) {
@@ -207,7 +207,7 @@ const HotelModel = {
       });
     }
     if (guests) {
-      countQuery += ' AND h.num_rooms >= ?';
+      countQuery += ' AND h.accommodates >= ?';
       countParams.push(guests);
     }
     if (priceMin) {
@@ -233,8 +233,14 @@ const HotelModel = {
     // Enrich hotels with review data and images from MongoDB
     const enrichedHotels = await Promise.all(rows.map(async (hotel) => {
       try {
-        // Parse amenities from JSON column
-        const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
+        // Fetch amenities from join table
+        const [amenitiesRows] = await pool.execute(`
+          SELECT a.amenity_name
+          FROM hotel_amenities ha
+          JOIN amenities a ON ha.amenity_id = a.amenity_id
+          WHERE ha.hotel_id = ?
+        `, [hotel.hotel_id]);
+        const amenitiesList = amenitiesRows.map(row => row.amenity_name);
         
         // Get images from JSON column
         const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
@@ -312,7 +318,7 @@ const HotelModel = {
   },
 
   async findById(id) {
-    const [rows] = await pool.execute('SELECT * FROM hotels WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM hotels WHERE hotel_id = ?', [id]);
     return rows[0];
   },
 
@@ -320,6 +326,16 @@ const HotelModel = {
     // Get hotel data
     const hotel = await this.findById(id);
     if (!hotel) return null;
+
+    // Get amenities from hotel_amenities join table
+    const [amenitiesRows] = await pool.execute(`
+      SELECT a.amenity_name, a.amenity_category, a.icon
+      FROM hotel_amenities ha
+      JOIN amenities a ON ha.amenity_id = a.amenity_id
+      WHERE ha.hotel_id = ?
+    `, [hotel.hotel_id]);
+    
+    const amenitiesList = amenitiesRows.map(row => row.amenity_name);
 
     // Get reviews and images from MongoDB
     try {
@@ -338,11 +354,8 @@ const HotelModel = {
 
       // Get additional image from MongoDB if available
       const imageDoc = await imagesCollection.findOne({ listing_id: listingIdInt });
-      const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
-      const images = imageDoc?.picture_url ? [imageDoc.picture_url, ...hotelImages] : hotelImages;
-
-      // Get amenities from JSON column
-      const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
+      const images = imageDoc?.picture_url ? [imageDoc.picture_url] : [];
+      if (hotel.picture_url) images.push(hotel.picture_url);
 
       return {
         ...hotel,
@@ -352,12 +365,10 @@ const HotelModel = {
       };
     } catch (error) {
       console.error('Error fetching hotel details:', error);
-      const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
-      const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
       return {
         ...hotel,
         reviews: [],
-        images: hotelImages,
+        images: hotel.picture_url ? [hotel.picture_url] : [],
         amenities: amenitiesList
       };
     }

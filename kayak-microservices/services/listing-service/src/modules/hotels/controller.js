@@ -3,7 +3,8 @@
  */
 
 const HotelModel = require('./model');
-const cache = require('../../cache/redis');
+const cache = require('../../cache/redisHotels');
+const cacheMetrics = require('../../cache/metrics');
 const crypto = require('crypto');
 
 class HotelController {
@@ -45,8 +46,11 @@ class HotelController {
         .digest('hex')}`;
 
       // Check cache first
+      const startTime = Date.now();
       const cachedResult = await cache.get(cacheKey);
       if (cachedResult) {
+        const responseTime = Date.now() - startTime;
+        cacheMetrics.recordHit('hotels', responseTime);
         return res.json({
           ...cachedResult,
           cached: true
@@ -55,6 +59,8 @@ class HotelController {
 
       // Perform search
       const result = await HotelModel.search(searchParams);
+      const responseTime = Date.now() - startTime;
+      cacheMetrics.recordMiss('hotels', responseTime);
 
       // Cache results for 10 minutes
       await cache.set(cacheKey, result, 600);

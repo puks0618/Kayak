@@ -1,30 +1,71 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { ChevronLeft, CreditCard, DollarSign, User, Mail, Phone, MapPin, Car, Calendar } from 'lucide-react';
-import { bookingService } from '../services/api';
+import { bookingService, billingService } from '../services/api';
+import { addUserBooking } from '../utils/userStorage';
+import {
+  setSelectedCar,
+  setRentalDetails,
+  updateDriverInfo,
+  updatePaymentInfo,
+  calculatePricing,
+  createCarBooking,
+  setValidationErrors,
+  clearFieldError
+} from '../store/slices/carBookingSlice';
 
 export default function CarBooking() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { car, pickupDate, dropoffDate, pickupTime, dropoffTime, pickupLocation, days, totalPrice } = location.state || {};
+  const dispatch = useDispatch();
+  
+  // Get Redux state
+  const {
+    selectedCar,
+    pickupDate: reduxPickupDate,
+    dropoffDate: reduxDropoffDate,
+    pickupTime: reduxPickupTime,
+    dropoffTime: reduxDropoffTime,
+    pickupLocation: reduxPickupLocation,
+    days,
+    driverInfo,
+    paymentInfo,
+    pricing,
+    isProcessing,
+    bookingError,
+    validationErrors,
+    confirmedBooking,
+    bookingId
+  } = useSelector(state => state.carBooking);
+  // Get current user from auth state
+  const user = useSelector(state => state.auth.user);
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    zipCode: '',
-    licenseNumber: '',
-    paymentType: 'credit',
-    cardNumber: '',
-    cardName: '',
-    expiryDate: '',
-    cvv: ''
-  });
+  // Fallback: Initialize from location state if Redux state is empty
+  // This provides backward compatibility if user navigates directly to this page
+  useEffect(() => {
+    const locationState = location.state;
+    if (locationState?.car && !selectedCar) {
+      dispatch(setSelectedCar(locationState.car));
+      dispatch(setRentalDetails({
+        pickupDate: locationState.pickupDate,
+        dropoffDate: locationState.dropoffDate,
+        pickupTime: locationState.pickupTime || '10:00',
+        dropoffTime: locationState.dropoffTime || '10:00',
+        pickupLocation: locationState.pickupLocation
+      }));
+      dispatch(calculatePricing());
+    }
+  }, [location.state, selectedCar, dispatch]);
 
-  const [errors, setErrors] = useState({});
+  // Use Redux state as primary source
+  const car = selectedCar;
+  const pickupDate = reduxPickupDate;
+  const dropoffDate = reduxDropoffDate;
+  const pickupTime = reduxPickupTime;
+  const dropoffTime = reduxDropoffTime;
+  const pickupLocation = reduxPickupLocation;
+  const totalPrice = pricing.totalPrice;
 
   if (!car) {
     return (
@@ -42,47 +83,108 @@ export default function CarBooking() {
     );
   }
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+  const handleDriverInfoChange = (field, value) => {
+    dispatch(updateDriverInfo({ [field]: value }));
+    if (validationErrors[field]) {
+      dispatch(clearFieldError(field));
     }
+  };
+
+  const handlePaymentChange = (field, value) => {
+    dispatch(updatePaymentInfo({ [field]: value }));
+    if (validationErrors[`payment_${field}`]) {
+      dispatch(clearFieldError(`payment_${field}`));
+    }
+  };
+
+  // Validation helpers
+  const validateZipCode = (zip) => {
+    const zipPattern = /^(\d{2}|\d{5})(-\d{4})?$/;
+    return zipPattern.test(zip);
+  };
+
+  const validatePhone = (phone) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length === 10;
+  };
+
+  const validateState = (state) => {
+    const states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 
+                    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 
+                    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 
+                    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 
+                    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
+    return states.includes(state.toUpperCase());
+  };
+
+  const validateLicenseNumber = (license) => {
+    const licensePattern = /^[A-Za-z0-9]{8,15}$/;
+    return licensePattern.test(license);
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!formData.address.trim()) newErrors.address = 'Address is required';
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.zipCode.trim()) newErrors.zipCode = 'Zip code is required';
-    if (!formData.licenseNumber.trim()) newErrors.licenseNumber = 'Driver license number is required';
+    if (!driverInfo.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!driverInfo.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!driverInfo.email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(driverInfo.email)) newErrors.email = 'Email is invalid';
     
-    if (formData.paymentType !== 'paypal') {
-      if (!formData.cardNumber.trim()) newErrors.cardNumber = 'Card number is required';
-      if (!formData.cardName.trim()) newErrors.cardName = 'Cardholder name is required';
-      if (!formData.expiryDate.trim()) newErrors.expiryDate = 'Expiry date is required';
-      if (!formData.cvv.trim()) newErrors.cvv = 'CVV is required';
+    // Phone validation
+    if (!driverInfo.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!validatePhone(driverInfo.phone)) {
+      newErrors.phone = 'Phone must be 10 digits';
+    }
+    
+    if (!driverInfo.address.trim()) newErrors.address = 'Address is required';
+    if (!driverInfo.city.trim()) newErrors.city = 'City is required';
+    
+    // State validation
+    if (!driverInfo.state.trim()) {
+      newErrors.state = 'State is required';
+    } else if (!validateState(driverInfo.state)) {
+      newErrors.state = 'Invalid state code. Please use 2-letter US state code (e.g., CA, NY)';
+    }
+    
+    // Zip code validation
+    if (!driverInfo.zipCode.trim()) {
+      newErrors.zipCode = 'Zip code is required';
+    } else if (!validateZipCode(driverInfo.zipCode)) {
+      newErrors.zipCode = 'Enter valid zip code (e.g., 12, 95123, 90086-1929)';
+    }
+    
+    // License validation
+    if (!driverInfo.licenseNumber.trim()) {
+      newErrors.licenseNumber = 'Driver license number is required';
+    } else if (!validateLicenseNumber(driverInfo.licenseNumber)) {
+      newErrors.licenseNumber = 'License must be 8-15 alphanumeric characters';
+    }
+    
+    if (paymentInfo.method !== 'paypal') {
+      if (!paymentInfo.cardNumber.trim()) newErrors.payment_cardNumber = 'Card number is required';
+      if (!paymentInfo.cardName.trim()) newErrors.payment_cardName = 'Cardholder name is required';
+      if (!paymentInfo.expiryDate.trim()) newErrors.payment_expiryDate = 'Expiry date is required';
+      if (!paymentInfo.cvv.trim()) newErrors.payment_cvv = 'CVV is required';
     }
 
-    setErrors(newErrors);
+    dispatch(setValidationErrors(newErrors));
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      const bookingId = 'CR' + Date.now();
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      const generatedBookingId = 'CR' + Date.now();
       
-      // Create booking object for localStorage
+      // Create booking object
       const booking = {
-        id: bookingId,
+        id: generatedBookingId,
         type: 'car',
         car: car,
         pickupDate: pickupDate,
@@ -92,75 +194,129 @@ export default function CarBooking() {
         pickupLocation: pickupLocation,
         days: days,
         totalPrice: totalPrice,
-        paymentType: formData.paymentType,
-        driverInfo: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          zipCode: formData.zipCode,
-          licenseNumber: formData.licenseNumber
-        },
+        paymentType: paymentInfo.method,
+        driverInfo: driverInfo,
         bookingDate: new Date().toISOString(),
         status: 'confirmed'
       };
 
-      try {
-        // Send to backend API
-        const backendBooking = {
-          listing_id: car.id || `car-${Date.now()}`,
-          listing_type: 'car',
-          travel_date: pickupDate,
-          total_amount: totalPrice,
-          payment_details: {
-            method: formData.paymentType,
-            cardNumber: formData.cardNumber ? formData.cardNumber.slice(-4) : null
+      // Send to backend API
+      const backendBooking = {
+        user_id: user?.id,
+        listing_id: car.id || `car-${Date.now()}`,
+        listing_type: 'car',
+        travel_date: pickupDate,
+        total_amount: totalPrice,
+        payment_details: {
+          method: paymentInfo.method,
+          cardNumber: paymentInfo.cardNumber ? paymentInfo.cardNumber.slice(-4) : null
+        },
+        booking_details: {
+          car: {
+            id: car.id,
+            brand: car.brand,
+            model: car.model,
+            year: car.year,
+            type: car.type,
+            company_name: car.company_name,
+            daily_rental_price: car.daily_rental_price
           },
-          booking_details: {
+          pickupDate: pickupDate,
+          dropoffDate: dropoffDate,
+          pickupTime: pickupTime,
+          dropoffTime: dropoffTime,
+          pickupLocation: pickupLocation,
+          days: days,
+          driverInfo: driverInfo
+        }
+      };
+
+      console.log('📤 Sending car booking to backend:', backendBooking);
+      const response = await bookingService.create(backendBooking, { headers: { 'x-user-id': user?.id } });
+      console.log('✅ Backend booking response:', response);
+
+      const finalBookingId = response.booking_id || generatedBookingId;
+      booking.id = finalBookingId;
+
+      // Save to localStorage for compatibility
+      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+      existingBookings.push(booking);
+      localStorage.setItem('bookings', JSON.stringify(existingBookings));
+
+      // Create billing record
+      // Map payment method to billing service format
+      const paymentMethodMap = {
+        'credit': 'CREDIT_CARD',
+        'debit': 'DEBIT_CARD',
+        'paypal': 'PAYPAL',
+        'other': 'OTHER'
+      };
+      
+      const billingData = {
+        userId: user?.id || user?.user_id || 'guest',
+        bookingType: 'CAR',
+        bookingId: finalBookingId,
+        totalAmount: parseFloat(totalPrice),
+        paymentMethod: paymentMethodMap[paymentInfo.method] || 'CREDIT_CARD',
+        transactionStatus: 'PAID',
+        invoiceDetails: {
+          customer_name: `${driverInfo.firstName} ${driverInfo.lastName}`,
+          customer_email: driverInfo.email,
+          item_description: `${days} day${days !== 1 ? 's' : ''} rental: ${car.brand} ${car.model}`,
+          currency: 'USD',
+          metadata: {
             car: {
-              id: car.id,
               brand: car.brand,
               model: car.model,
               year: car.year,
-              type: car.type,
-              company_name: car.company_name,
-              daily_rental_price: car.daily_rental_price
+              type: car.type
             },
-            pickupDate: pickupDate,
-            dropoffDate: dropoffDate,
-            pickupTime: pickupTime,
-            dropoffTime: dropoffTime,
-            pickupLocation: pickupLocation,
-            days: days,
-            driverInfo: booking.driverInfo
+            pickupDate,
+            dropoffDate,
+            pickupLocation,
+            days
           }
-        };
+        }
+      };
 
-        console.log('📤 Sending car booking to backend:', backendBooking);
-        const response = await bookingService.create(backendBooking);
-        console.log('✅ Backend booking response:', response);
+      console.log('📤 Creating billing record:', billingData);
+      const billingResponse = await billingService.create(billingData);
+      console.log('✅ Billing record created:', billingResponse);
 
-        // Update booking ID from backend response
-        booking.id = response.booking_id || bookingId;
+      // Update Redux state with confirmed booking
+      const confirmedBookingData = {
+        booking_id: finalBookingId,
+        id: finalBookingId,
+        type: 'car',
+        ...booking,
+        billing_id: billingResponse.data.billing_id,
+        status: 'confirmed',
+        paymentStatus: 'paid'
+      };
 
-        // Save to localStorage for local tracking
-        const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-        existingBookings.push(booking);
-        localStorage.setItem('bookings', JSON.stringify(existingBookings));
+      // Dispatch action to save confirmed booking in Redux
+      dispatch(createCarBooking.fulfilled(confirmedBookingData));
 
-        // Redirect to car-specific success page with booking details
-        navigate('/booking/car/success', { state: { booking, type: 'car' } });
-      } catch (error) {
-        console.error('❌ Car booking creation failed:', error);
-        alert('Failed to save booking. Please try again.');
+      // Save to user-specific localStorage for My Trips
+      const userId = user?.id || user?.user_id;
+      if (userId) {
+        console.log('💾 Saving car booking to localStorage:', { userId, bookingId: finalBookingId });
+        addUserBooking(userId, confirmedBookingData);
+      } else {
+        console.warn('⚠️ No user ID found, cannot save to localStorage');
       }
+
+      // Navigate to success page with booking data as backup (dispatch may not complete before navigation)
+      navigate('/booking/success', { state: { booking: confirmedBookingData, type: 'car' } });
+      
+    } catch (error) {
+      console.error('❌ Car booking creation failed:', error);
+      alert('Failed to complete booking. Please try again.');
     }
   };
 
   const getPaymentIcon = () => {
-    switch (formData.paymentType) {
+    switch (paymentInfo.method) {
       case 'credit':
       case 'debit':
         return <CreditCard className="w-5 h-5" />;
@@ -208,14 +364,14 @@ export default function CarBooking() {
                     <input
                       type="text"
                       name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
+                      value={driverInfo.firstName}
+                      onChange={(e) => handleDriverInfoChange('firstName', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.firstName ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.firstName ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="John"
                     />
-                    {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
+                    {validationErrors.firstName && <p className="text-red-500 text-sm mt-1">{validationErrors.firstName}</p>}
                   </div>
 
                   <div>
@@ -225,14 +381,14 @@ export default function CarBooking() {
                     <input
                       type="text"
                       name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
+                      value={driverInfo.lastName}
+                      onChange={(e) => handleDriverInfoChange('lastName', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.lastName ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.lastName ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="Doe"
                     />
-                    {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
+                    {validationErrors.lastName && <p className="text-red-500 text-sm mt-1">{validationErrors.lastName}</p>}
                   </div>
 
                   <div>
@@ -242,14 +398,14 @@ export default function CarBooking() {
                     <input
                       type="email"
                       name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
+                      value={driverInfo.email}
+                      onChange={(e) => handleDriverInfoChange('email', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.email ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.email ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="john.doe@example.com"
                     />
-                    {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                    {validationErrors.email && <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>}
                   </div>
 
                   <div>
@@ -259,14 +415,14 @@ export default function CarBooking() {
                     <input
                       type="tel"
                       name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
+                      value={driverInfo.phone}
+                      onChange={(e) => handleDriverInfoChange('phone', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.phone ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.phone ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="+1 (555) 123-4567"
                     />
-                    {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                    {validationErrors.phone && <p className="text-red-500 text-sm mt-1">{validationErrors.phone}</p>}
                   </div>
 
                   <div className="md:col-span-2">
@@ -276,14 +432,14 @@ export default function CarBooking() {
                     <input
                       type="text"
                       name="licenseNumber"
-                      value={formData.licenseNumber}
-                      onChange={handleInputChange}
+                      value={driverInfo.licenseNumber}
+                      onChange={(e) => handleDriverInfoChange('licenseNumber', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.licenseNumber ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.licenseNumber ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="D1234567890"
                     />
-                    {errors.licenseNumber && <p className="text-red-500 text-sm mt-1">{errors.licenseNumber}</p>}
+                    {validationErrors.licenseNumber && <p className="text-red-500 text-sm mt-1">{validationErrors.licenseNumber}</p>}
                   </div>
 
                   <div className="md:col-span-2">
@@ -293,14 +449,14 @@ export default function CarBooking() {
                     <input
                       type="text"
                       name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
+                      value={driverInfo.address}
+                      onChange={(e) => handleDriverInfoChange('address', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.address ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.address ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="123 Main St"
                     />
-                    {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+                    {validationErrors.address && <p className="text-red-500 text-sm mt-1">{validationErrors.address}</p>}
                   </div>
 
                   <div>
@@ -310,14 +466,32 @@ export default function CarBooking() {
                     <input
                       type="text"
                       name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
+                      value={driverInfo.city}
+                      onChange={(e) => handleDriverInfoChange('city', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.city ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.city ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="New York"
                     />
-                    {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                    {validationErrors.city && <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 dark:text-white">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={driverInfo.state || ''}
+                      onChange={(e) => handleDriverInfoChange('state', e.target.value.toUpperCase())}
+                      maxLength={2}
+                      className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
+                        validationErrors.state ? 'border-red-500' : 'dark:border-gray-600'
+                      }`}
+                      placeholder="NY"
+                    />
+                    {validationErrors.state && <p className="text-red-500 text-sm mt-1">{validationErrors.state}</p>}
                   </div>
 
                   <div>
@@ -327,14 +501,14 @@ export default function CarBooking() {
                     <input
                       type="text"
                       name="zipCode"
-                      value={formData.zipCode}
-                      onChange={handleInputChange}
+                      value={driverInfo.zipCode}
+                      onChange={(e) => handleDriverInfoChange('zipCode', e.target.value)}
                       className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                        errors.zipCode ? 'border-red-500' : 'dark:border-gray-600'
+                        validationErrors.zipCode ? 'border-red-500' : 'dark:border-gray-600'
                       }`}
                       placeholder="10001"
                     />
-                    {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode}</p>}
+                    {validationErrors.zipCode && <p className="text-red-500 text-sm mt-1">{validationErrors.zipCode}</p>}
                   </div>
                 </div>
               </div>
@@ -352,8 +526,8 @@ export default function CarBooking() {
                   </label>
                   <select
                     name="paymentType"
-                    value={formData.paymentType}
-                    onChange={handleInputChange}
+                    value={paymentInfo.method}
+                    onChange={(e) => handlePaymentChange('method', e.target.value)}
                     className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   >
                     <option value="credit">Credit Card</option>
@@ -362,7 +536,7 @@ export default function CarBooking() {
                   </select>
                 </div>
 
-                {formData.paymentType !== 'paypal' ? (
+                {paymentInfo.method !== 'paypal' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium mb-2 dark:text-white">
@@ -371,15 +545,15 @@ export default function CarBooking() {
                       <input
                         type="text"
                         name="cardNumber"
-                        value={formData.cardNumber}
-                        onChange={handleInputChange}
+                        value={paymentInfo.cardNumber}
+                        onChange={(e) => handlePaymentChange('cardNumber', e.target.value)}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          errors.cardNumber ? 'border-red-500' : 'dark:border-gray-600'
+                          validationErrors.payment_cardNumber ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="1234 5678 9012 3456"
                         maxLength="19"
                       />
-                      {errors.cardNumber && <p className="text-red-500 text-sm mt-1">{errors.cardNumber}</p>}
+                      {validationErrors.payment_cardNumber && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_cardNumber}</p>}
                     </div>
 
                     <div className="md:col-span-2">
@@ -389,14 +563,14 @@ export default function CarBooking() {
                       <input
                         type="text"
                         name="cardName"
-                        value={formData.cardName}
-                        onChange={handleInputChange}
+                        value={paymentInfo.cardName}
+                        onChange={(e) => handlePaymentChange('cardName', e.target.value)}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          errors.cardName ? 'border-red-500' : 'dark:border-gray-600'
+                          validationErrors.payment_cardName ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="John Doe"
                       />
-                      {errors.cardName && <p className="text-red-500 text-sm mt-1">{errors.cardName}</p>}
+                      {validationErrors.payment_cardName && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_cardName}</p>}
                     </div>
 
                     <div>
@@ -406,15 +580,15 @@ export default function CarBooking() {
                       <input
                         type="text"
                         name="expiryDate"
-                        value={formData.expiryDate}
-                        onChange={handleInputChange}
+                        value={paymentInfo.expiryDate}
+                        onChange={(e) => handlePaymentChange('expiryDate', e.target.value)}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          errors.expiryDate ? 'border-red-500' : 'dark:border-gray-600'
+                          validationErrors.payment_expiryDate ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="MM/YY"
                         maxLength="5"
                       />
-                      {errors.expiryDate && <p className="text-red-500 text-sm mt-1">{errors.expiryDate}</p>}
+                      {validationErrors.payment_expiryDate && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_expiryDate}</p>}
                     </div>
 
                     <div>
@@ -424,15 +598,15 @@ export default function CarBooking() {
                       <input
                         type="text"
                         name="cvv"
-                        value={formData.cvv}
-                        onChange={handleInputChange}
+                        value={paymentInfo.cvv}
+                        onChange={(e) => handlePaymentChange('cvv', e.target.value)}
                         className={`w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:text-white ${
-                          errors.cvv ? 'border-red-500' : 'dark:border-gray-600'
+                          validationErrors.payment_cvv ? 'border-red-500' : 'dark:border-gray-600'
                         }`}
                         placeholder="123"
                         maxLength="4"
                       />
-                      {errors.cvv && <p className="text-red-500 text-sm mt-1">{errors.cvv}</p>}
+                      {validationErrors.payment_cvv && <p className="text-red-500 text-sm mt-1">{validationErrors.payment_cvv}</p>}
                     </div>
                   </div>
                 ) : (
@@ -446,10 +620,16 @@ export default function CarBooking() {
 
               <button
                 type="submit"
-                className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-4 rounded-md font-bold text-lg mt-6"
+                disabled={isProcessing}
+                className="w-full bg-[#FF690F] hover:bg-[#d6570c] text-white py-4 rounded-md font-bold text-lg mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Confirm and Pay ${totalPrice}
+                {isProcessing ? 'Processing...' : `Confirm and Pay $${totalPrice}`}
               </button>
+              {bookingError && (
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-800 dark:text-red-200">{bookingError}</p>
+                </div>
+              )}
             </form>
           </div>
 
@@ -506,17 +686,23 @@ export default function CarBooking() {
               <div className="border-t dark:border-gray-700 pt-4 mt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
-                    ${car.price_per_day} × {days} day{days !== 1 ? 's' : ''}
+                    ${car.price_per_day || 0} × {days} day{days !== 1 ? 's' : ''}
                   </span>
-                  <span className="dark:text-white">${(car.price_per_day * days).toFixed(2)}</span>
+                  <span className="dark:text-white">${(pricing.basePrice || 0).toFixed(2)}</span>
                 </div>
+                {pricing.additionalServices > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Additional Services</span>
+                    <span className="dark:text-white">${(pricing.additionalServices || 0).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Taxes & Fees</span>
-                  <span className="dark:text-white">${(car.price_per_day * days * 0.15).toFixed(2)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Service fee</span>
+                  <span className="dark:text-white">${(pricing.taxesAndFees || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t dark:border-gray-700 pt-2 mt-2">
-                  <span className="dark:text-white">Total</span>
-                  <span className="text-[#FF690F]">${totalPrice}</span>
+                  <span className="dark:text-white">Total Paid</span>
+                  <span className="text-[#FF690F]">${(pricing.totalPrice || 0).toFixed(2)}</span>
                 </div>
               </div>
 

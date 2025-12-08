@@ -28,7 +28,60 @@ app.get('/health', (req, res) => {
 
 // ===== ROLE-BASED PROTECTED ROUTES =====
 
-// Owner routes - require owner role
+// Owner dashboard routes (bookings, stats) - route to owner-service
+app.use(
+  '/api/owner/bookings',
+  authenticate,
+  isOwner,
+  createProxyMiddleware({
+    target: 'http://owner-service:3008',
+    changeOrigin: true,
+    pathRewrite: { '^/api': '' }, // Remove /api prefix
+    onProxyReq: (proxyReq, req) => {
+      proxyReq.setHeader('X-Trace-ID', req.id);
+      if (req.user) {
+        proxyReq.setHeader('X-User-ID', req.user.userId || req.user.id || '');
+        proxyReq.setHeader('X-User-Email', req.user.email || '');
+        proxyReq.setHeader('X-User-Role', req.user.role || '');
+      }
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error for /api/owner/bookings:', err.message);
+      res.status(502).json({
+        error: 'Bad Gateway',
+        message: 'Owner service temporarily unavailable'
+      });
+    }
+  })
+);
+
+app.use(
+  '/api/owner/stats',
+  authenticate,
+  isOwner,
+  createProxyMiddleware({
+    target: 'http://owner-service:3008',
+    changeOrigin: true,
+    pathRewrite: { '^/api': '' }, // Remove /api prefix
+    onProxyReq: (proxyReq, req) => {
+      proxyReq.setHeader('X-Trace-ID', req.id);
+      if (req.user) {
+        proxyReq.setHeader('X-User-ID', req.user.userId || req.user.id || '');
+        proxyReq.setHeader('X-User-Email', req.user.email || '');
+        proxyReq.setHeader('X-User-Role', req.user.role || '');
+      }
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error for /api/owner/stats:', err.message);
+      res.status(502).json({
+        error: 'Bad Gateway',
+        message: 'Owner service temporarily unavailable'
+      });
+    }
+  })
+);
+
+// Owner routes for listings (hotels/cars) - route to listing-service
 app.use(
   '/api/owner',
   authenticate,
@@ -39,9 +92,9 @@ app.use(
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);
       if (req.user) {
-        proxyReq.setHeader('X-User-ID', req.user.id);
-        proxyReq.setHeader('X-User-Email', req.user.email);
-        proxyReq.setHeader('X-User-Role', req.user.role);
+        proxyReq.setHeader('X-User-ID', req.user.userId || req.user.id || '');
+        proxyReq.setHeader('X-User-Email', req.user.email || '');
+        proxyReq.setHeader('X-User-Role', req.user.role || '');
       }
     },
     onError: (err, req, res) => {
@@ -65,9 +118,9 @@ app.use(
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);
       if (req.user) {
-        proxyReq.setHeader('X-User-ID', req.user.id);
-        proxyReq.setHeader('X-User-Email', req.user.email);
-        proxyReq.setHeader('X-User-Role', req.user.role);
+        proxyReq.setHeader('X-User-ID', req.user.userId || req.user.id || '');
+        proxyReq.setHeader('X-User-Email', req.user.email || '');
+        proxyReq.setHeader('X-User-Role', req.user.role || '');
       }
     },
     onError: (err, req, res) => {
@@ -91,9 +144,9 @@ app.use(
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);
       if (req.user) {
-        proxyReq.setHeader('X-User-ID', req.user.id);
-        proxyReq.setHeader('X-User-Email', req.user.email);
-        proxyReq.setHeader('X-User-Role', req.user.role);
+        proxyReq.setHeader('X-User-ID', req.user.userId || req.user.id || '');
+        proxyReq.setHeader('X-User-Email', req.user.email || '');
+        proxyReq.setHeader('X-User-Role', req.user.role || '');
       }
     },
     onError: (err, req, res) => {
@@ -114,13 +167,13 @@ app.use(
   createProxyMiddleware({
     target: 'http://user-service:3002',
     changeOrigin: true,
-    pathRewrite: (path) => path.replace('/api', ''),
+    // Don't rewrite path - user-service expects /api/users
     onProxyReq: (proxyReq, req) => {
       proxyReq.setHeader('X-Trace-ID', req.id);
       if (req.user) {
-        proxyReq.setHeader('X-User-ID', req.user.id);
-        proxyReq.setHeader('X-User-Email', req.user.email);
-        proxyReq.setHeader('X-User-Role', req.user.role);
+        proxyReq.setHeader('X-User-ID', req.user.userId || req.user.id || '');
+        proxyReq.setHeader('X-User-Email', req.user.email || '');
+        proxyReq.setHeader('X-User-Role', req.user.role || '');
       }
     },
     onError: (err, req, res) => {

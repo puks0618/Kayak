@@ -115,8 +115,10 @@ const HotelModel = {
     let db = null;
     try {
       db = await initMongo();
+      console.log('MongoDB connected for search enrichment');
     } catch (error) {
-      console.error('MongoDB connection error:', error);
+      console.error('MongoDB connection error in search:', error);
+      db = null;
     }
 
     // Multiple cities search (search in city and address)
@@ -131,10 +133,11 @@ const HotelModel = {
       });
     }
 
-    // Guest capacity - using accommodates field
+    // Guest capacity - using num_rooms field (assuming 2 guests per room)
     if (guests) {
-      query += ' AND h.accommodates >= ?';
-      params.push(guests);
+      const roomsNeeded = Math.ceil(guests / 2);
+      query += ' AND h.num_rooms >= ?';
+      params.push(roomsNeeded);
     }
 
     // Price range
@@ -193,7 +196,7 @@ const HotelModel = {
     const [rows] = await pool.query(query, params);
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(DISTINCT h.hotel_id) as total FROM hotels h WHERE 1=1';
+    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE 1=1';
     const countParams = [];
     
     if (cities.length > 0) {
@@ -207,8 +210,9 @@ const HotelModel = {
       });
     }
     if (guests) {
-      countQuery += ' AND h.accommodates >= ?';
-      countParams.push(guests);
+      const roomsNeeded = Math.ceil(guests / 2);
+      countQuery += ' AND h.num_rooms >= ?';
+      countParams.push(roomsNeeded);
     }
     if (priceMin) {
       countQuery += ' AND h.price_per_night >= ?';
@@ -231,26 +235,30 @@ const HotelModel = {
     const total = countResult[0].total;
 
     // Enrich hotels with review data and images from MongoDB
+    console.log(`Starting enrichment for ${rows.length} hotels`);
     const enrichedHotels = await Promise.all(rows.map(async (hotel) => {
       try {
-        // Fetch amenities from join table
+        console.log(`Enriching hotel: ${hotel.name} (${hotel.id})`);
+        // Fetch amenities from join table (simplified schema)
         const [amenitiesRows] = await pool.execute(`
-          SELECT a.amenity_name
-          FROM hotel_amenities ha
-          JOIN amenities a ON ha.amenity_id = a.amenity_id
-          WHERE ha.hotel_id = ?
-        `, [hotel.hotel_id]);
-        const amenitiesList = amenitiesRows.map(row => row.amenity_name);
+          SELECT amenity
+          FROM hotel_amenities
+          WHERE hotel_id = ?
+        `, [hotel.id]);
+        const amenitiesList = amenitiesRows.map(row => row.amenity);
+        // Fallback to JSON amenities if join table is empty
+        const finalAmenities = amenitiesList.length > 0 ? amenitiesList : (hotel.amenities || []);
         
         // Get images from JSON column
         const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
         
         if (!db) {
+          console.log(`MongoDB not available for hotel ${hotel.id}, skipping review enrichment`);
           return { 
             ...hotel, 
             review_count: 0, 
             recent_reviews: [],
-            amenities: amenitiesList,
+            amenities: finalAmenities,
             images: hotelImages
           };
         }
@@ -260,18 +268,21 @@ const HotelModel = {
         
         // Convert listing_id to integer for MongoDB query (it's stored as string in MySQL)
         const listingIdInt = parseInt(hotel.listing_id);
-        if (isNaN(listingIdInt)) {
+        console.log(`Hotel ${hotel.name}: listing_id=${hotel.listing_id}, parsed=${listingIdInt}`);
+        if (isNaN(listingIdInt) || !listingIdInt) {
+          console.log(`Skipping reviews for hotel ${hotel.id} - invalid listing_id`);
           return { 
             ...hotel, 
             review_count: 0, 
             recent_reviews: [],
-            amenities: amenitiesList,
+            amenities: finalAmenities,
             images: hotelImages
           };
         }
         
         // Get review count
         const reviewCount = await reviewsCollection.countDocuments({ listing_id: listingIdInt });
+        console.log(`Hotel ${hotel.name}: found ${reviewCount} reviews`);
         
         // Get recent reviews
         const recentReviews = await reviewsCollection
@@ -289,18 +300,18 @@ const HotelModel = {
           ...hotel,
           review_count: reviewCount,
           recent_reviews: recentReviews,
-          amenities: amenitiesList,
+          amenities: finalAmenities,
           images
         };
       } catch (error) {
         console.error(`Error enriching hotel ${hotel.id} with reviews:`, error);
-        const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
+        const fallbackAmenities = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
         const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
         return { 
           ...hotel, 
           review_count: 0, 
           recent_reviews: [],
-          amenities: amenitiesList,
+          amenities: fallbackAmenities,
           images: hotelImages
         };
       }
@@ -318,7 +329,7 @@ const HotelModel = {
   },
 
   async findById(id) {
-    const [rows] = await pool.execute('SELECT * FROM hotels WHERE hotel_id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM hotels WHERE id = ?', [id]);
     return rows[0];
   },
 
@@ -327,15 +338,14 @@ const HotelModel = {
     const hotel = await this.findById(id);
     if (!hotel) return null;
 
-    // Get amenities from hotel_amenities join table
+    // Get amenities from hotel_amenities table (simplified schema)
     const [amenitiesRows] = await pool.execute(`
-      SELECT a.amenity_name, a.amenity_category, a.icon
-      FROM hotel_amenities ha
-      JOIN amenities a ON ha.amenity_id = a.amenity_id
-      WHERE ha.hotel_id = ?
-    `, [hotel.hotel_id]);
+      SELECT amenity
+      FROM hotel_amenities
+      WHERE hotel_id = ?
+    `, [hotel.id]);
     
-    const amenitiesList = amenitiesRows.map(row => row.amenity_name);
+    const amenitiesList = amenitiesRows.map(row => row.amenity);
 
     // Get reviews and images from MongoDB
     try {
@@ -354,22 +364,29 @@ const HotelModel = {
 
       // Get additional image from MongoDB if available
       const imageDoc = await imagesCollection.findOne({ listing_id: listingIdInt });
-      const images = imageDoc?.picture_url ? [imageDoc.picture_url] : [];
-      if (hotel.picture_url) images.push(hotel.picture_url);
+      // Handle images
+      const images = hotel.images || [];
+      if (imageDoc?.picture_url && !images.includes(imageDoc.picture_url)) {
+        images.push(imageDoc.picture_url);
+      }
+
+      // Use amenities from join table if available, otherwise use JSON field from hotel
+      const finalAmenities = amenitiesList.length > 0 ? amenitiesList : (hotel.amenities || []);
 
       return {
         ...hotel,
         reviews: reviews || [],
         images,
-        amenities: amenitiesList
+        amenities: finalAmenities
       };
     } catch (error) {
       console.error('Error fetching hotel details:', error);
+      // Fallback to hotel data with JSON amenities
       return {
         ...hotel,
         reviews: [],
-        images: hotel.picture_url ? [hotel.picture_url] : [],
-        amenities: amenitiesList
+        images: hotel.images || [],
+        amenities: hotel.amenities || []
       };
     }
   },
@@ -391,7 +408,7 @@ const HotelModel = {
 
     if (fields.length === 0) return null;
 
-    const query = `UPDATE hotels SET ${fields} WHERE hotel_id = ?`;
+    const query = `UPDATE hotels SET ${fields} WHERE id = ?`;
     await pool.execute(query, values);
 
     return this.findById(id);
@@ -404,8 +421,8 @@ const HotelModel = {
 
   async updateStatus(id, status) {
     const query = status === 'active'
-      ? 'UPDATE hotels SET has_availability = 1 WHERE hotel_id = ?'
-      : 'UPDATE hotels SET has_availability = 0 WHERE hotel_id = ?';
+      ? 'UPDATE hotels SET has_availability = 1 WHERE id = ?'
+      : 'UPDATE hotels SET has_availability = 0 WHERE id = ?';
     
     await pool.execute(query, [id]);
     return this.findById(id);

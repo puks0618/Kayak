@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Calendar,
+  MessageSquare,
   Share2,
   Heart,
   Loader2,
@@ -319,11 +321,61 @@ export default function HotelDetail() {
             )}
 
             {/* Reviews Section */}
-            <ReviewSection 
-              type="hotels" 
-              listingId={hotel.hotel_id} 
-              listingName={hotel.hotel_name}
-            />
+            {hotel.reviews && hotel.reviews.length > 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mt-8">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold dark:text-white mb-4">Reviews</h2>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                      <span className="text-xl font-semibold dark:text-white">
+                        {hotel.star_rating || hotel.rating}
+                      </span>
+                    </div>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      ({hotel.reviews.length} {hotel.reviews.length === 1 ? 'review' : 'reviews'})
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  {hotel.reviews.map((review, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                            <Users className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold dark:text-white">{review.reviewer_name}</h4>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(review.date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {review.comments}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mt-8 text-center">
+                <MessageSquare className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">No reviews yet</p>
+              </div>
+            )}
             </div>
           </div>
 

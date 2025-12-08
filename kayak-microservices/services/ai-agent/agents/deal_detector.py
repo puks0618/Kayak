@@ -9,6 +9,10 @@ import random
 
 class DealDetector:
     def __init__(self):
+        """Initialize Deal Detector"""
+        pass
+    
+    def calculate_deal_score(self, listing):
         """Calculate deal score for a listing"""
         # TODO: Calculate score based on price history, seasonality, etc.
         return 0.0
@@ -17,4 +21,9 @@ class DealDetector:
         """Check if listing qualifies as a deal"""
         score = self.calculate_deal_score(listing)
         return score >= threshold
+    
+    async def run_mock_detection(self):
+        """Run mock deal detection for testing"""
+        # Return empty list for now - can be enhanced later
+        return []
 

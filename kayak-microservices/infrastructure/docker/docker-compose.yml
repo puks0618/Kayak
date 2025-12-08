@@ -317,8 +317,13 @@ services:
       - "3008:3008"
     environment:
       - PORT=3008
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Somalwar1!
       - KAFKA_BROKERS=kafka:29092
     depends_on:
+      - mysql
       - kafka
     networks:
       - kayak-network

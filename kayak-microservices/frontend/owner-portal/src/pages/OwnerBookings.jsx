@@ -15,7 +15,8 @@ const OwnerBookings = () => {
   const fetchMyBookings = async () => {
     try {
       const response = await ownerAPI.getBookings();
-      setBookings(response.data || []);
+      // Owner service returns { success: true, bookings: [...] }
+      setBookings(response.data?.bookings || response.bookings || response.data || []);
     } catch (err) {
       console.error('Error fetching bookings:', err);
       setError('Failed to load bookings');

@@ -15,7 +15,7 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ 
-  groupId: 'owner-bookings-group',
+  groupId: 'owner-bookings-group-v2',  // Changed group ID to read from beginning
   sessionTimeout: 30000,
   heartbeatInterval: 3000
 });
@@ -33,10 +33,10 @@ const connect = async () => {
       await consumer.connect();
       await consumer.subscribe({ 
         topics: ['hotel-bookings', 'car-bookings'], 
-        fromBeginning: false 
+        fromBeginning: true  // Changed to true to read all messages
       });
       isConnected = true;
-      console.log('✅ Owner Kafka Consumer connected to hotel-bookings and car-bookings topics');
+      console.log('✅ Owner Kafka Consumer connected to hotel-bookings and car-bookings topics (reading from beginning)');
     } catch (error) {
       console.error('❌ Owner Kafka Consumer connection failed:', error.message);
       throw error;

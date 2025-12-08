@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from services.openai_service import parse_intent, refine_search
 from models.database import get_session, Conversation
 from datetime import datetime
+import re
 
 class IntentParser:
     """Parse user intents using OpenAI GPT-4"""
@@ -42,8 +43,8 @@ class IntentParser:
             origin = entities.get('origin', '')
             destination = entities.get('destination', '')
             
-            # Check if origin/destination contains invalid patterns (e.g., whole sentences)
-            invalid_patterns = ['FIND', 'FLIGHT', 'FROM', 'NEED', 'TRIP', 'PLEASE', 'PLAN', 'VACATION']
+            # Check if origin/destination contains invalid patterns (e.g., whole sentences or common verbs)
+            invalid_patterns = ['FIND', 'FLIGHT', 'FLIGHTS', 'FROM', 'NEED', 'TRIP', 'TRIPS', 'PLEASE', 'PLAN', 'VACATION', 'SHOW', 'GET', 'SEARCH', 'LOOKING', 'WANT', 'CHEAP']
             
             # Check if extracted destination is NOT in the original message (hallucination)
             message_upper = message.upper()
@@ -56,14 +57,34 @@ class IntentParser:
                     'NRT': ['TOKYO', 'NRT'],
                     'LHR': ['LONDON', 'LHR'],
                     'JFK': ['NEW YORK', 'NYC', 'JFK', 'NY'],
+                    'SFO': ['SAN FRANCISCO', 'SF', 'SFO'],
+                    'LAX': ['LOS ANGELES', 'LA', 'LAX'],
                 }
                 dest_variants = city_variants.get(destination, [destination])
                 dest_in_message = any(variant in message_upper for variant in dest_variants)
             
-            if any(pattern in origin.upper() for pattern in invalid_patterns) or \
-               any(pattern in destination.upper() for pattern in invalid_patterns) or \
-               len(origin) > 20 or len(destination) > 20 or \
-               (destination and not dest_in_message):
+            # Check if origin is invalid
+            origin_invalid = origin and (any(pattern in origin.upper() for pattern in invalid_patterns) or len(origin) > 20)
+            dest_invalid = destination and (any(pattern in destination.upper() for pattern in invalid_patterns) or len(destination) > 20)
+            
+            # Additional check: if query says "flights to X" or "to X", destination should be present, not origin
+            message_lower = message.lower()
+            has_to_pattern = bool(re.search(r'\bto\s+[a-z]', message_lower))
+            has_from_pattern = bool(re.search(r'\bfrom\s+[a-z]', message_lower))
+            has_in_pattern = bool(re.search(r'\bin\s+[a-z]', message_lower))
+            has_hotel_keyword = any(word in message_lower for word in ['hotel', 'stay', 'accommodation', 'room'])
+            
+            # If query has "to X" but not "from X", model often confuses and extracts origin incorrectly
+            # Always use fallback parser for destination-only queries
+            # Also use fallback for hotel queries with "in X" pattern
+            if has_to_pattern and not has_from_pattern:
+                print(f"⚠️ Query has 'to X' without 'from', using fallback parser for reliability (ollama result: origin={origin}, dest={destination})")
+                result = self._fallback_parse(message)
+            elif has_hotel_keyword and has_in_pattern:
+                print(f"⚠️ Hotel query with 'in X' pattern, using fallback parser for reliability (ollama result: origin={origin}, dest={destination})")
+                result = self._fallback_parse(message)
+            
+            elif origin_invalid or dest_invalid or (destination and not dest_in_message):
                 print(f"⚠️ Ollama returned invalid/hallucinated entities (origin={origin}, dest={destination}), using fallback")
                 result = self._fallback_parse(message)
         except Exception as e:
@@ -109,35 +130,61 @@ class IntentParser:
             'las vegas': 'LAS', 'vegas': 'LAS', 'atlanta': 'ATL'
         }
         
-        # Extract origin and destination: "from X to Y" or "X to Y"
-        from_to_pattern = r'from\s+([a-z\s]+?)\s+to\s+([a-z\s]+?)(?:\s+on|\s+for|\s+december|\s+dec|\.|$)'
-        match = re.search(from_to_pattern, message_lower)
-        
-        # If no match, try without "from" - match "X to Y" pattern
-        if not match:
-            simple_pattern = r'([a-z]{2,})\s+to\s+([a-z\s]+?)(?:\s+on|\s+for|\s+december|\s+dec|\s+in|\.|$)'
-            match = re.search(simple_pattern, message_lower)
-        
-        if match:
-            origin = match.group(1).strip()
-            destination = match.group(2).strip()
-            entities['origin'] = city_map.get(origin.lower(), origin.upper())
-            entities['destination'] = city_map.get(destination.lower(), destination.upper())
-        else:
-            # Try to extract destination from common patterns
-            # "flights to CITY", "trip to CITY", "going to CITY"
-            dest_patterns = [
-                r'(?:flight|fly|trip|go|going|travel)\s+to\s+([a-z\s]+?)(?:\s|$|for|on|,)',
-                r'(?:in|visit|visiting)\s+([a-z\s]+?)(?:\s|$|for|on|,)',
-            ]
-            for pattern in dest_patterns:
-                dest_match = re.search(pattern, message_lower)
-                if dest_match:
-                    dest = dest_match.group(1).strip()
-                    # Check if it's a known city
-                    if dest in city_map or len(dest) == 3:
-                        entities['destination'] = city_map.get(dest, dest.upper())
+        # First, try to extract destination from "flights/trip/go to CITY" patterns
+        # This should run BEFORE trying to match "X to Y" patterns
+        # Use greedy match to capture multi-word cities like "san francisco"
+        dest_only_patterns = [
+            r'(?:flight|fly|trip|go|going|travel|find|show|get)(?:s)?\s+(?:me\s+)?(?:cheap\s+)?(?:flight|flights)?\s*to\s+([a-z\s]+)',
+            r'(?:hotel|stay|accommodation|room)(?:s)?\s+(?:me\s+)?(?:cheap\s+)?(?:in|at)\s+([a-z\s]+)',
+            r'(?:in|visit|visiting)\s+([a-z\s]+?)(?:$|for|on|,|\?|!)',
+        ]
+        destination_found = False
+        for pattern in dest_only_patterns:
+            dest_match = re.search(pattern, message_lower)
+            if dest_match:
+                dest = dest_match.group(1).strip()
+                # Try to match longest city name first (e.g., "san francisco" before "san")
+                # Sort by length descending
+                matched_city = None
+                for city_name in sorted(city_map.keys(), key=len, reverse=True):
+                    if dest.startswith(city_name):
+                        matched_city = city_name
                         break
+                
+                if matched_city:
+                    entities['destination'] = city_map[matched_city]
+                    destination_found = True
+                    break
+                elif len(dest) == 3 and dest.isalpha():
+                    entities['destination'] = dest.upper()
+                    destination_found = True
+                    break
+        
+        # Only try "from X to Y" pattern if we haven't found destination yet
+        if not destination_found:
+            # Extract origin and destination: "from X to Y"
+            from_to_pattern = r'from\s+([a-z\s]+?)\s+to\s+([a-z\s]+?)(?:\s+on|\s+for|\s+december|\s+dec|\.|$|\?)'
+            match = re.search(from_to_pattern, message_lower)
+            
+            # If no "from X to Y", try "CITY1 to CITY2" (but NOT "flights to CITY")
+            if not match:
+                # Make sure we don't match words like "flights", "trip" as origin
+                simple_pattern = r'(?<!\w)([a-z]{3,}(?:\s+[a-z]+)?)\s+to\s+([a-z\s]+?)(?:\s+on|\s+for|\s+december|\s+dec|\s+in|\.|$|\?)'
+                match = re.search(simple_pattern, message_lower)
+                if match:
+                    origin_candidate = match.group(1).strip()
+                    # Reject if it's a common verb/noun
+                    invalid_origins = ['flight', 'flights', 'trip', 'trips', 'go', 'travel', 'find', 'show', 'get']
+                    if origin_candidate not in invalid_origins:
+                        origin = origin_candidate
+                        destination = match.group(2).strip()
+                        entities['origin'] = city_map.get(origin.lower(), origin.upper())
+                        entities['destination'] = city_map.get(destination.lower(), destination.upper())
+            elif match:
+                origin = match.group(1).strip()
+                destination = match.group(2).strip()
+                entities['origin'] = city_map.get(origin.lower(), origin.upper())
+                entities['destination'] = city_map.get(destination.lower(), destination.upper())
         
         # Extract dates: "december 23rd to 25th", "dec 23 to dec 25"
         # First try to find date range pattern

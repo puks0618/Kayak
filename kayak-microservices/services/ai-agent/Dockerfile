@@ -13,6 +13,7 @@ COPY models ./models
 COPY services ./services
 COPY workers ./workers
 COPY knowledge ./knowledge
+COPY scripts ./scripts
 COPY main.py .
 
 # Expose port

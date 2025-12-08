@@ -333,6 +333,75 @@ class AICache:
                 logger.error(f"Error warming up cache for '{question}': {e}")
         
         logger.info(f"Cache warm-up complete. Cached {len(common_policies)} policy answers")
+    
+    # ==================== CONVERSATION CONTEXT ====================
+    
+    def set_conversation_context(self, user_id: str, context: Dict[str, Any], ttl: int = 1800):
+        """
+        Store conversation context for a user (30 min default)
+        
+        Args:
+            user_id: User identifier
+            context: Conversation context dict (last_intent, last_entities, last_results, etc.)
+            ttl: Time to live in seconds (default 30 minutes)
+        """
+        if not self.redis_client:
+            return False
+        
+        try:
+            key = f"ai:context:{user_id}"
+            self.redis_client.setex(
+                key,
+                timedelta(seconds=ttl),
+                json.dumps(context)
+            )
+            CacheMetrics.record_set()
+            logger.info(f"Stored conversation context for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error storing conversation context: {e}")
+            CacheMetrics.record_error()
+            return False
+    
+    def get_conversation_context(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve conversation context for a user
+        
+        Args:
+            user_id: User identifier
+        
+        Returns:
+            Context dict or None if not found
+        """
+        if not self.redis_client:
+            return None
+        
+        try:
+            key = f"ai:context:{user_id}"
+            cached = self.redis_client.get(key)
+            if cached:
+                CacheMetrics.record_hit()
+                return json.loads(cached)
+            CacheMetrics.record_miss()
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving conversation context: {e}")
+            CacheMetrics.record_error()
+            return None
+    
+    def clear_conversation_context(self, user_id: str):
+        """Clear conversation context for a user"""
+        if not self.redis_client:
+            return False
+        
+        try:
+            key = f"ai:context:{user_id}"
+            self.redis_client.delete(key)
+            logger.info(f"Cleared conversation context for user {user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing conversation context: {e}")
+            return False
 
 
 # Global cache instance

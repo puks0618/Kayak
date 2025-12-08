@@ -19,6 +19,7 @@ class Deal(SQLModel, table=True):
     description: str
     price: float
     original_price: float
+    avg_30d_price: Optional[float] = Field(default=None)  # 30-day rolling average for deal detection
     discount_percent: float
     score: int  # 0-100
     tags: str  # JSON array as string
@@ -119,7 +120,7 @@ class Conversation(SQLModel, table=True):
     __tablename__ = "conversations"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: str = Field(index=True)
+    user_id: Optional[str] = Field(default="anonymous", index=True)
     message: str
     response: str
     intent: str

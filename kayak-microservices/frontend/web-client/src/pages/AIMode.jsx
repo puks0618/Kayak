@@ -148,7 +148,7 @@ export default function AIMode() {
     try {
       setLoadingDeals(true);
       console.log('🔄 Fetching deals from:', `${AI_AGENT_URL}/api/ai/deals`);
-      let url = `${AI_AGENT_URL}/api/ai/deals?limit=12`;
+      let url = `${AI_AGENT_URL}/api/ai/deals?limit=6&deal_type=all`;
       
       // Add filters if available
       if (origin) url += `&origin=${encodeURIComponent(origin)}`;
@@ -161,21 +161,21 @@ export default function AIMode() {
       // If filtered search returns few results and bidirectional, try reverse
       if (bidirectional && response.data.length < 3 && destination) {
         console.log('🔄 Trying reverse direction for more deals...');
-        const reverseUrl = `${AI_AGENT_URL}/api/ai/deals?limit=12&origin=${encodeURIComponent(destination)}`;
+        const reverseUrl = `${AI_AGENT_URL}/api/ai/deals?limit=6&deal_type=all&origin=${encodeURIComponent(destination)}`;
         const reverseResponse = await axios.get(reverseUrl);
         const combined = [...response.data, ...reverseResponse.data];
         const unique = combined.filter((deal, index, self) => 
           index === self.findIndex(d => d.deal_id === deal.deal_id)
         );
         console.log('✅ Combined deals:', unique.length);
-        setDeals(unique.slice(0, 6));
+        setDeals(unique);
       } else if (response.data.length === 0 && (origin || destination)) {
         console.log('⚠️ No filtered deals found, fetching all deals...');
-        const fallbackResponse = await axios.get(`${AI_AGENT_URL}/api/ai/deals?limit=6`);
+        const fallbackResponse = await axios.get(`${AI_AGENT_URL}/api/ai/deals?limit=6&deal_type=all`);
         console.log('✅ Fallback deals:', fallbackResponse.data.length);
         setDeals(fallbackResponse.data);
       } else {
-        setDeals(response.data.slice(0, 6));
+        setDeals(response.data);
       }
     } catch (error) {
       console.error('❌ Error fetching deals:', error);
@@ -211,6 +211,8 @@ export default function AIMode() {
           role: m.role,
           content: m.content
         }))
+      }, {
+        timeout: 60000  // 60 second timeout for LLM responses
       });
 
       const assistantMessage = {
@@ -228,10 +230,14 @@ export default function AIMode() {
       const entities = response.data.entities || {};
       const intent = response.data.intent || '';
       
-      // Expand NY airports to include all (JFK, LGA, EWR)
+      // For hotel searches, show hotels from that city + general deals
+      const isHotelSearch = intent.includes('hotel') || intent.includes('stay') || intent.includes('accommodation');
+      
+      // For flight searches, expand NY airports to show all NY deals
+      // For hotel searches, keep the specific destination to filter by city
       const NY_AIRPORTS = ['JFK', 'LGA', 'EWR'];
-      const expandedDestination = entities.destination && NY_AIRPORTS.includes(entities.destination) 
-        ? null  // Don't filter by specific airport, just fetch all deals
+      const expandedDestination = !isHotelSearch && entities.destination && NY_AIRPORTS.includes(entities.destination) 
+        ? null  // Don't filter by specific airport for flights, just fetch all deals
         : entities.destination;
       
       // Fetch deals for search, find, or plan_trip intents with entities
@@ -239,16 +245,27 @@ export default function AIMode() {
         setSearchContext({ origin: entities.origin, destination: entities.destination });
         // Use bidirectional search for trip planning to find flights both TO and FROM destination
         const isTripPlanning = intent.includes('plan_trip');
-        fetchDeals(entities.origin, expandedDestination, isTripPlanning);
+        // For hotel searches, only filter by destination (not origin)
+        fetchDeals(isHotelSearch ? null : entities.origin, expandedDestination, isTripPlanning);
       } else if (intent.includes('search') || intent.includes('find') || intent.includes('plan_trip')) {
         // Fallback: refresh deals without filters
         fetchDeals();
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      let errorText = "I'm sorry, I'm having trouble connecting right now. ";
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorText = "⏰ The AI is taking longer than usual to respond. This is normal for complex queries. Please try again or simplify your question.";
+      } else if (error.response) {
+        errorText = `Error ${error.response.status}: ${error.response.data?.detail || 'Something went wrong'}`;
+      } else if (error.request) {
+        errorText = "Cannot reach the AI service. Please make sure the AI Agent is running on port 8000.";
+      }
+      
       const errorMessage = {
         role: 'assistant',
-        content: "I'm sorry, I'm having trouble connecting right now. Please make sure the AI Agent service is running on port 8000.",
+        content: errorText,
         timestamp: new Date(),
         error: true
       };
@@ -262,6 +279,40 @@ export default function AIMode() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  };
+
+  const handleExplainDeal = async (deal) => {
+    try {
+      const response = await axios.get(
+        `${AI_AGENT_URL}/api/ai/deals/${deal.deal_id}/explain`
+      );
+      
+      if (response.data) {
+        const explanationMessage = {
+          role: 'assistant',
+          content: `**${deal.title}**\n\n${response.data.explanation}`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, explanationMessage]);
+        
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          const chatContainer = document.querySelector('.overflow-y-auto');
+          if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error explaining deal:', error);
+      const errorMessage = {
+        role: 'assistant',
+        content: 'Sorry, I couldn\'t explain that deal right now. Please try again.',
+        error: true,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     }
   };
 
@@ -454,6 +505,31 @@ export default function AIMode() {
                       <Send className="w-5 h-5" />
                     </button>
                   </div>
+                  
+                  {/* Quick Refinement Buttons */}
+                  {messages.length > 1 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <button
+                        onClick={() => setInput('Show me cheaper options')}
+                        className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-full transition-colors"
+                      >
+                        💰 Cheaper options
+                      </button>
+                      <button
+                        onClick={() => setInput('Show direct flights only')}
+                        className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-full transition-colors"
+                      >
+                        ✈️ Direct flights
+                      </button>
+                      <button
+                        onClick={() => setInput('Show morning flights')}
+                        className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-full transition-colors"
+                      >
+                        🌅 Morning flights
+                      </button>
+                    </div>
+                  )}
+                  
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     Try: "Find cheap flights to Miami" or "Plan a weekend trip under $800"
                   </p>
@@ -525,14 +601,23 @@ export default function AIMode() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-2 flex items-center justify-between">
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExplainDeal(deal);
+                            }}
+                            className="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-3 py-1 rounded-full font-semibold transition-colors flex items-center gap-1 flex-1"
+                          >
+                            💡 Explain
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleTrackDeal(deal);
                             }}
                             disabled={trackingDeal === deal.deal_id || watches.some(w => w.deal_id === deal.deal_id)}
-                            className="text-xs bg-[#FF690F] hover:bg-[#ff5500] text-white px-3 py-1 rounded-full font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="text-xs bg-[#FF690F] hover:bg-[#ff5500] text-white px-3 py-1 rounded-full font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-started flex items-center gap-1 flex-1"
                           >
                             {trackingDeal === deal.deal_id ? (
                               <>

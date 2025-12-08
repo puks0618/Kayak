@@ -45,8 +45,8 @@ export default function StaysSearch() {
   
   // Client-side filtering to ensure only searched location properties are shown
   const filteredResults = (results || []).filter(hotel => {
-    // Skip if hotel data is invalid - hotel_id is the correct field name
-    if (!hotel || !hotel.hotel_id) {
+    // Skip if hotel data is invalid - id is the correct field name
+    if (!hotel || !hotel.id) {
       return false;
     }
     
@@ -489,9 +489,9 @@ export default function StaysSearch() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredResults.map((hotel, index) => (
                     <HotelCard 
-                      key={hotel.hotel_id} 
+                      key={hotel.id} 
                       hotel={hotel} 
-                      onClick={() => handleHotelClick(hotel.hotel_id)} 
+                      onClick={() => handleHotelClick(hotel.id)} 
                     />
                   ))}
                 </div>

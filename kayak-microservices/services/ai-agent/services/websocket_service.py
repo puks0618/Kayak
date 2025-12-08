@@ -210,10 +210,14 @@ class WebSocketService:
     async def send_price_alert(self, user_id: str, watch_id: str, deal: dict, alert_data: dict):
         """Send price watch alert to user"""
         message = {
-            "type": "price_alert",
+            "type": "watch_alert",
             "watch_id": watch_id,
-            "deal": deal,
-            "alert": alert_data
+            "deal_id": deal.get("deal_id"),
+            "deal_title": deal.get("title"),
+            "price": deal.get("price"),
+            "message": f"💰 {deal.get('title')} is now ${deal.get('price'):.0f}!\n\n" + "\n".join([f"• {r}" for r in alert_data.get("reasons", [])]),
+            "reasons": alert_data.get("reasons", []),
+            "timestamp": alert_data.get("timestamp") or str(datetime.utcnow())
         }
         self._message_stats["price_alerts"] += 1
         return await self.send_to_user(user_id, message)

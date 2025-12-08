@@ -108,9 +108,11 @@ Rules:
 - origin/destination should be ONLY airport codes (3 letters), never city names or other words
 - budget must be the full numeric amount (e.g., 3000 not 3)
 - passengers/party_size should be extracted from "for X people"
-- CRITICAL: If NO destination is mentioned in the query, DO NOT include destination in entities
-- If query is just "plan a trip for $X" with NO city/destination, return empty entities except budget
-- IGNORE words like "plan", "trip", "find", "vacation" - they are NOT locations
+- CRITICAL: "flights to X" means X is the DESTINATION (where you're going), NOT the origin
+- CRITICAL: "flights from X to Y" means X is origin, Y is destination
+- CRITICAL: If query only says "to X" or "going to X", that's DESTINATION only, leave origin empty
+- IGNORE words like "plan", "trip", "find", "vacation", "cheap", "show" - they are NOT locations
+- If NO destination is mentioned in the query, DO NOT include destination in entities
 - Return ONLY the JSON object, no other text"""
 
     messages = [{"role": "system", "content": system_prompt}]

@@ -12,6 +12,7 @@ import asyncio
 import uuid
 import json
 import logging
+import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +23,7 @@ from models.schemas import (
     DealSchema, UserQuery, ChatResponse, TripPlanRequest, TripPlanResponse,
     PriceWatchRequest, PriceWatchResponse, PolicyQuestion, PolicyAnswer
 )
-from models.database import init_db, get_session, Deal, PriceWatch
+from models.database import init_db, get_session, Deal, PriceWatch, UserPreference
 from models.db_utils import create_indexes, check_db_health, DBMetrics
 
 # Import services
@@ -201,22 +202,48 @@ async def get_deals(
             flights_query = flights_query.filter(Deal.score >= min_score)
             hotels_query = hotels_query.filter(Deal.score >= min_score)
         
-        # Get more than needed for filtering
-        flights = flights_query.order_by(Deal.score.desc()).limit(limit * 3).all()
-        hotels = hotels_query.order_by(Deal.score.desc()).limit(limit * 3).all()
+        # Get more than needed for filtering (fetch more to ensure we have matches after filtering)
+        flights = flights_query.order_by(Deal.score.desc()).limit(limit * 10).all()
+        hotels = hotels_query.order_by(Deal.score.desc()).limit(limit * 10).all()
+        
+        # Map airport codes to city names for hotel filtering
+        airport_to_city = {
+            'LAX': 'LOS ANGELES',
+            'SFO': 'SAN FRANCISCO',
+            'JFK': 'NEW YORK',
+            'LGA': 'NEW YORK',
+            'EWR': 'NEW YORK',
+            'ORD': 'CHICAGO',
+            'MIA': 'MIAMI',
+            'BOS': 'BOSTON',
+            'SEA': 'SEATTLE',
+            'DEN': 'DENVER',
+            'ATL': 'ATLANTA',
+            'LAS': 'LAS VEGAS'
+        }
         
         # Filter in Python by origin/destination
         if origin:
             flights = [f for f in flights if f.get_metadata().get('origin', '').upper() == origin.upper()]
         if destination:
             flights = [f for f in flights if f.get_metadata().get('destination', '').upper() == destination.upper()]
-            hotels = [h for h in hotels if destination.upper() in h.get_metadata().get('city', '').upper()]
+            # For hotels, search by city name (convert airport code if needed)
+            search_city = airport_to_city.get(destination.upper(), destination.upper())
+            hotels = [h for h in hotels if search_city in h.get_metadata().get('city', '').upper()]
         
-        # If we have origin/destination filters, prioritize flights over hotels
-        if origin or destination:
-            # Return more flights when filtering by location
+        # Determine split based on filters
+        if origin and destination:
+            # Both filters - prioritize flights
             flights = flights[:limit]
             hotels = hotels[:max(0, limit - len(flights))]
+        elif origin:
+            # Only origin filter - flights only make sense
+            flights = flights[:limit]
+            hotels = []
+        elif destination:
+            # Only destination filter - could be hotel search, show balanced mix
+            flights = flights[:limit // 2]
+            hotels = hotels[:limit // 2]
         else:
             # No filters - balanced mix
             flights = flights[:limit // 2]
@@ -293,11 +320,313 @@ async def get_deal(deal_id: str):
     session.close()
     return result
 
+@app.get("/api/ai/deals/{deal_id}/explain")
+async def explain_deal(deal_id: str):
+    """Generate AI explanation for why a deal is good"""
+    session = get_session()
+    deal = session.query(Deal).filter(Deal.deal_id == deal_id).first()
+    
+    if not deal:
+        session.close()
+        raise HTTPException(status_code=404, detail="Deal not found")
+    
+    # Check cache first
+    cache_key = f"explanation:{deal_id}"
+    cached_explanation = ai_cache.redis_client.get(cache_key) if ai_cache.redis_client else None
+    
+    if cached_explanation:
+        session.close()
+        return {"deal_id": deal_id, "explanation": cached_explanation}
+    
+    # Generate explanation
+    metadata = deal.get_metadata()
+    explanation_parts = []
+    
+    # Price comparison
+    if deal.discount_percent > 50:
+        explanation_parts.append(f"🔥 **Amazing {deal.discount_percent:.0f}% discount** - You're saving ${deal.original_price - deal.price:.0f}!")
+    elif deal.discount_percent > 30:
+        explanation_parts.append(f"💰 **Great {deal.discount_percent:.0f}% savings** - ${deal.original_price - deal.price:.0f} off!")
+    elif deal.discount_percent > 0:
+        explanation_parts.append(f"✨ **{deal.discount_percent:.0f}% discount** - Save ${deal.original_price - deal.price:.0f}")
+    
+    # Price vs 30-day average
+    price_vs_avg = metadata.get('price_vs_30d_avg', 0)
+    if price_vs_avg > 40:
+        explanation_parts.append(f"📊 **{price_vs_avg:.0f}% below 30-day average** - Best price in a month!")
+    elif price_vs_avg > 20:
+        explanation_parts.append(f"📉 **{price_vs_avg:.0f}% below recent average** - Good timing!")
+    elif price_vs_avg < -20:
+        explanation_parts.append(f"⚠️ Price is {abs(price_vs_avg):.0f}% above average - Consider waiting")
+    
+    # Deal-specific insights
+    if deal.type == 'flight':
+        stops = metadata.get('stops', 0)
+        if stops == 0:
+            explanation_parts.append("✈️ **Direct flight** - No layovers, fastest route")
+        elif stops == 1:
+            explanation_parts.append("🔄 **1 stop** - Good balance of price and travel time")
+        
+        seats = metadata.get('seats_left')
+        if seats and seats < 5:
+            explanation_parts.append(f"⏰ **Only {seats} seats left** - Book soon!")
+        elif seats and seats < 10:
+            explanation_parts.append(f"⚡ **{seats} seats remaining** - Popular flight")
+    
+    elif deal.type == 'hotel':
+        room_type = metadata.get('room_type', '')
+        if 'entire home' in room_type.lower():
+            explanation_parts.append("🏠 **Entire home/apt** - Complete privacy and space")
+        elif 'private room' in room_type.lower():
+            explanation_parts.append("🚪 **Private room** - Your own space with shared amenities")
+        
+        amenities = metadata.get('amenities', [])
+        if amenities:
+            top_amenities = amenities[:3]
+            explanation_parts.append(f"🎯 **Amenities:** {', '.join(top_amenities)}")
+        
+        availability = metadata.get('availability_365')
+        if availability and availability < 30:
+            explanation_parts.append(f"⏳ **High demand** - Only available {availability} days/year")
+    
+    # Score explanation
+    if deal.score >= 90:
+        explanation_parts.append(f"⭐ **Score: {deal.score}/100** - Excellent value, highly recommended!")
+    elif deal.score >= 70:
+        explanation_parts.append(f"👍 **Score: {deal.score}/100** - Good deal, solid choice")
+    
+    explanation = "\n\n".join(explanation_parts)
+    
+    # Cache the explanation
+    if ai_cache.redis_client:
+        ai_cache.redis_client.setex(cache_key, 3600, explanation)  # Cache for 1 hour
+    
+    session.close()
+    return {"deal_id": deal_id, "explanation": explanation, "score": deal.score, "discount_percent": deal.discount_percent}
+
+# ==================== USER PREFERENCES ENDPOINTS ====================
+
+@app.get("/api/ai/preferences/{user_id}")
+async def get_user_preferences(user_id: str):
+    """Get user preferences"""
+    session = get_session()
+    
+    # Try to find existing preferences
+    pref = session.query(UserPreference).filter(UserPreference.user_id == user_id).first()
+    
+    if not pref:
+        # Return default preferences
+        session.close()
+        return {
+            "user_id": user_id,
+            "preferences": {
+                "budget_max": None,
+                "preferred_airlines": [],
+                "preferred_hotel_types": [],
+                "direct_flights_only": False,
+                "time_preference": None,  # "morning", "afternoon", "evening"
+                "frequent_routes": [],
+                "favorite_destinations": [],
+                "travel_class": "economy"
+            },
+            "search_count": 0
+        }
+    
+    session.close()
+    return {
+        "user_id": pref.user_id,
+        "preferences": pref.get_preferences(),
+        "search_count": pref.search_count,
+        "updated_at": pref.updated_at.isoformat()
+    }
+
+@app.post("/api/ai/preferences/{user_id}")
+async def update_user_preferences(user_id: str, preferences: dict):
+    """Update user preferences"""
+    session = get_session()
+    
+    # Try to find existing preferences
+    pref = session.query(UserPreference).filter(UserPreference.user_id == user_id).first()
+    
+    if not pref:
+        # Create new preferences
+        pref = UserPreference(user_id=user_id)
+        session.add(pref)
+    
+    # Update preferences
+    pref.set_preferences(preferences)
+    pref.updated_at = datetime.utcnow()
+    
+    session.commit()
+    session.refresh(pref)
+    
+    result = {
+        "user_id": pref.user_id,
+        "preferences": pref.get_preferences(),
+        "search_count": pref.search_count,
+        "updated_at": pref.updated_at.isoformat()
+    }
+    
+    session.close()
+    return result
+
+@app.post("/api/ai/compare")
+async def compare_deals_endpoint(deal_ids: List[str]):
+    """Compare multiple deals side-by-side"""
+    if len(deal_ids) < 2:
+        raise HTTPException(status_code=400, detail="Need at least 2 deals to compare")
+    if len(deal_ids) > 5:
+        raise HTTPException(status_code=400, detail="Can only compare up to 5 deals at once")
+    
+    session = get_session()
+    deals_data = []
+    
+    for deal_id in deal_ids:
+        deal = session.query(Deal).filter(Deal.deal_id == deal_id).first()
+        if not deal:
+            continue
+        
+        metadata = deal.get_metadata()
+        deals_data.append({
+            "deal_id": deal.deal_id,
+            "title": deal.title,
+            "type": deal.type,
+            "price": deal.price,
+            "original_price": deal.original_price,
+            "discount_percent": deal.discount_percent,
+            "score": deal.score,
+            "metadata": metadata
+        })
+    
+    session.close()
+    
+    if len(deals_data) < 2:
+        raise HTTPException(status_code=404, detail="Could not find enough deals to compare")
+    
+    # Generate AI comparison
+    comparison = await compare_deals(deals_data)
+    
+    return {
+        "deals": deals_data,
+        "comparison": comparison,
+        "count": len(deals_data)
+    }
+
+# ==================== PREFERENCE LEARNING HELPERS ====================
+
+def learn_from_search(user_id: str, intent: str, entities: dict):
+    """Learn user preferences from their searches"""
+    session = get_session()
+    
+    # Get or create user preferences
+    pref = session.query(UserPreference).filter(UserPreference.user_id == user_id).first()
+    if not pref:
+        pref = UserPreference(user_id=user_id)
+        pref.set_preferences({
+            "budget_max": None,
+            "preferred_airlines": [],
+            "preferred_hotel_types": [],
+            "direct_flights_only": False,
+            "time_preference": None,
+            "frequent_routes": [],
+            "favorite_destinations": [],
+            "travel_class": "economy"
+        })
+        session.add(pref)
+    
+    prefs = pref.get_preferences()
+    pref.search_count += 1
+    
+    # Learn from budget patterns
+    if entities.get('budget'):
+        budget = entities['budget']
+        if not prefs.get('budget_max') or budget < prefs['budget_max']:
+            prefs['budget_max'] = budget
+    
+    # Learn frequent routes
+    if entities.get('origin') and entities.get('destination'):
+        route = f"{entities['origin']}-{entities['destination']}"
+        if 'frequent_routes' not in prefs:
+            prefs['frequent_routes'] = []
+        if route not in prefs['frequent_routes']:
+            prefs['frequent_routes'].append(route)
+        # Keep only top 10 routes
+        prefs['frequent_routes'] = prefs['frequent_routes'][-10:]
+    
+    # Learn favorite destinations
+    if entities.get('destination'):
+        dest = entities['destination']
+        if 'favorite_destinations' not in prefs:
+            prefs['favorite_destinations'] = []
+        if dest not in prefs['favorite_destinations']:
+            prefs['favorite_destinations'].append(dest)
+        # Keep only top 10 destinations
+        prefs['favorite_destinations'] = prefs['favorite_destinations'][-10:]
+    
+    pref.set_preferences(prefs)
+    pref.updated_at = datetime.utcnow()
+    session.commit()
+    session.close()
+
 # ==================== AI CONCIERGE ENDPOINTS ====================
 
 @app.post("/api/ai/chat", response_model=ChatResponse)
 async def chat(query: UserQuery):
     """Process natural language query with AI"""
+    
+    # Check for refinement queries (e.g., "show me cheaper options", "direct flights only")
+    message_lower = query.message.lower()
+    is_refinement = any(word in message_lower for word in [
+        'cheaper', 'more expensive', 'under', 'less than', 'direct', 'non-stop', 'nonstop',
+        'different', 'another', 'alternative', 'other options', 'better', 'worse',
+        'earlier', 'later', 'morning', 'evening', 'afternoon', 'night',
+        'longer stay', 'shorter stay', 'more days', 'fewer days'
+    ])
+    
+    # Check for date flexibility queries
+    is_flexible_dates = any(phrase in message_lower for phrase in [
+        'flexible', 'cheapest dates', 'best dates', 'any dates', 'when is cheapest',
+        'cheapest time', 'best time to fly', 'anytime in', 'any time in'
+    ])
+    
+    # Get conversation context if this is a refinement
+    conversation_context = None
+    if is_refinement:
+        conversation_context = ai_cache.get_conversation_context(query.user_id)
+        print(f"🔄 Refinement detected! Context: {conversation_context}")
+        
+        # Apply refinement logic if we have context
+        if conversation_context:
+            last_entities = conversation_context.get('last_entities', {})
+            
+            # Extract refinement constraints
+            if 'cheaper' in message_lower or 'under' in message_lower or 'less than' in message_lower:
+                # Extract budget if mentioned, otherwise reduce by 20%
+                budget_match = re.search(r'\$?(\d+)', query.message)
+                if budget_match:
+                    last_entities['budget'] = float(budget_match.group(1))
+                elif last_entities.get('budget'):
+                    last_entities['budget'] = last_entities['budget'] * 0.8
+                query.message = f"Find deals with budget ${last_entities.get('budget', 500):.0f}"
+            
+            elif 'direct' in message_lower or 'non-stop' in message_lower or 'nonstop' in message_lower:
+                last_entities['direct_only'] = True
+                query.message = "Show direct flights only"
+            
+            elif 'morning' in message_lower:
+                last_entities['time_preference'] = 'morning'
+            elif 'evening' in message_lower or 'night' in message_lower:
+                last_entities['time_preference'] = 'evening'
+            elif 'afternoon' in message_lower:
+                last_entities['time_preference'] = 'afternoon'
+            
+            # Preserve previous entities if not overridden
+            if last_entities.get('origin') and 'origin' not in query.message.lower():
+                query.message = f"from {last_entities['origin']} {query.message}"
+            if last_entities.get('destination') and 'destination' not in query.message.lower() and 'to' not in query.message.lower():
+                query.message = f"{query.message} to {last_entities['destination']}"
+            
+            print(f"🔄 Refined query: {query.message}")
     
     # City to airport code mapping
     CITY_TO_AIRPORT = {
@@ -357,6 +686,87 @@ async def chat(query: UserQuery):
     print(f"📍 Entities extracted: {entities}")
     print(f"✓ has_origin: {has_origin}, has_destination: {has_destination}, has_dates: {has_dates}, has_budget: {has_budget}")
     
+    # Detect multi-city trips (e.g., "JFK to Paris to London to JFK")
+    message_upper = query.message.upper()
+    is_multi_city = False
+    cities = []
+    
+    # Look for patterns with "to" between multiple cities/airports
+    parts = re.split(r'\s+TO\s+', message_upper)
+    if len(parts) >= 3:  # At least 3 cities (origin + 2 destinations)
+        is_multi_city = True
+        for part in parts:
+            # Extract city/airport code
+            words = part.strip().split()
+            # First try to find a 3-letter airport code
+            found = False
+            for word in words:
+                if len(word) == 3 and word.isalpha():
+                    cities.append(normalize_airport_code(word))
+                    found = True
+                    break
+            # If no 3-letter code found, try to map city name
+            if not found and words:
+                city_name = words[0] if words else part.strip()
+                airport_code = normalize_airport_code(city_name)
+                cities.append(airport_code)
+        print(f"🌍 Multi-city trip detected: {cities}")
+    
+    # Handle multi-city trips
+    if is_multi_city and len(cities) >= 3:
+        response_text = f"🌍 **Multi-City Trip: {' → '.join(cities)}**\n\n"
+        response_text += f"I found your {len(cities)}-city itinerary! Here's what I can do:\n\n"
+        
+        # Calculate legs
+        legs = []
+        total_estimated_cost = 0
+        for i in range(len(cities) - 1):
+            leg = f"{cities[i]} → {cities[i+1]}"
+            legs.append(leg)
+            # Estimate cost per leg (rough estimate)
+            total_estimated_cost += 400  # Average flight cost
+        
+        response_text += "✈️ **Flight Legs:**\n"
+        for i, leg in enumerate(legs, 1):
+            response_text += f"   {i}. {leg}\n"
+        
+        response_text += f"\n💰 **Estimated Total:** ~${total_estimated_cost}\n"
+        response_text += f"\n📊 **What's Next:**\n"
+        response_text += "• I'm searching for the best prices for each leg\n"
+        response_text += "• You can see individual flights in the sidebar\n"
+        response_text += "• Tell me your dates for exact pricing\n"
+        response_text += "• I'll help you find connections that work!\n"
+        
+        # Store the cities in entities for potential use
+        entities['cities'] = cities
+        entities['origin'] = cities[0]
+        entities['destination'] = cities[-1]
+        
+        return ChatResponse(
+            response=response_text,
+            intent=intent,
+            entities=entities,
+            confidence=confidence,
+            deals=[],
+            plans=[]
+        )
+    
+    # Handle flexible dates
+    if is_flexible_dates and has_destination:
+        response_text = f"📅 **Flexible Dates Search for {entities.get('destination')}**\n\n"
+        response_text += "Great! I'll find you the cheapest dates to travel.\n\n"
+        response_text += "💡 **Here's my strategy:**\n"
+        response_text += "• I'm checking prices across multiple weeks\n"
+        response_text += "• Looking for mid-week departures (usually cheaper)\n"
+        response_text += "• Avoiding peak travel times\n"
+        response_text += "• Finding deals with flexible stay durations\n\n"
+        response_text += "📊 **Check the sidebar** for the best deals I found!\n"
+        response_text += "💬 **Next:** Tell me specific dates once you decide, and I'll track them for you!"
+        
+        # Still fetch deals but don't filter by specific dates
+        entities.pop('start_date', None)
+        entities.pop('end_date', None)
+    
     # Generate response based on intent
     response_text = ""
     plans = None
@@ -364,6 +774,30 @@ async def chat(query: UserQuery):
     # Auto-upgrade to plan_trip if we have budget + destination (even if intent is just "search")
     if has_budget and has_destination and (intent == 'search' or intent == 'plan_trip'):
         intent = 'plan_trip'  # Upgrade the intent
+    
+    # Detect comparison requests
+    if any(phrase in message_lower for phrase in ['compare', 'comparison', 'which is better', 'vs', 'versus']):
+        # Check if comparing deals
+        if 'deal' in message_lower or 'flight' in message_lower or 'hotel' in message_lower:
+            response_text = "📊 **Deal Comparison**\n\n"
+            response_text += "To compare deals, I need you to:\n"
+            response_text += "1. Select 2-5 deals you're interested in\n"
+            response_text += "2. Click the 'Compare' button (coming soon!)\n"
+            response_text += "3. Or tell me: 'Compare deal ABC with deal XYZ'\n\n"
+            response_text += "💡 **I'll show you:**\n"
+            response_text += "• Side-by-side price comparison\n"
+            response_text += "• Key differences in features\n"
+            response_text += "• Which offers better value\n"
+            response_text += "• Personalized recommendations\n"
+            
+            return ChatResponse(
+                response=response_text,
+                intent='compare',
+                entities=entities,
+                confidence=0.9,
+                deals=[],
+                plans=[]
+            )
     
     # Detect policy questions even if intent was misclassified
     question_lower = query.message.lower()
@@ -374,6 +808,9 @@ async def chat(query: UserQuery):
     
     # If we have enough info for trip planning, perform the search (dates optional)
     if intent == 'plan_trip' and has_destination:
+        # Learn from this search
+        learn_from_search(query.user_id, intent, entities)
+        
         try:
             # Safely convert passengers/party_size to int
             passengers = entities.get('passengers') or entities.get('party_size', 1)
@@ -443,11 +880,39 @@ async def chat(query: UserQuery):
     
     elif intent == 'search_flights' or intent == 'search':
         if has_destination:
+            # Learn from this search
+            learn_from_search(query.user_id, intent, entities)
+            
             dest_name = entities.get('destination', 'your destination')
             # Fetch actual deals to show
             session = get_session()
-            deals_query = session.query(Deal).filter(Deal.active == True, Deal.type == 'flight')
-            top_deals = deals_query.order_by(Deal.score.desc()).limit(3).all()
+            
+            # Get all active flight deals and filter by destination in Python
+            all_flights = session.query(Deal).filter(Deal.active == True, Deal.type == 'flight').all()
+            
+            # Filter by destination (and optionally origin) in metadata
+            matching_flights = []
+            for deal in all_flights:
+                try:
+                    metadata = json.loads(deal.deal_metadata) if deal.deal_metadata else {}
+                    deal_dest = metadata.get('destination', '')
+                    deal_origin = metadata.get('origin', '')
+                    
+                    # Check if destination matches
+                    if deal_dest == entities.get('destination'):
+                        # If origin specified, also check origin
+                        if has_origin:
+                            if deal_origin == entities.get('origin'):
+                                matching_flights.append(deal)
+                        else:
+                            matching_flights.append(deal)
+                except json.JSONDecodeError:
+                    continue
+            
+            # Sort by score and get top 3
+            matching_flights.sort(key=lambda x: x.score, reverse=True)
+            top_deals = matching_flights[:3]
+            
             session.close()
             
             response_text = f"✈️ **Searching for flights to {dest_name}!**\n\n"
@@ -484,7 +949,73 @@ async def chat(query: UserQuery):
     
     elif intent == 'search_hotels':
         if has_destination:
-            response_text = f"Looking for hotels in {entities.get('destination')}! Check the 'Top Deals' sidebar for current hotel offers. Let me know your check-in/check-out dates for personalized results!"
+            # Learn from this search
+            learn_from_search(query.user_id, intent, entities)
+            
+            # Query database for hotel deals
+            session = get_session()
+            
+            dest = entities.get('destination', '').upper()
+            dest_name = dest
+            
+            # Map airport codes to city names for hotel search
+            airport_to_city = {
+                'LAX': 'LOS ANGELES',
+                'SFO': 'SAN FRANCISCO',
+                'JFK': 'NEW YORK',
+                'ORD': 'CHICAGO',
+                'MIA': 'MIAMI',
+                'BOS': 'BOSTON',
+                'SEA': 'SEATTLE',
+                'DEN': 'DENVER',
+                'ATL': 'ATLANTA',
+                'LAS': 'LAS VEGAS'
+            }
+            
+            # Use full city name if airport code provided
+            search_city = airport_to_city.get(dest, dest)
+            
+            # Query hotels
+            all_hotels = session.query(Deal).filter(Deal.type == 'hotel').all()
+            
+            # Filter by destination - check deal_metadata for city or destination
+            matching_hotels = []
+            for deal in all_hotels:
+                try:
+                    metadata = deal.get_metadata()
+                    city = metadata.get('city', '').upper()
+                    neighbourhood = metadata.get('neighbourhood', '').upper()
+                    
+                    # Match by city name or neighbourhood
+                    if search_city in city or dest in city or dest in neighbourhood:
+                        matching_hotels.append(deal)
+                except:
+                    continue
+            
+            # Sort by score and get top 3
+            matching_hotels.sort(key=lambda x: x.score, reverse=True)
+            top_deals = matching_hotels[:3]
+            
+            session.close()
+            
+            response_text = f"🏨 **Searching for hotels in {dest_name}!**\n\n"
+            
+            if top_deals:
+                response_text += "🔥 **Top Hotel Deals:**\n"
+                for i, deal in enumerate(top_deals[:3], 1):
+                    savings = deal.discount_percent
+                    response_text += f"{i}. {deal.title} - **${deal.price:.0f}/night** (Save {savings:.0f}%)\n"
+                response_text += "\n💡 **AI Features:**\n"
+                response_text += "• Click any deal for full details\n"
+                response_text += "• Ask 'explain this price' for insights\n"
+                response_text += "• Try 'track this deal' for alerts!\n"
+            else:
+                response_text += "I'm searching... Check the 'Top Deals' sidebar!\n"
+            
+            if not has_dates:
+                response_text += "\n📅 **Pro tip:** Tell me your check-in/check-out dates for better matches!"
+            else:
+                response_text += f"\n📅 Check-in: {entities.get('start_date')}"
         else:
             response_text = "I'd love to help you find the perfect hotel! Please tell me:\n\n" \
                            "• Which city?\n" \
@@ -555,7 +1086,6 @@ async def chat(query: UserQuery):
                 response_text = cached_answer
             else:
                 print(f"❌ Cache MISS for policy Q&A: {query.message[:50]}...")
-                from services.openai_service import answer_policy_question
                 answer = await answer_policy_question(query.message)
                 response_text = answer
                 # Cache the answer
@@ -596,6 +1126,18 @@ async def chat(query: UserQuery):
         response_text += "🔔 **Price Tracking** - 'Alert me when prices drop'\n"
         response_text += "❓ **Policy Q&A** - 'What's your cancellation policy?'\n\n"
         response_text += "💡 **Try:** 'from JFK to LAX on December 20th'"
+    
+    # Store conversation context for future refinements
+    if entities or plans:
+        context_to_store = {
+            'last_intent': intent,
+            'last_entities': entities,
+            'last_message': query.message,
+            'timestamp': datetime.now().isoformat()
+        }
+        if plans:
+            context_to_store['last_plans'] = plans
+        ai_cache.set_conversation_context(query.user_id, context_to_store)
     
     return ChatResponse(
         response=response_text,

@@ -131,10 +131,11 @@ const HotelModel = {
       });
     }
 
-    // Guest capacity - using accommodates field
+    // Guest capacity - using num_rooms field (assuming 2 guests per room)
     if (guests) {
-      query += ' AND h.accommodates >= ?';
-      params.push(guests);
+      const roomsNeeded = Math.ceil(guests / 2);
+      query += ' AND h.num_rooms >= ?';
+      params.push(roomsNeeded);
     }
 
     // Price range
@@ -193,7 +194,7 @@ const HotelModel = {
     const [rows] = await pool.query(query, params);
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(DISTINCT h.hotel_id) as total FROM hotels h WHERE 1=1';
+    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE 1=1';
     const countParams = [];
     
     if (cities.length > 0) {
@@ -207,8 +208,9 @@ const HotelModel = {
       });
     }
     if (guests) {
-      countQuery += ' AND h.accommodates >= ?';
-      countParams.push(guests);
+      const roomsNeeded = Math.ceil(guests / 2);
+      countQuery += ' AND h.num_rooms >= ?';
+      countParams.push(roomsNeeded);
     }
     if (priceMin) {
       countQuery += ' AND h.price_per_night >= ?';
@@ -239,7 +241,7 @@ const HotelModel = {
           FROM hotel_amenities ha
           JOIN amenities a ON ha.amenity_id = a.amenity_id
           WHERE ha.hotel_id = ?
-        `, [hotel.hotel_id]);
+        `, [hotel.id]);
         const amenitiesList = amenitiesRows.map(row => row.amenity_name);
         
         // Get images from JSON column
@@ -318,7 +320,7 @@ const HotelModel = {
   },
 
   async findById(id) {
-    const [rows] = await pool.execute('SELECT * FROM hotels WHERE hotel_id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM hotels WHERE id = ?', [id]);
     return rows[0];
   },
 
@@ -333,7 +335,7 @@ const HotelModel = {
       FROM hotel_amenities ha
       JOIN amenities a ON ha.amenity_id = a.amenity_id
       WHERE ha.hotel_id = ?
-    `, [hotel.hotel_id]);
+    `, [hotel.id]);
     
     const amenitiesList = amenitiesRows.map(row => row.amenity_name);
 
@@ -391,7 +393,7 @@ const HotelModel = {
 
     if (fields.length === 0) return null;
 
-    const query = `UPDATE hotels SET ${fields} WHERE hotel_id = ?`;
+    const query = `UPDATE hotels SET ${fields} WHERE id = ?`;
     await pool.execute(query, values);
 
     return this.findById(id);
@@ -404,8 +406,8 @@ const HotelModel = {
 
   async updateStatus(id, status) {
     const query = status === 'active'
-      ? 'UPDATE hotels SET has_availability = 1 WHERE hotel_id = ?'
-      : 'UPDATE hotels SET has_availability = 0 WHERE hotel_id = ?';
+      ? 'UPDATE hotels SET has_availability = 1 WHERE id = ?'
+      : 'UPDATE hotels SET has_availability = 0 WHERE id = ?';
     
     await pool.execute(query, [id]);
     return this.findById(id);

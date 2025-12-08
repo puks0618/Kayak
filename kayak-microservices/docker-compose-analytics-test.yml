@@ -1,0 +1,75 @@
+version: '3.8'
+
+# Simplified Docker Compose for Testing Analytics Feature
+# This runs only the necessary services for analytics testing
+
+services:
+  # MySQL Database (Required for analytics data)
+  mysql:
+    image: mysql:8.0
+    container_name: kayak-mysql-analytics
+    environment:
+      MYSQL_ROOT_PASSWORD: Somalwar1!
+      MYSQL_DATABASE: kayak
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_analytics_data:/var/lib/mysql
+      - ./infrastructure/databases/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - kayak-analytics-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pSomalwar1!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Admin Service (Backend for Analytics)
+  admin-service:
+    build:
+      context: ./services/admin-service
+      dockerfile: Dockerfile
+    container_name: kayak-admin-service-analytics
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Somalwar1!
+      - DB_NAME=kayak_users
+      - NODE_ENV=development
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - kayak-analytics-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3007/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Admin Portal (Frontend for Analytics)
+  admin-portal:
+    build:
+      context: ./frontend/admin-portal
+      dockerfile: Dockerfile
+    container_name: kayak-admin-portal-analytics
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:3007
+    depends_on:
+      - admin-service
+    networks:
+      - kayak-analytics-network
+
+volumes:
+  mysql_analytics_data:
+
+networks:
+  kayak-analytics-network:
+    driver: bridge
+

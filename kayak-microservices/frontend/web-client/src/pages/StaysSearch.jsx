@@ -36,8 +36,8 @@ export default function StaysSearch() {
   // Client-side filtering to ensure only searched location properties are shown
   const filteredResults = results.filter(hotel => {
     // Debug logging
-    if (!hotel.hotel_id) {
-      console.error('Hotel missing hotel_id:', hotel);
+    if (!hotel.id) {
+      console.error('Hotel missing id:', hotel);
     }
     
     // Filter by location - check if the hotel's city matches any of the searched cities
@@ -355,10 +355,9 @@ export default function StaysSearch() {
 function HotelCard({ hotel, onClick }) {
   // Debug: Log hotel data
   console.log('HotelCard received:', {
-    hotel_id: hotel.hotel_id,
     id: hotel.id,
-    name: hotel.hotel_name,
-    hasHotelId: !!hotel.hotel_id
+    name: hotel.name,
+    hasId: !!hotel.id
   });
   
   // Extract image URL from images array or use picture_url
@@ -424,7 +423,7 @@ function HotelCard({ hotel, onClick }) {
         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
           <span className="font-medium">{hotel.room_type}</span>
           <span className="text-gray-400">•</span>
-          <span>{hotel.accommodates} {hotel.accommodates === 1 ? 'guest' : 'guests'}</span>
+          <span>{hotel.num_rooms} {hotel.num_rooms === 1 ? 'room' : 'rooms'}</span>
         </div>
 
         {/* Amenities Preview */}

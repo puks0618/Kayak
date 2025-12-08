@@ -13,7 +13,7 @@ const routes = {
   '/api/users': {
     target: process.env.USER_SERVICE_URL || 'http://user-service:3002',
     changeOrigin: true,
-    stripApiPrefix: true, // User service expects /users, not /api/users
+    stripApiPrefix: false, // User service expects /api/users
     description: 'User management and profiles'
   },
   '/api/listings': {

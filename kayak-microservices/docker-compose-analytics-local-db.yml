@@ -1,0 +1,52 @@
+version: '3.8'
+
+# Simplified Docker Compose for Testing Analytics Feature
+# Uses your LOCAL MySQL database (no Docker MySQL)
+# This assumes MySQL is running locally on localhost:3306
+
+services:
+  # Admin Service (Backend for Analytics)
+  admin-service:
+    build:
+      context: ./services/admin-service
+      dockerfile: Dockerfile
+    container_name: kayak-admin-service-analytics
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - DB_HOST=host.docker.internal  # Points to host machine's MySQL
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=Somalwar1!
+      - DB_NAME=kayak_users
+      - NODE_ENV=development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Allows container to reach host
+    networks:
+      - kayak-analytics-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3007/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Admin Portal (Frontend for Analytics)
+  admin-portal:
+    build:
+      context: ./frontend/admin-portal
+      dockerfile: Dockerfile
+    container_name: kayak-admin-portal-analytics
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:3007
+    depends_on:
+      - admin-service
+    networks:
+      - kayak-analytics-network
+
+networks:
+  kayak-analytics-network:
+    driver: bridge
+

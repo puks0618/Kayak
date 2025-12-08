@@ -5,6 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const adminRoutes = require('./routes/admin.routes');
+const analyticsRoutes = require('./routes/analytics.routes');
 const flightConsumer = require('./kafka/consumer');
 
 const app = express();
@@ -21,6 +22,7 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/analytics', analyticsRoutes);
 
 // Flight Booking Analytics Routes
 app.get('/api/admin/flight-bookings', (req, res) => {

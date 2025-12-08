@@ -95,7 +95,7 @@ export default function HotelDetail() {
 
   const checkIfLiked = () => {
     const favorites = JSON.parse(localStorage.getItem('favorites') || '{"hotels": []}');
-    setIsLiked(favorites.hotels?.some(h => h.id === id) || false);
+    setIsLiked(favorites.hotels?.some(h => h.hotel_id === id || h.id === id) || false);
   };
 
   const toggleLike = () => {
@@ -108,7 +108,7 @@ export default function HotelDetail() {
     
     if (isLiked) {
       // Remove from favorites
-      favorites.hotels = favorites.hotels.filter(h => h.id !== id);
+      favorites.hotels = favorites.hotels.filter(h => h.hotel_id !== id && h.id !== id);
       setIsLiked(false);
     } else {
       // Add to favorites
@@ -212,10 +212,10 @@ export default function HotelDetail() {
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold mb-2 dark:text-white">{hotel.name}</h1>
+                  <h1 className="text-3xl font-bold mb-2 dark:text-white">{hotel.hotel_name || hotel.name}</h1>
                   <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                     <MapPin className="w-5 h-5" />
-                    <span>{hotel.city}, {hotel.state}</span>
+                    <span>{hotel.city}{hotel.state ? `, ${hotel.state}` : ''}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -248,12 +248,14 @@ export default function HotelDetail() {
               <div className="flex items-center gap-6 text-gray-700 dark:text-gray-300">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  <span>{hotel.num_rooms} rooms</span>
+                  <span>{hotel.accommodates || hotel.num_rooms} {(hotel.accommodates || hotel.num_rooms) === 1 ? 'guest' : 'guests'}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Home className="w-5 h-5" />
-                  <span>{hotel.room_type}</span>
-                </div>
+                {hotel.room_type && (
+                  <div className="flex items-center gap-2">
+                    <Home className="w-5 h-5" />
+                    <span>{hotel.room_type}</span>
+                  </div>
+                )}
               </div>
             </div>
 

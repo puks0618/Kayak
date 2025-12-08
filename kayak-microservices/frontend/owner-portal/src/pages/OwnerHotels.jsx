@@ -16,7 +16,7 @@ const OwnerHotels = () => {
   const fetchMyHotels = async () => {
     try {
       const response = await ownerAPI.getHotels();
-      setHotels(response.data || []);
+      setHotels(response.data.hotels || []);
     } catch (err) {
       console.error('Error fetching hotels:', err);
       setError('Failed to load your hotel listings');

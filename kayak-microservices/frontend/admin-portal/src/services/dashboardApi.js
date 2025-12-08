@@ -14,9 +14,9 @@ export const getDashboardMetrics = async () => {
     const adminResponse = await api.get('/admin/dashboard');
     const { users, bookings, revenue } = adminResponse.data.dashboard;
 
-    // Get flight count from listings service
-    const flightsResponse = await api.get('/listings/flights?limit=1');
-    const totalFlights = flightsResponse.data.total || 0;
+    // Get flight count from listings service (without limit to get total count)
+    const flightsResponse = await api.get('/listings/flights?page=1&limit=1');
+    const totalFlights = flightsResponse.data.totalCount || flightsResponse.data.total || 0;
 
     return {
       users,

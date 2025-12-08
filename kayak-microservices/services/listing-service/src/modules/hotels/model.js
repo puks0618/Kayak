@@ -37,23 +37,22 @@ async function initMongo() {
 const HotelModel = {
   async create(hotelData) {
     const {
-      name, address, city, state, zip_code, star_rating,
-      price_per_night, num_rooms, room_type, amenities
+      hotel_name, address, city, state, star_rating,
+      price_per_night, room_type, listing_id, owner_id
     } = hotelData;
 
-    const id = uuidv4();
     const query = `
       INSERT INTO hotels 
-      (id, name, address, city, state, zip_code, star_rating, price_per_night, num_rooms, room_type, amenities) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (listing_id, owner_id, hotel_name, address, city, state, star_rating, price_per_night, room_type) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    await pool.execute(query, [
-      id, name, address, city, state, zip_code, star_rating,
-      price_per_night, num_rooms, room_type, JSON.stringify(amenities)
+    const [result] = await pool.execute(query, [
+      listing_id || uuidv4(), owner_id, hotel_name, address, city, state, star_rating,
+      price_per_night, room_type
     ]);
 
-    return { id, ...hotelData };
+    return { hotel_id: result.insertId, ...hotelData };
   },
 
   async findAll(filters = {}) {
@@ -106,13 +105,9 @@ const HotelModel = {
     } = searchParams;
 
     let query = `
-      SELECT DISTINCT h.*,
-        (SELECT COUNT(*) FROM hotel_amenities ha WHERE ha.hotel_id = h.id) as amenity_count,
-        (SELECT GROUP_CONCAT(ha.amenity SEPARATOR '|||') 
-         FROM hotel_amenities ha 
-         WHERE ha.hotel_id = h.id) as hotel_amenities_list
+      SELECT DISTINCT h.*
       FROM hotels h
-      WHERE h.approval_status = 'approved'
+      WHERE 1=1
     `;
     const params = [];
 
@@ -136,11 +131,10 @@ const HotelModel = {
       });
     }
 
-    // Guest capacity - using num_rooms field (approximate)
+    // Guest capacity - using num_rooms field
     if (guests) {
-      const minRooms = Math.ceil(guests / 2); // Assume 2 guests per room
       query += ' AND h.num_rooms >= ?';
-      params.push(minRooms);
+      params.push(guests);
     }
 
     // Price range
@@ -165,18 +159,12 @@ const HotelModel = {
       params.push(propertyType);
     }
 
-    // Amenities filter (hotel must have ALL specified amenities)
+    // Amenities filter - search in JSON column
     if (amenities.length > 0) {
-      const amenPlaceholders = amenities.map(() => '?').join(',');
-      query += ` AND h.id IN (
-        SELECT ha.hotel_id 
-        FROM hotel_amenities ha
-        WHERE ha.amenity IN (${amenPlaceholders})
-        GROUP BY ha.hotel_id
-        HAVING COUNT(DISTINCT ha.amenity) = ?
-      )`;
-      amenities.forEach(amenity => params.push(amenity));
-      params.push(amenities.length);
+      amenities.forEach(amenity => {
+        query += ` AND JSON_SEARCH(h.amenities, 'one', ?) IS NOT NULL`;
+        params.push(`%${amenity}%`);
+      });
     }
 
     // Sorting
@@ -205,7 +193,7 @@ const HotelModel = {
     const [rows] = await pool.query(query, params);
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE h.approval_status = \'approved\'';
+    let countQuery = 'SELECT COUNT(DISTINCT h.id) as total FROM hotels h WHERE 1=1';
     const countParams = [];
     
     if (cities.length > 0) {
@@ -219,9 +207,8 @@ const HotelModel = {
       });
     }
     if (guests) {
-      const minRooms = Math.ceil(guests / 2);
       countQuery += ' AND h.num_rooms >= ?';
-      countParams.push(minRooms);
+      countParams.push(guests);
     }
     if (priceMin) {
       countQuery += ' AND h.price_per_night >= ?';
@@ -246,11 +233,11 @@ const HotelModel = {
     // Enrich hotels with review data and images from MongoDB
     const enrichedHotels = await Promise.all(rows.map(async (hotel) => {
       try {
-        // Parse amenities string into array
-        const amenitiesList = hotel.hotel_amenities_list ? hotel.hotel_amenities_list.split('|||') : [];
+        // Parse amenities from JSON column
+        const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
         
-        // MySQL2 automatically parses JSON fields, so images is already an array
-        const hotelImages = Array.isArray(hotel.images) ? hotel.images : (hotel.images ? [hotel.images] : []);
+        // Get images from JSON column
+        const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
         
         if (!db) {
           return { 
@@ -288,7 +275,7 @@ const HotelModel = {
           .project({ reviewer_name: 1, comments: 1, date: 1, _id: 0 })
           .toArray();
         
-        // Get additional images from MongoDB if available, otherwise use MySQL images
+        // Get additional images from MongoDB if available
         const imageDoc = await imagesCollection.findOne({ listing_id: listingIdInt });
         const images = imageDoc?.picture_url ? [imageDoc.picture_url, ...hotelImages] : hotelImages;
         
@@ -301,8 +288,8 @@ const HotelModel = {
         };
       } catch (error) {
         console.error(`Error enriching hotel ${hotel.id} with reviews:`, error);
-        const amenitiesList = hotel.hotel_amenities_list ? hotel.hotel_amenities_list.split('|||') : [];
-        const hotelImages = Array.isArray(hotel.images) ? hotel.images : (hotel.images ? [hotel.images] : []);
+        const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
+        const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
         return { 
           ...hotel, 
           review_count: 0, 
@@ -351,32 +338,37 @@ const HotelModel = {
 
       // Get additional image from MongoDB if available
       const imageDoc = await imagesCollection.findOne({ listing_id: listingIdInt });
-      const hotelImages = Array.isArray(hotel.images) ? hotel.images : (hotel.images ? [hotel.images] : []);
+      const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
       const images = imageDoc?.picture_url ? [imageDoc.picture_url, ...hotelImages] : hotelImages;
 
-      // Get amenities directly from hotel_amenities table
-      const [amenitiesRows] = await pool.execute(`
-        SELECT DISTINCT amenity
-        FROM hotel_amenities
-        WHERE hotel_id = ?
-      `, [hotel.id]);
+      // Get amenities from JSON column
+      const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
 
       return {
         ...hotel,
         reviews: reviews || [],
         images,
-        amenities: amenitiesRows.map(row => row.amenity) || []
+        amenities: amenitiesList
       };
     } catch (error) {
       console.error('Error fetching hotel details:', error);
-      const hotelImages = Array.isArray(hotel.images) ? hotel.images : (hotel.images ? [hotel.images] : []);
+      const hotelImages = hotel.images ? (typeof hotel.images === 'string' ? JSON.parse(hotel.images) : hotel.images) : [];
+      const amenitiesList = hotel.amenities ? (typeof hotel.amenities === 'string' ? JSON.parse(hotel.amenities) : hotel.amenities) : [];
       return {
         ...hotel,
         reviews: [],
         images: hotelImages,
-        amenities: []
+        amenities: amenitiesList
       };
     }
+  },
+
+  async findByOwner(owner_id) {
+    const [rows] = await pool.execute(
+      'SELECT * FROM hotels WHERE owner_id = ? ORDER BY created_at DESC',
+      [owner_id]
+    );
+    return rows;
   },
 
   async update(id, updates) {
@@ -395,7 +387,7 @@ const HotelModel = {
   },
 
   async delete(id) {
-    await pool.execute('UPDATE hotels SET has_availability = 0 WHERE hotel_id = ?', [id]);
+    await pool.execute('UPDATE hotels SET deleted_at = NOW() WHERE id = ?', [id]);
     return true;
   },
 

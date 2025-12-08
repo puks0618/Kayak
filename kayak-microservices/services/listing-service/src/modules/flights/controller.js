@@ -3,6 +3,20 @@
  */
 
 const FlightModel = require('./model');
+const mysql = require('mysql2/promise');
+
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3307,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || 'Somalwar1!',
+  database: process.env.DB_NAME || 'kayak_listings',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+};
+
+const pool = mysql.createPool(dbConfig);
 
 class FlightController {
   /**
@@ -158,19 +172,79 @@ class FlightController {
    */
   async getAll(req, res) {
     try {
-      const { origin, destination, date, class: flightClass, limit = 20 } = req.query;
-      const flights = await FlightModel.findAll({ 
-        origin, 
-        destination, 
-        date, 
-        class: flightClass,
-        limit: parseInt(limit)
-      });
+      const { origin, destination, date, class: flightClass, airline, flightNumber, limit = 20, offset = 0 } = req.query;
+      
+      // Build query with filters
+      let query = 'SELECT * FROM flights WHERE 1=1';
+      const params = [];
+
+      if (airline) {
+        query += ' AND airline = ?';
+        params.push(airline);
+      }
+      if (flightNumber) {
+        query += ' AND flight_code LIKE ?';
+        params.push(`%${flightNumber}%`);
+      }
+      if (origin) {
+        query += ' AND departure_airport = ?';
+        params.push(origin);
+      }
+      if (destination) {
+        query += ' AND arrival_airport = ?';
+        params.push(destination);
+      }
+      if (date) {
+        query += ' AND DATE(departure_time) = ?';
+        params.push(date);
+      }
+      if (flightClass) {
+        query += ' AND cabin_class = ?';
+        params.push(flightClass);
+      }
+
+      // Add LIMIT and OFFSET directly (not as prepared statement params)
+      query += ` ORDER BY departure_time ASC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+
+      const [flights] = await pool.execute(query, params);
+
+      // Get total count with same filters
+      let countQuery = 'SELECT COUNT(*) as total FROM flights WHERE 1=1';
+      const countParams = [];
+      
+      if (airline) {
+        countQuery += ' AND airline = ?';
+        countParams.push(airline);
+      }
+      if (flightNumber) {
+        countQuery += ' AND flight_code LIKE ?';
+        countParams.push(`%${flightNumber}%`);
+      }
+      if (origin) {
+        countQuery += ' AND departure_airport = ?';
+        countParams.push(origin);
+      }
+      if (destination) {
+        countQuery += ' AND arrival_airport = ?';
+        countParams.push(destination);
+      }
+      if (date) {
+        countQuery += ' AND DATE(departure_time) = ?';
+        countParams.push(date);
+      }
+      if (flightClass) {
+        countQuery += ' AND cabin_class = ?';
+        countParams.push(flightClass);
+      }
+      
+      const [countResult] = await pool.execute(countQuery, countParams);
+      const totalCount = countResult[0].total;
 
       res.json({
         flights,
         total: flights.length,
-        page: 1
+        totalCount: totalCount,
+        page: Math.floor(parseInt(offset) / parseInt(limit)) + 1
       });
     } catch (error) {
       console.error('Get flights error:', error);
@@ -248,6 +322,29 @@ class FlightController {
     } catch (error) {
       console.error('Delete flight error:', error);
       res.status(500).json({ error: 'Failed to delete flight' });
+    }
+  }
+
+  /**
+   * Get list of all airlines
+   * GET /api/listings/flights/airlines
+   */
+  async getAirlines(req, res) {
+    try {
+      const [rows] = await pool.query(
+        'SELECT DISTINCT airline FROM flights WHERE airline IS NOT NULL ORDER BY airline'
+      );
+      
+      const airlines = rows.map(row => row.airline);
+      
+      res.json({
+        success: true,
+        airlines,
+        total: airlines.length
+      });
+    } catch (error) {
+      console.error('Get airlines error:', error);
+      res.status(500).json({ error: 'Failed to fetch airlines' });
     }
   }
 }
